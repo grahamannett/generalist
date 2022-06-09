@@ -12,5 +12,7 @@ class GeneralEncoded:
     use_cache: bool = True
     output_attentions: bool = False
 
+    input_shape: torch.Tensor = None
+
     def asdict(self):
         return self.__dict__

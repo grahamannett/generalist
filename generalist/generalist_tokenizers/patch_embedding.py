@@ -87,6 +87,54 @@ class ImageEmbedding(nn.Module):
         return x
 
 
+### ALL OF THE BELOW ARE VARIOUS IMAGE TOKENIZERS/EMBEDDINGS THAT I DONT KNOW WHAT TO DO WITH ###
+### COULD BE BETTER OR WORSE
+
+# class ImageTokenizer:
+#     def __init__(self, p1: int = 16, p2: int = 16, upper_bound: int = 1, lower_bound: int = -1) -> None:
+#         self.p1 = p1  # h
+#         self.p2 = p2  # w
+#         # self.patch_size = self.p1 * self.p2
+#         self.patch_size = self.p1
+
+#         self.upper_bound = upper_bound
+#         self.lower_bound = lower_bound
+
+#     def __call__(self, img: torch.Tensor):
+#         if img.ndim == 3:
+#             img = img.unsqueeze(0)
+
+#         # i think this is the p1xp2 raster order as described in vit
+#         img = rearrange(img, "b c (h p1) (w p2) -> b (h w) (p1 p2 c)", p1=self.p1, p2=self.p2)
+
+#         img = ((img - img.max()) / (img.max() - img.min())) * (
+#             self.upper_bound - self.lower_bound
+#         ) + self.lower_bound
+
+#         # square root of patch size?
+#         img /= math.sqrt(self.patch_size)
+#         return img
+
+#     def img_to_patch(self, x, patch_size, flatten_channels=True):
+#         """
+#         https://uvadlc-notebooks.readthedocs.io/en/latest/tutorial_notebooks/tutorial15/Vision_Transformer.html
+#         Inputs:
+#             x - torch.Tensor representing the image of shape [B, C, H, W]
+#             patch_size - Number of pixels per dimension of the patches (integer)
+#             flatten_channels - If True, the patches will be returned in a flattened format
+#                             as a feature vector instead of a image grid.
+#         """
+#         if x.ndim == 3:
+#             x = x.unsqueeze(0)
+#         B, C, H, W = x.shape
+#         x = x.reshape(B, C, H // patch_size, patch_size, W // patch_size, patch_size)
+#         x = x.permute(0, 2, 4, 1, 3, 5)  # [B, H', W', C, p_H, p_W]
+#         x = x.flatten(1, 2)  # [B, H'*W', C, p_H, p_W]
+#         if flatten_channels:
+#             x = x.flatten(2, 4)  # [B, H'*W', C*p_H*p_W]
+#         return x
+
+
 # class ImageEmbedding(nn.Module):
 #     """this one was meant to be most similar to gato but not sure what groups and various params"""
 

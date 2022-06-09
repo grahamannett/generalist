@@ -1,59 +1,52 @@
+from typing import Any
+
 import torch
 import torch.nn as nn
-from transformers import GPT2Model, GPT2PreTrainedModel
+from transformers import GPT2Model, GPT2PreTrainedModel, XLNetTokenizer
 
 from config import device
 
 from generalist.generalist_tokenizers.general_encoded import GeneralEncoded
 
 
-class TextEmbedding2(GPT2PreTrainedModel):
-    _keys_to_ignore_on_load_missing = [r"h", r"ln_f"]
-    _keys_to_ignore_on_load_unexpected = [r"h"]
+class TextPath(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.tokenizer = TextTokenizer()
+        self.embedder = TextEmbedding.from_pretrained("gpt2")
+
+    def forward(self, data: Any) -> torch.Tensor:
+        data = self.tokenizer(data)
+        data = self.embedder(**data)
+        return data
+
+
+class TextTokenizer:
+    """
+    Text is encoded via SentencePiece (Kudo and Richardson, 2018) with 32000 subwords into the integer range [0, 32000).
+    """
+
+    def __init__(self) -> None:
+        self.tokenizer = XLNetTokenizer.from_pretrained("xlnet-base-cased")
+        self.return_tensors = "pt"
+
+    def __call__(self, x: str) -> torch.Tensor:
+        return self.tokenizer(x, return_tensors=self.return_tensors)
+
+
+class TextEmbedding(GPT2PreTrainedModel):
+    # unclear if i should use GPT2Model or GPT2PreTrainedModel for weights
+    _keys_to_ignore_on_load_unexpected = ["h", "ln_f"]
 
     def __init__(self, config) -> None:
         super().__init__(config)
-
         self.wte = nn.Embedding(config.vocab_size, config.n_embd)
         self.wpe = nn.Embedding(config.max_position_embeddings, config.n_embd)
 
         self.drop = nn.Dropout(config.embd_pdrop)
 
-        # breakpoint()
-        # honestly cant tell if post_init is necessary
-        # https://github.com/huggingface/transformers/blob/main/src/transformers/modeling_utils.py#L971
-        # self.post_init()
-
-    def forward(self, input_ids, position_ids=None, token_type_ids=None, past=None, head_mask=None):
-        return None
-
-
-class TextEmbedding(nn.Module):
-    _type = "text"
-
-    def __init__(
-        self, embed_dim: int = 768, vocab_size: int = 3200, max_position_embeddings: int = 1024
-    ) -> None:
-        super().__init__()
-
-        self.wte = nn.Embedding(vocab_size, embed_dim)
-        self.wtp = nn.Embedding(max_position_embeddings, embed_dim)
-        self.drop = nn.Dropout(0.1)
-
-        self.use_pretrained()
-
-    def use_pretrained(self, pretrained_model_name_or_path: str = "gpt2") -> None:
-        model = GPT2Model.from_pretrained(pretrained_model_name_or_path)
-
-        self.config = model.config
-
-        # layers and functions we need to copy from the pretrained model
-        self.wte = model.wte
-        self.wtp = model.wpe
-        self.drop = model.drop
-        self.dtype = model.dtype
-        self.get_head_mask = model.get_head_mask
-        print("using pretrained vals")
+        self.post_init()
 
     def forward(
         self,
@@ -87,7 +80,7 @@ class TextEmbedding(nn.Module):
             attention_mask = (1.0 - attention_mask) * -10000.0
 
         input_embeds = self.wte(input_ids)
-        position_embeds = self.wtp(position_ids)
+        position_embeds = self.wpe(position_ids)
         hidden_states = input_embeds + position_embeds
 
         if token_type_ids is not None:
@@ -97,10 +90,9 @@ class TextEmbedding(nn.Module):
         hidden_states = self.drop(hidden_states)
         output_shape = input_shape + (hidden_states.size(-1),)
 
-        output = GeneralEncoded(
+        return GeneralEncoded(
             hidden_states=hidden_states,
             attention_mask=attention_mask,
             output_shape=output_shape,
+            input_shape=input_shape,
         )
-
-        return output
