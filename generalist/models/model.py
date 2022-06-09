@@ -23,7 +23,7 @@ class GeneralistModel(nn.Module):
 
     def forward(self, data) -> torch.Tensor:
 
-        X = self.task_path[data["type"]](data["data"])
+        x = self.task_path[data["type"]](data["data"])
 
         x = self.transformer(x)
         x = self.output(x)
