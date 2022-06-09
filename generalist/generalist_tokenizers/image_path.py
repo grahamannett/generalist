@@ -25,10 +25,11 @@ class PatchEmbeddings(nn.Module):
         """
         * `x` is the input image of shape `[batch_size, channels, height, width]`
         """
-        # Apply convolution layer
+        if x.ndim == 3:
+            x = x.unsqueeze(0)
+
         x = self.conv(x)
 
-        # Get the shape.
         bs, c, h, w = x.shape
         # Rearrange to shape `[patches, batch_size, d_model]`
 
@@ -44,8 +45,6 @@ class PatchEmbeddings(nn.Module):
 
 class LearnedPositionalEmbeddings(nn.Module):
     """
-    <a id="LearnedPositionalEmbeddings"></a>
-    ## Add parameterized positional encodings
     This adds learned positional embeddings to patch embeddings.
     """
 
@@ -64,11 +63,11 @@ class LearnedPositionalEmbeddings(nn.Module):
         """
         # Get the positional embeddings for the given patches
         pe = self.positional_encodings[x.shape[0]]
-        # Add to patch embeddings and return
+
         return x + pe
 
 
-class ImageEmbedding(nn.Module):
+class ImagePath(nn.Module):
     def __init__(self, d_model: int = 768, patch_size: int = 16, in_channels: int = 3):
         super().__init__()
         self.patch_embeddings = PatchEmbeddings(
