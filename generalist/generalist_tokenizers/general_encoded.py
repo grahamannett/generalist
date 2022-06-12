@@ -1,5 +1,24 @@
+from typing import Any, List
 import torch
 from dataclasses import dataclass
+from enum import Enum
+
+
+class DataInstanceTypes(Enum):
+    IMAGE = "image"
+    TEXT = "text"
+
+
+@dataclass
+class DataInstance:
+    data: Any
+    type: DataInstanceTypes
+
+
+@dataclass
+class GeneralInput:
+    data: List[DataInstance]
+    label: str
 
 
 @dataclass

@@ -39,6 +39,8 @@ class TransformerDecoder(GPT2Model):
         use_cache = kwargs.get("use_cache", self.config.use_cache)
         head_mask = self.get_head_mask(kwargs.get("head_mask", None), self.config.n_layer)
 
+        input_shape = general_encoded.hidden_states.shape
+
         past_length = 0
         past_key_values = tuple([None] * len(self.h))
 

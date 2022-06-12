@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 
 @dataclass
-class AokvqaInstance(Dataset):
+class AokvqaInstance:
     split: str
     image_id: int
     question_id: str
@@ -27,9 +27,15 @@ class AokvqaInstance(Dataset):
     coco_dir: str = COCO_DIR
 
     @property
-    def coco_path(self):
+    def image_path(self):
         filepath = f"{self.coco_dir}/{self.split}2017/{self.image_id:012}.jpg"
         return filepath
+
+    def inputs(self):
+        return [self.image_path]
+
+    def label(self):
+        return self.direct_answers[self.correct_choice_idx]
 
 
 def load_aokvqa(aokvqa_dir: str = AOKVQA_DIR, split: str = "train", version="v1p0"):
@@ -57,5 +63,3 @@ class AokvqaDataset(Dataset):
 
     def __getitem__(self, idx):
         return self.dataset[idx]
-
-

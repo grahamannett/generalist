@@ -27,8 +27,14 @@ class TextTokenizer:
     Text is encoded via SentencePiece (Kudo and Richardson, 2018) with 32000 subwords into the integer range [0, 32000).
     """
 
-    def __init__(self) -> None:
-        self.tokenizer = XLNetTokenizer.from_pretrained("xlnet-base-cased")
+    def __init__(
+        self,
+        padding: bool = True,
+        tokenizer_class=XLNetTokenizer,
+        pretrained_model_or_path: str = "xlnet-base-cased",
+    ) -> None:
+
+        self.tokenizer = tokenizer_class.from_pretrained(pretrained_model_or_path, padding=padding)
         self.return_tensors = "pt"
 
     def __call__(self, x: str) -> torch.Tensor:
