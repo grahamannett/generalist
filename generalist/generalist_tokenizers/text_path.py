@@ -21,6 +21,9 @@ class TextPath(nn.Module):
         data = self.embedder(**data)
         return data
 
+    def make_target(self, target: str):
+        return self.tokenizer(target)
+
 
 class TextTokenizer:
     """

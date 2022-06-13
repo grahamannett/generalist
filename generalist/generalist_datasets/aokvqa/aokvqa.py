@@ -1,5 +1,7 @@
 import argparse
 from typing import Any, Dict, List
+from generalist.generalist_datasets.datatypes import ImageType, TextType
+from generalist.generalist_tokenizers.general_encoded import GeneralInput
 from torch.utils.data import Dataset
 
 import os
@@ -61,5 +63,10 @@ class AokvqaDataset(Dataset):
     def __len__(self):
         return len(self.dataset)
 
-    def __getitem__(self, idx):
-        return self.dataset[idx]
+    def __getitem__(self, idx) -> GeneralInput:
+        sample = self.dataset[idx]
+        answer = f"Answer: {sample.choices[sample.correct_choice_idx]}.  {' '.join(sample.rationales)}"
+
+        inputs = GeneralInput(data=[TextType(sample.question), ImageType(sample.image_path)], label=answer)
+
+        return inputs

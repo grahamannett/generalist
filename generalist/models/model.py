@@ -1,4 +1,6 @@
 from re import X
+from typing import List
+from generalist.generalist_tokenizers.general_encoded import GeneralEncoded, GeneralInput
 import torch
 from torch import nn
 
@@ -18,12 +20,13 @@ class EmbeddingModel(nn.Module):
             }
         )
 
-    def forward(self, data):
-        x = self.task_path[data["type"]](data["data"])
-        return x
-
     def make_target(self, target: str):
-        pass
+        with torch.no_grad():
+            return self.data_type["text"].make_target(target)
+
+    def forward(self, data: List[GeneralInput]) -> GeneralEncoded:
+        x = self.data_type[data["type"]](data["data"])
+        return x
 
 
 class GeneralistModel(nn.Module):
@@ -33,7 +36,7 @@ class GeneralistModel(nn.Module):
         self.transformer = TransformerDecoder.from_pretrained("gpt2")
         self.output = nn.LazyLinear(output_dim)
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: GeneralEncoded) -> torch.Tensor:
         x = self.transformer(x)
         x = self.output(x)
         return x
