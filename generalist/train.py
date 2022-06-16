@@ -19,7 +19,7 @@ def train():
     embedding_model = EmbeddingModel().to(device)
     model = GeneralistModel().to(device)
 
-    prepare_data = PrepareData()
+    dataprep = PrepareData()
     loss_fn = torch.nn.CrossEntropyLoss()
 
     optimizer = torch.optim.SGD(
@@ -41,27 +41,28 @@ def train():
         data = batch["data"]
         label = batch["label"]
 
-        data = prepare_data(data)
+        print(f"-> {data[1].data}")
+
+        data = dataprep(data)
         data = embedding_model(data)
 
-        out = model(out)
+        out = model(data)
+        _max_len = min(dataprep.tokenizer.model_max_length, out.shape[1])
 
-        label = embedding_model.make_target(label)
+        label = dataprep.tokenizer(
+            label.data, padding="max_length", truncation=True, max_length=_max_len, return_tensors="pt"
+        )
         label = {k: v.to(device) for k, v in label.items()}
 
         loss = loss_fn(out[0], label["input_ids"][0])
 
-        print(f"got loss: {loss.item()}")
+        print(f"got loss: {loss.item():.4f}")
 
         optimizer.zero_grad()
         loss.backward()
 
         torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
         optimizer.step()
-
-    # loss = loss_fn(out, label["input_ids"])
-    # comb_emb = emb.combine(emb)
-    # out2 = model(input_data_text)
 
 
 if __name__ == "__main__":

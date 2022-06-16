@@ -6,7 +6,10 @@ from transformers import GPT2Model, GPT2PreTrainedModel, XLNetTokenizer
 
 from config import device
 
-from generalist.generalist_tokenizers.general_embedding import GeneralEmbedding
+from generalist.generalist_tokenizers.general_embedding import (
+    GeneralEmbedding,
+    GeneralizedTokens,
+)
 from generalist.generalist_tokenizers.input_types import TextType
 
 
@@ -32,23 +35,19 @@ class TextTokenizer:
         self.model_input_length = model_input_length
 
     def __call__(self, x: str, **kwargs) -> torch.Tensor:
-        # return self.tokenizer(x, return_tensors=self.return_tensors, **kwargs)
-        out = {
-            **self.tokenizer(x, return_tensors=self.return_tensors, **kwargs),
-            "dtype": self.data_type,
-        }
 
-        breakpoint()
+        encoded = self.encode(x, **kwargs)
+        out = GeneralizedTokens(
+            tokens=encoded["input_ids"],
+            attention_mask=encoded["attention_mask"],
+            token_type_ids=encoded["token_type_ids"],
+            data_type=self.data_type,
+        )
         return out
 
     def encode(self, x: str, **kwargs) -> torch.Tensor:
-        out = {
-            **self.tokenizer.encode(x, return_tensors=self.return_tensors, **kwargs),
-            "dtype": self.data_type,
-        }
-
-        breakpoint()
-        return out
+        encoded = self.tokenizer(x, return_tensors=self.return_tensors, **kwargs)
+        return encoded
 
 
 class TextEmbeddingPath(nn.Module):
@@ -62,11 +61,8 @@ class TextEmbeddingPath(nn.Module):
         self.device = device
 
     def forward(self, data: Any) -> torch.Tensor:
-        data = self.embedder(**data)
+        data = self.embedder(data)
         return data
-
-    def make_target(self, target: str):
-        return self.tokenizer.tokenizer(target, padding="max_length", truncation=True, return_tensors="pt")
 
 
 class TextEmbedding(GPT2PreTrainedModel):
@@ -84,13 +80,19 @@ class TextEmbedding(GPT2PreTrainedModel):
 
     def forward(
         self,
-        input_ids: torch.Tensor,
-        token_type_ids: torch.Tensor = None,
-        attention_mask: torch.Tensor = None,
+        data: GeneralizedTokens,
     ):
-        input_shape = input_ids.size()
-        input_ids = input_ids.view(-1, input_shape[-1])
-        batch_size = input_ids.shape[0]
+
+        tokens = data.tokens
+        input_shape = tokens.shape
+        attention_mask = getattr(data, "attention_mask", None)
+        token_type_ids = getattr(data, "token_type_ids", None)
+        # tokens: torch.Tensor,
+        # token_type_ids: torch.Tensor = None,
+        # attention_mask: torch.Tensor = None,
+        # input_shape = tokens.size()
+        tokens = tokens.view(-1, input_shape[-1])
+        batch_size = tokens.shape[0]
 
         if token_type_ids is not None:
             token_type_ids = token_type_ids.view(-1, input_shape[-1])
@@ -113,7 +115,7 @@ class TextEmbedding(GPT2PreTrainedModel):
             attention_mask = attention_mask.to(dtype=self.dtype)  # fp16 compatibility
             attention_mask = (1.0 - attention_mask) * -10000.0
 
-        input_embeds = self.wte(input_ids)
+        input_embeds = self.wte(tokens)
         position_embeds = self.wpe(position_ids)
         hidden_states = input_embeds + position_embeds
 

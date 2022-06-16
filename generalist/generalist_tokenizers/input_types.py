@@ -9,6 +9,10 @@ class InputTypes(str, Enum):
     text = "text"
 
 
+class InputTypes_(NamedTuple):
+    pass
+
+
 class TextType(NamedTuple):
     data: str
     data_type = InputTypes.text.name

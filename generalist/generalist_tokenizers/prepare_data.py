@@ -1,5 +1,5 @@
-from collections import namedtuple
-from typing import Any, List, NamedTuple
+from typing import Any, List, NamedTuple, Tuple
+from generalist.generalist_tokenizers.general_embedding import GeneralizedTokens
 
 from generalist_tokenizers.text_path import TextTokenizer
 from generalist_tokenizers.image_path import ImageTokenizer
@@ -20,9 +20,10 @@ class PrepareData:
         }
 
     def __call__(self, data: List[NamedTuple]) -> Any:
-        # data_ = [self.path[d.dtype[0]](d.data) for d in data]
-
-        breakpoint()
-        out = [self.path[type(d)](d.data) for d in data]
-        breakpoint()
+        out = [self.prepare_data(d) for d in data]
         return out
+
+    def prepare_data(self, data: NamedTuple) -> GeneralizedTokens:
+        return self.path[data.data_type](data.data)
+
+    # def make_label(self, label)

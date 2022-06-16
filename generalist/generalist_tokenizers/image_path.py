@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from config import device
-from generalist.generalist_tokenizers.general_embedding import GeneralEmbedding
+from generalist.generalist_tokenizers.general_embedding import GeneralEmbedding, GeneralizedTokens
 from generalist.generalist_tokenizers.input_types import ImageType
 
 from einops import rearrange
@@ -30,13 +30,15 @@ class ImageTokenizer:
     def __call__(self, img: torch.Tensor):
         img = self.to_patches(img)
         img = normalize_image(img, self.patch_size, self.lower_bound, self.upper_bound)
-        return {"tokens": img, "dtype": self.data_type}
+
+        out = GeneralizedTokens(tokens=img, data_type=self.data_type)
+        return out
 
     def to_patches(self, img: torch.Tensor):
         if img.ndim == 3:
             img = img.unsqueeze(0)
-        # img = rearrange(img, "b c (h p1) (w p2) -> b (h w) (p1 p2 c)", p1=self.p1, p2=self.p2)
-        img = rearrange(img, "b c (h p1) (w p2) -> b (h w) c p1 p2", p1=self.p1, p2=self.p2)
+        img = rearrange(img, "b c (h p1) (w p2) -> b (h w) (p1 p2 c)", p1=self.p1, p2=self.p2)
+        # img = rearrange(img, "b c (h p1) (w p2) -> b (h w) c p1 p2", p1=self.p1, p2=self.p2)
         return img
 
     def img_to_patch(self, x, patch_size: int = 16, flatten_channels: bool = True):
@@ -135,10 +137,9 @@ class ImageEmbeddingPath(nn.Module):
         self.positional_embeddings = LearnedPositionalEmbeddings(d_model=d_model)
         self.cls_token_emb = nn.Parameter(torch.randn(1, 1, d_model), requires_grad=True)
 
-    def forward(self, x):
-        input_shape = x.shape
-        x = self.positional_embeddings(x)
-        return GeneralEmbedding(embedding=x)
+    def forward(self, data: GeneralizedTokens):
+        embeddings = self.positional_embeddings(data.tokens)
+        return GeneralEmbedding(embedding=embeddings, data_type=self.data_type)
 
 
 class ImagePath(nn.Module):
