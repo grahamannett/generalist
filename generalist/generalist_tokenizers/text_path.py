@@ -6,23 +6,8 @@ from transformers import GPT2Model, GPT2PreTrainedModel, XLNetTokenizer
 
 from config import device
 
-from generalist.generalist_tokenizers.general_encoded import GeneralEncoded
-
-
-class TextPath(nn.Module):
-    def __init__(self) -> None:
-        super().__init__()
-
-        self.tokenizer = TextTokenizer()
-        self.embedder = TextEmbedding.from_pretrained("gpt2")
-
-    def forward(self, data: Any) -> torch.Tensor:
-        data = self.tokenizer(data)
-        data = self.embedder(**data)
-        return data
-
-    def make_target(self, target: str):
-        return self.tokenizer(target)
+from generalist.generalist_tokenizers.general_embedding import GeneralEmbedding
+from generalist.generalist_tokenizers.input_types import TextType
 
 
 class TextTokenizer:
@@ -30,18 +15,58 @@ class TextTokenizer:
     Text is encoded via SentencePiece (Kudo and Richardson, 2018) with 32000 subwords into the integer range [0, 32000).
     """
 
+    data_type = TextType.data_type
+
     def __init__(
         self,
         padding: bool = True,
         tokenizer_class=XLNetTokenizer,
         pretrained_model_or_path: str = "xlnet-base-cased",
+        model_input_length: int = 1024,
     ) -> None:
 
-        self.tokenizer = tokenizer_class.from_pretrained(pretrained_model_or_path, padding=padding)
+        self.tokenizer = tokenizer_class.from_pretrained(
+            pretrained_model_or_path, padding=padding, model_max_length=model_input_length
+        )
         self.return_tensors = "pt"
+        self.model_input_length = model_input_length
 
-    def __call__(self, x: str) -> torch.Tensor:
-        return self.tokenizer(x, return_tensors=self.return_tensors)
+    def __call__(self, x: str, **kwargs) -> torch.Tensor:
+        # return self.tokenizer(x, return_tensors=self.return_tensors, **kwargs)
+        out = {
+            **self.tokenizer(x, return_tensors=self.return_tensors, **kwargs),
+            "dtype": self.data_type,
+        }
+
+        breakpoint()
+        return out
+
+    def encode(self, x: str, **kwargs) -> torch.Tensor:
+        out = {
+            **self.tokenizer.encode(x, return_tensors=self.return_tensors, **kwargs),
+            "dtype": self.data_type,
+        }
+
+        breakpoint()
+        return out
+
+
+class TextEmbeddingPath(nn.Module):
+    data_type = TextType.data_type
+
+    def __init__(self, device: str = device) -> None:
+        super().__init__()
+
+        self.embedder = TextEmbedding.from_pretrained("gpt2")
+
+        self.device = device
+
+    def forward(self, data: Any) -> torch.Tensor:
+        data = self.embedder(**data)
+        return data
+
+    def make_target(self, target: str):
+        return self.tokenizer.tokenizer(target, padding="max_length", truncation=True, return_tensors="pt")
 
 
 class TextEmbedding(GPT2PreTrainedModel):
@@ -99,8 +124,8 @@ class TextEmbedding(GPT2PreTrainedModel):
         hidden_states = self.drop(hidden_states)
         output_shape = input_shape + (hidden_states.size(-1),)
 
-        return GeneralEncoded(
-            hidden_states=hidden_states,
+        return GeneralEmbedding(
+            embedding=hidden_states,
             attention_mask=attention_mask,
             output_shape=output_shape,
             input_shape=input_shape,

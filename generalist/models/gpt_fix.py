@@ -1,24 +1,28 @@
-from generalist.generalist_tokenizers.general_encoded import GeneralEncoded
 import torch
 import torch.nn as nn
+from transformers.models.gptj.modeling_gptj import GPTJBlock, GPTJModel
 from transformers.models.gpt2.modeling_gpt2 import (
-    GPT2PreTrainedModel,
-    GPT2Model,
-    GPT2Block,
     BaseModelOutputWithPastAndCrossAttentions,
-    CausalLMOutputWithCrossAttentions,
+    GPT2Block,
+    GPT2Model,
+    GPT2PreTrainedModel,
 )
+
+from generalist.generalist_tokenizers.general_embedding import GeneralEmbedding
 
 
 class TransformerDecoder(GPT2Model):
+    # class TransformerDecoder(GPTJModel):
     # _keys_to_ignore_on_load_unexpected = ["wte", r"wpe"]
 
     def __init__(self, config) -> None:
+        # config.n_positions = 2048
         super().__init__(config)
 
         self.embed_dim = config.hidden_size
 
         self.drop = nn.Dropout(config.embd_pdrop)
+        # self.h = nn.ModuleList([GPTJBlock(config, layer_idx=i) for i in range(config.num_hidden_layers)])
         self.h = nn.ModuleList([GPT2Block(config, layer_idx=i) for i in range(config.num_hidden_layers)])
         self.ln_f = nn.LayerNorm(self.embed_dim, eps=config.layer_norm_epsilon)
 
@@ -33,13 +37,16 @@ class TransformerDecoder(GPT2Model):
     def _get_output_shape(self, input_shape: torch.Tensor, hidden_states):
         return input_shape + (hidden_states.size(-1),)
 
-    def forward(self, general_encoded: GeneralEncoded, **kwargs):
+    def forward(self, embeddings: GeneralEmbedding, **kwargs):
         output_attentions = kwargs.get("output_attentions", self.config.output_attentions)
         output_hidden_states = kwargs.get("output_hidden_states", self.config.output_hidden_states)
         use_cache = kwargs.get("use_cache", self.config.use_cache)
         head_mask = self.get_head_mask(kwargs.get("head_mask", None), self.config.n_layer)
 
-        input_shape = general_encoded.hidden_states.shape
+        attention_mask = getattr(embeddings, "attention_mask", None)
+
+        hidden_states = embeddings.embedding
+        input_shape = embeddings.embedding.shape
 
         past_length = 0
         past_key_values = tuple([None] * len(self.h))
@@ -52,14 +59,12 @@ class TransformerDecoder(GPT2Model):
         encoder_hidden_states = None
         encoder_attention_mask = None
 
-        hidden_states = general_encoded.hidden_states
-        attention_mask = general_encoded.attention_mask
-
-        output_shape = getattr(
-            general_encoded,
-            "output_shape",
-            self._get_output_shape(general_encoded.input_shape, general_encoded.hidden_states),
-        )
+        output_shape = embeddings.embedding.shape
+        # output_shape = getattr(
+        #     general_encoded,
+        #     "output_shape",
+        #     self._get_output_shape(input_shape, general_encoded.hidden_states),
+        # )
 
         for i, (block, layer_past) in enumerate(zip(self.h, past_key_values)):
 

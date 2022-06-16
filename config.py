@@ -2,8 +2,8 @@ import os
 
 
 #
-# DEVICE = device = "cuda:1"
-DEVICE = device = "cpu"
+DEVICE = device = "cuda:1"
+# DEVICE = device = "cpu"
 
 
 DEFAULT_AOKVQA_DIR = "/data/graham/datasets/aokvqa/"
