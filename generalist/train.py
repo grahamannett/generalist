@@ -5,16 +5,15 @@ from generalist.generalist_tokenizers.prepare_data import PrepareData
 from generalist.models.model import EmbeddingModel, GeneralistModel
 from config import device
 
-from tqdm import trange
+from tqdm import tqdm
 from torch.utils.data import DataLoader
 from torchvision.io import read_image
 
 
 def train():
 
-    text = "Hello World"
-
     lr = 5.0  # learning rate
+    n_epochs = 10
 
     embedding_model = EmbeddingModel().to(device)
     model = GeneralistModel().to(device)
@@ -36,33 +35,39 @@ def train():
 
     train_dataloader = DataLoader(dataset, 1, shuffle=True)
 
-    for idx, batch in enumerate(train_dataloader):
+    for epoch in range(n_epochs):
+        print("on epoch: {epoch}")
 
-        data = batch["data"]
-        label = batch["label"]
+        pbar = tqdm(train_dataloader)
+        running_loss = 0.0
+        for idx, batch in enumerate(pbar):
 
-        print(f"-> {data[1].data}")
+            data = batch["data"]
+            label = batch["label"]
 
-        data = dataprep(data)
-        data = embedding_model(data)
+            # print(f"-> {data[1].data}")
 
-        out = model(data)
-        _max_len = min(dataprep.tokenizer.model_max_length, out.shape[1])
+            data = dataprep(data)
+            data = embedding_model(data)
 
-        label = dataprep.tokenizer(
-            label.data, padding="max_length", truncation=True, max_length=_max_len, return_tensors="pt"
-        )
-        label = {k: v.to(device) for k, v in label.items()}
+            out = model(data)
+            _max_len = min(dataprep.tokenizer.model_max_length, out.shape[1])
 
-        loss = loss_fn(out[0], label["input_ids"][0])
+            label = dataprep.tokenizer(
+                label.data, padding="max_length", truncation=True, max_length=_max_len, return_tensors="pt"
+            )
 
-        print(f"got loss: {loss.item():.4f}")
+            # label = {k: v.to(device) for k, v in label.items()}
+            loss = loss_fn(out[0], label["input_ids"][0].to(device))
 
-        optimizer.zero_grad()
-        loss.backward()
+            running_loss += loss.item()
+            pbar.set_postfix(loss=f"{running_loss:.3f}")
 
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
-        optimizer.step()
+            optimizer.zero_grad()
+            loss.backward()
+
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
+            optimizer.step()
 
 
 if __name__ == "__main__":
