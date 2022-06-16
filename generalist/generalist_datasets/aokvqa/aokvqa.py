@@ -47,11 +47,6 @@ def load_aokvqa(aokvqa_dir: str = AOKVQA_DIR, split: str = "train", version="v1p
     return dataset
 
 
-# OLD
-def _get_coco_path(split: str, image_id: str, coco_dir: str = COCO_DIR):
-    return os.path.join(coco_dir, f"{split}2017", f"{image_id:012}.jpg")
-
-
 class AokvqaDataset(Dataset):
     def __init__(self, aokvqa_dir: str = AOKVQA_DIR, split: str = "train", version="v1p0"):
         self.aokvqa_dir = aokvqa_dir

@@ -26,4 +26,3 @@ class PrepareData:
     def prepare_data(self, data: NamedTuple) -> GeneralizedTokens:
         return self.path[data.data_type](data.data)
 
-    # def make_label(self, label)
