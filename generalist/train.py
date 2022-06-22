@@ -13,7 +13,7 @@ from torchvision.io import read_image
 def train():
 
     lr = 5.0  # learning rate
-    n_epochs = 10
+    n_epochs = 100
 
     embedding_model = EmbeddingModel().to(device)
     model = GeneralistModel().to(device)
@@ -36,10 +36,11 @@ def train():
     train_dataloader = DataLoader(dataset, 1, shuffle=True)
 
     for epoch in range(n_epochs):
-        print("on epoch: {epoch}")
+        print(f"on epoch: {epoch}")
 
         pbar = tqdm(train_dataloader)
         running_loss = 0.0
+        pbar.set_description(f"Epoch {epoch}|{n_epochs}")
         for idx, batch in enumerate(pbar):
 
             data = batch["data"]
