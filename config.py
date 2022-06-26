@@ -2,8 +2,8 @@ import os
 
 
 #
-# DEVICE = device = "cuda:1"
-DEVICE = device = "cpu"
+DEVICE = device = "cuda:1"
+# DEVICE = device = "cpu"
 
 BASE_DATADIR= os.environ.get("BASE_DATADIR")
 

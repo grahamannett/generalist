@@ -14,6 +14,8 @@ def train():
 
     lr = 5.0  # learning rate
     n_epochs = 1
+    batch_size = 4
+
 
     embedding_model = EmbeddingModel().to(device)
     model = GeneralistModel().to(device)
@@ -35,7 +37,7 @@ def train():
 
     _ = dataset[0]
 
-    train_dataloader = DataLoader(dataset, 2, shuffle=True, collate_fn=collate_fn)
+    train_dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 
     for epoch in range(n_epochs):
         print(f"on epoch: {epoch}")
