@@ -65,8 +65,8 @@ def train():
                 l.data, padding="max_length", truncation=True, max_length=_max_lens[l_i], return_tensors="pt"
             ) for l_i, l in enumerate(label)]
 
-            out = torch.cat(out, dim=1).squeeze(0)
-            labels = torch.cat([l["input_ids"] for l in labels], dim=1).squeeze(0)
+            out = torch.cat(out, dim=1).squeeze(0).to(device)
+            labels = torch.cat([l["input_ids"] for l in labels], dim=1).squeeze(0).to(device)
             loss = loss_fn(out, labels)
 
             # label = {k: v.to(device) for k, v in label.items()}
