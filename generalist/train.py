@@ -13,7 +13,7 @@ from generalist.utils import collate_fn
 def train():
 
     lr = 5.0  # learning rate
-    n_epochs = 100
+    n_epochs = 1
 
     embedding_model = EmbeddingModel().to(device)
     model = GeneralistModel().to(device)
