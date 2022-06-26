@@ -1,4 +1,3 @@
-from multiprocessing.spawn import prepare
 from generalist.generalist_datasets.aokvqa.aokvqa import AokvqaDataset
 import torch
 from generalist.generalist_tokenizers.prepare_data import PrepareData
@@ -9,6 +8,7 @@ from tqdm import tqdm
 from torch.utils.data import DataLoader
 from torchvision.io import read_image
 
+from generalist.utils import collate_fn
 
 def train():
 
@@ -33,7 +33,9 @@ def train():
 
     dataset = AokvqaDataset()
 
-    train_dataloader = DataLoader(dataset, 1, shuffle=True)
+    _ = dataset[0]
+
+    train_dataloader = DataLoader(dataset, 2, shuffle=True, collate_fn=collate_fn)
 
     for epoch in range(n_epochs):
         print(f"on epoch: {epoch}")
@@ -43,23 +45,33 @@ def train():
         pbar.set_description(f"Epoch {epoch}|{n_epochs}")
         for idx, batch in enumerate(pbar):
 
+
             data = batch["data"]
             label = batch["label"]
 
             # print(f"-> {data[1].data}")
+            # breakpoint()
 
             data = dataprep(data)
             data = embedding_model(data)
 
             out = model(data)
-            _max_len = min(dataprep.tokenizer.model_max_length, out.shape[1])
+            _max_lens = [min(dataprep.tokenizer.model_max_length, o.shape[1]) for o in out]
+            # breakpoint()
 
-            label = dataprep.tokenizer(
-                label.data, padding="max_length", truncation=True, max_length=_max_len, return_tensors="pt"
-            )
+            labels = [dataprep.tokenizer(
+                l.data, padding="max_length", truncation=True, max_length=_max_lens[l_i], return_tensors="pt"
+            ) for l_i, l in enumerate(label)]
+
+            out = torch.cat(out, dim=1).squeeze(0)
+            labels = torch.cat([l["input_ids"] for l in labels], dim=1).squeeze(0)
+            loss = loss_fn(out, labels)
 
             # label = {k: v.to(device) for k, v in label.items()}
-            loss = loss_fn(out[0], label["input_ids"][0].to(device))
+            # breakpoint()
+
+
+            # loss = loss_fn(out[0], label["input_ids"][0].to(device))
 
             running_loss += loss.item()
             pbar.set_postfix(loss=f"{running_loss:.3f}")

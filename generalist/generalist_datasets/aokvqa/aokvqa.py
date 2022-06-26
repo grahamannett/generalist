@@ -1,6 +1,6 @@
 import argparse
 from typing import Any, Dict, List
-from generalist.generalist_tokenizers.input_types import ImageType, TextType
+from generalist.generalist_tokenizers.input_types import ImageType, TextType, Sample
 from torch.utils.data import Dataset
 import torch
 import os
@@ -73,8 +73,11 @@ class AokvqaDataset(Dataset):
             "data": [ImageType(image), TextType(question)],
             "label": TextType(answer),
         }
+        # return inputs
 
-        return inputs
+        sample = Sample(**inputs)
+        return sample
+
 
     def image_transform(self, image: torch.Tensor):
         if image.shape[0] == 1:

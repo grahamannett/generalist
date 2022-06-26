@@ -1,0 +1,3 @@
+[submodule "submodules/aokvqa"]
+	path = submodules/aokvqa
+	url = https://github.com/allenai/aokvqa

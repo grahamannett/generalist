@@ -28,6 +28,8 @@ class ImageTokenizer:
         self.upper_bound = upper_bound
 
     def __call__(self, img: torch.Tensor):
+        img = img.data if isinstance(img, ImageType) else img
+
         img = self.to_patches(img)
         img = normalize_image(img, self.patch_size, self.lower_bound, self.upper_bound)
 

@@ -2,13 +2,14 @@ import os
 
 
 #
-DEVICE = device = "cuda:1"
-# DEVICE = device = "cpu"
+# DEVICE = device = "cuda:1"
+DEVICE = device = "cpu"
 
+BASE_DATADIR= os.environ.get("BASE_DATADIR")
 
-DEFAULT_AOKVQA_DIR = "/data/graham/datasets/aokvqa/"
-DEFAULT_COCO_DIR = "/data/graham/datasets/coco/aokvqacoco/datasets/coco"
-DEFAULT_LOG_DIR = "/home/graham/code/torchtask/logs"
+DEFAULT_AOKVQA_DIR = f"{BASE_DATADIR}/aokvqa"
+DEFAULT_COCO_DIR = f"{BASE_DATADIR}/coco"
+DEFAULT_LOG_DIR = "./logs"
 DEFAULT_FEATURES_DIR = "/home/graham/code/torchtask/submodules/aokvqa/features"
 DEFAULT_PRETRAINED_MODELS_DIR = "/home/graham/code/torchtask/pretrained_models"
 

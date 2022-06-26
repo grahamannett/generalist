@@ -34,7 +34,8 @@ class TextTokenizer:
         self.return_tensors = "pt"
         self.model_input_length = model_input_length
 
-    def __call__(self, x: str, **kwargs) -> torch.Tensor:
+    def __call__(self, sample: str, **kwargs) -> torch.Tensor:
+        x = sample.data if isinstance(sample, TextType) else sample
 
         encoded = self.encode(x, **kwargs)
         out = GeneralizedTokens(
