@@ -26,6 +26,7 @@ class TextTokenizer:
         tokenizer_class=XLNetTokenizer,
         pretrained_model_or_path: str = "xlnet-base-cased",
         model_input_length: int = 1024,
+        **kwargs
     ) -> None:
 
         self.tokenizer = tokenizer_class.from_pretrained(
@@ -54,7 +55,7 @@ class TextTokenizer:
 class TextEmbeddingPath(nn.Module):
     data_type = TextType.data_type
 
-    def __init__(self, device: str = device) -> None:
+    def __init__(self, device: str = device, **kwargs) -> None:
         super().__init__()
 
         self.embedder = TextEmbedding.from_pretrained("gpt2")

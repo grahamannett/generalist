@@ -1,3 +1,13 @@
+
+def matplotlib_system_setup():
+    import platform
+    import matplotlib
+
+    match platform.system().lower():
+        case "darwin":
+            matplotlib.use("MacOSX")
+
+
 def _all_keys_match(batch):
     all_match = True
     _keys = list(batch[0].__annotations__.keys())

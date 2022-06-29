@@ -1,14 +1,15 @@
-from generalist.generalist_datasets.aokvqa.aokvqa import AokvqaDataset
 import torch
-from generalist.generalist_tokenizers.prepare_data import PrepareData
-from generalist.models.model import EmbeddingModel, GeneralistModel
-from config import device
-
-from tqdm import tqdm
+from config import config
 from torch.utils.data import DataLoader
 from torchvision.io import read_image
+from tqdm import tqdm
 
+from generalist.generalist_datasets.aokvqa.aokvqa import AokvqaDataset
+from generalist.generalist_tokenizers.prepare_data import PrepareData
+from generalist.models.model import EmbeddingModel, GeneralistModel
 from generalist.utils import collate_fn
+
+device = config.device
 
 def train():
 
@@ -16,11 +17,11 @@ def train():
     n_epochs = 1
     batch_size = 4
 
-
-    embedding_model = EmbeddingModel().to(device)
-    model = GeneralistModel().to(device)
+    embedding_model = EmbeddingModel(device=device).to(device)
+    model = GeneralistModel(device=device).to(device)
 
     dataprep = PrepareData()
+
     loss_fn = torch.nn.CrossEntropyLoss()
 
     optimizer = torch.optim.SGD(
@@ -47,7 +48,6 @@ def train():
         pbar.set_description(f"Epoch {epoch}|{n_epochs}")
         for idx, batch in enumerate(pbar):
 
-
             data = batch["data"]
             label = batch["label"]
 
@@ -61,9 +61,16 @@ def train():
             _max_lens = [min(dataprep.tokenizer.model_max_length, o.shape[1]) for o in out]
             # breakpoint()
 
-            labels = [dataprep.tokenizer(
-                l.data, padding="max_length", truncation=True, max_length=_max_lens[l_i], return_tensors="pt"
-            ) for l_i, l in enumerate(label)]
+            labels = [
+                dataprep.tokenizer(
+                    l.data,
+                    padding="max_length",
+                    truncation=True,
+                    max_length=_max_lens[l_i],
+                    return_tensors="pt",
+                )
+                for l_i, l in enumerate(label)
+            ]
 
             out = torch.cat(out, dim=1).squeeze(0).to(device)
             labels = torch.cat([l["input_ids"] for l in labels], dim=1).squeeze(0).to(device)
@@ -71,7 +78,6 @@ def train():
 
             # label = {k: v.to(device) for k, v in label.items()}
             # breakpoint()
-
 
             # loss = loss_fn(out[0], label["input_ids"][0].to(device))
 

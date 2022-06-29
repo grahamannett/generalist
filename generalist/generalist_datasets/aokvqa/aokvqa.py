@@ -6,12 +6,11 @@ import torch
 import os
 import json
 
-from config import AOKVQA_DIR, COCO_DIR
+from config import config
 
 from dataclasses import dataclass
 from torchvision.io import read_image
 from torchvision.transforms.functional import resize
-
 
 @dataclass
 class AokvqaInstance:
@@ -26,8 +25,8 @@ class AokvqaInstance:
     rationales: List[str]
 
     # OTHER
-    aokvka_dir: str = AOKVQA_DIR
-    coco_dir: str = COCO_DIR
+    aokvka_dir: str = config.AOKVQA_DIR
+    coco_dir: str = config.COCO_DIR
 
     @property
     def image_path(self):
@@ -41,14 +40,14 @@ class AokvqaInstance:
         return self.direct_answers[self.correct_choice_idx]
 
 
-def load_aokvqa(aokvqa_dir: str = AOKVQA_DIR, split: str = "train", version="v1p0"):
+def load_aokvqa(aokvqa_dir: str = config.AOKVQA_DIR, split: str = "train", version="v1p0"):
     assert split in ["train", "val", "test", "test_w_ans"]
     dataset = json.load(open(os.path.join(aokvqa_dir, f"aokvqa_{version}_{split}.json")))
     return dataset
 
 
 class AokvqaDataset(Dataset):
-    def __init__(self, aokvqa_dir: str = AOKVQA_DIR, split: str = "train", version="v1p0"):
+    def __init__(self, aokvqa_dir: str = config.AOKVQA_DIR, split: str = "train", version="v1p0"):
         self.aokvqa_dir = aokvqa_dir
         self.split = split
         self.version = version

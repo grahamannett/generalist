@@ -3,7 +3,7 @@ from typing import Any, List
 import torch
 from torch import nn
 
-from config import DEVICE
+from config import device
 from generalist.generalist_tokenizers.general_embedding import GeneralEmbedding, GeneralizedTokens
 from generalist.generalist_tokenizers.image_path import ImageEmbeddingPath, ImagePath
 from generalist.generalist_tokenizers.text_path import TextEmbeddingPath
@@ -11,10 +11,8 @@ from generalist.models.gpt_fix import TransformerDecoder
 
 
 class EmbeddingModel(nn.Module):
-    def __init__(self, model_dim: int = 1024, device: str = DEVICE) -> None:
+    def __init__(self, model_dim: int = 1024, **kwargs) -> None:
         super().__init__()
-
-        self.device = device
 
         self.text_path = TextEmbeddingPath()
         self.image_path = ImageEmbeddingPath()
@@ -83,9 +81,8 @@ class EmbeddingModel(nn.Module):
 
 
 class GeneralistModel(nn.Module):
-    def __init__(self, output_dim: int = 33024, device: str = DEVICE) -> None:
+    def __init__(self, output_dim: int = 33024, **kwargs) -> None:
         super().__init__()
-        self.device = device
 
         self.transformer = TransformerDecoder.from_pretrained("gpt2")
         self.output = nn.LazyLinear(output_dim)
