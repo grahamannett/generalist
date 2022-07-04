@@ -11,11 +11,12 @@ from generalist.utils import collate_fn
 
 device = config.device
 
+
 def train():
 
     lr = 5.0  # learning rate
     n_epochs = 1
-    batch_size = 4
+    batch_size = 1
 
     embedding_model = EmbeddingModel(device=device).to(device)
     model = GeneralistModel(device=device).to(device)
@@ -51,30 +52,19 @@ def train():
             data = batch["data"]
             label = batch["label"]
 
-            # print(f"-> {data[1].data}")
+            data_tokenized = dataprep(data)
+
             # breakpoint()
+            data_embedded = embedding_model(data_tokenized)
 
-            data = dataprep(data)
-            data = embedding_model(data)
+            out = model(data_embedded)
 
-            out = model(data)
-            _max_lens = [min(dataprep.tokenizer.model_max_length, o.shape[1]) for o in out]
-            # breakpoint()
-
-            labels = [
-                dataprep.tokenizer(
-                    l.data,
-                    padding="max_length",
-                    truncation=True,
-                    max_length=_max_lens[l_i],
-                    return_tensors="pt",
-                )
-                for l_i, l in enumerate(label)
-            ]
+            labels = dataprep.prepare_label(label, out)
 
             out = torch.cat(out, dim=1).squeeze(0).to(device)
             labels = torch.cat([l["input_ids"] for l in labels], dim=1).squeeze(0).to(device)
             loss = loss_fn(out, labels)
+            breakpoint()
 
             # label = {k: v.to(device) for k, v in label.items()}
             # breakpoint()

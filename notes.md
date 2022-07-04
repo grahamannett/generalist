@@ -1,7 +1,7 @@
 # for setup.py
 
 
-# Datasets
+# Data
 - https://github.com/rom1504/img2dataset
 - https://github.com/allenai/aokvqa
     - the way this model/repo works: converts train/test/val images/questions to embeddings (model.encode_image)

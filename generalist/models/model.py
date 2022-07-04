@@ -17,7 +17,6 @@ class EmbeddingModel(nn.Module):
         self.text_path = TextEmbeddingPath()
         self.image_path = ImageEmbeddingPath()
 
-
         self.data_type = nn.ModuleDict(
             {
                 self.text_path.data_type: self.text_path,
@@ -27,57 +26,37 @@ class EmbeddingModel(nn.Module):
 
         self.model_dim = model_dim
 
+    def forward(self, data: List[List[GeneralizedTokens]]) -> GeneralEmbedding:
+        return self.handle_batch(data)
+
     def make_target(self, target: str):
         with torch.no_grad():
             return self.data_type["text"].make_target(target)
 
     def handle_sample(self, data: List[GeneralizedTokens]) -> Any:
-        embedded = [self.data_type[d.data_type](d) for d in data]
+        embeddings = [self.data_type[d.data_type](d) for d in data]
 
-        token_size = sum([_.embedding.shape[1] for _ in embedded])
+        embedding = self.combine_embeddings(embeddings)
+        embedded = GeneralEmbedding(embedding=embedding)
+        return embedded
 
-        max_dims = [self.model_dim - token_size + _.embedding.shape[1] for _ in embedded]
+    def handle_batch(self, data: List[List[GeneralizedTokens]]) -> Any:
+        return [self.handle_sample(d) for d in data]
 
+    def combine_embeddings(self, embeddings: List[GeneralEmbedding]) -> GeneralEmbedding:
+        token_size = sum([e.embedding.shape[1] for e in embeddings])
+        max_dims = [self.model_dim - (token_size + e.embedding.shape[1]) for e in embeddings]
         hidden_states = []
 
-        for idx, _emb in enumerate(embedded):
+        for idx, _emb in enumerate(embeddings):
 
             if max_dims[idx] > 0:
                 hidden_states.append(_emb.embedding[:, : max_dims[idx]])
             else:
                 hidden_states.append(_emb.embedding)
 
-        hidden_states = torch.cat(hidden_states, dim=1)
-
-        embedded = GeneralEmbedding(embedding=hidden_states)
+        embedded = torch.cat(hidden_states, dim=1)
         return embedded
-
-    def handle_batch(self, data: List[List[GeneralizedTokens]]) -> Any:
-        return [self.handle_sample(d) for d in data]
-
-
-    def forward(self, data: List[List[GeneralizedTokens]]) -> GeneralEmbedding:
-        return self.handle_batch(data)
-
-        # embedded = [self.data_type[d.data_type](d) for d in data]
-
-        # token_size = sum([_.embedding.shape[1] for _ in embedded])
-
-        # max_dims = [self.model_dim - token_size + _.embedding.shape[1] for _ in embedded]
-
-        # hidden_states = []
-
-        # for idx, _emb in enumerate(embedded):
-
-        #     if max_dims[idx] > 0:
-        #         hidden_states.append(_emb.embedding[:, : max_dims[idx]])
-        #     else:
-        #         hidden_states.append(_emb.embedding)
-
-        # hidden_states = torch.cat(hidden_states, dim=1)
-
-        # embeded = GeneralEmbedding(embedding=hidden_states)
-        # return embeded
 
 
 class GeneralistModel(nn.Module):
@@ -87,13 +66,10 @@ class GeneralistModel(nn.Module):
         self.transformer = TransformerDecoder.from_pretrained("gpt2")
         self.output = nn.LazyLinear(output_dim)
 
-
-
     def forward_sample(self, x: GeneralEmbedding) -> torch.Tensor:
         x = self.transformer(x)
         x = self.output(x)
         return x
-
 
     def forward(self, data: List[GeneralEmbedding]) -> List[torch.Tensor]:
         return [self.forward_sample(x) for x in data]

@@ -1,3 +1,11 @@
+import argparse
+
+
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--datasets", nargs="+", type=str, default=["xsum"])
+    return parser.parse_args()
+
 
 def matplotlib_system_setup():
     import platform
@@ -18,13 +26,6 @@ def _all_keys_match(batch):
 
 
 def collate_fn(batch):
-    # all_match, _keys = _all_keys_match(batch)
-    # batch_out = {k: [] for k in _keys}
-
-    # for _batch in batch:
-    #     for key in _keys:
-    #         batch_out[key].append(getattr(_batch, key))
-    # breakpoint()
 
     batch_out = {
         "data": [b.data for b in batch],

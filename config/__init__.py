@@ -5,11 +5,12 @@ from config.helper import ConfigInterface
 
 # from config.dev import Config
 
+
 class Config:
-#
+    #
     DEVICE = device = "cuda:1"
 
-    BASE_DATADIR = os.environ.get("BASE_DATADIR", __file__.removesuffix("config/__init__.py") + "datasets")
+    BASE_DATADIR = os.environ.get("BASE_DATADIR", __file__.removesuffix("config/__init__.py") + "data")
 
     DEFAULT_AOKVQA_DIR = f"{BASE_DATADIR}/aokvqa"
     DEFAULT_COCO_DIR = f"{BASE_DATADIR}/coco"
@@ -37,6 +38,7 @@ class Config:
     def _import_helper(self, config_name: str):
         exec(f"from config.{config_name} import Config as ConfigEnv")
         return locals().get("ConfigEnv", None)
+
 
 config = Config()
 device = config.device

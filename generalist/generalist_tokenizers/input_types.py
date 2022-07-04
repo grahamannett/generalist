@@ -27,3 +27,8 @@ class ImageType(InputType):
     data: Tensor
     data_type = InputTypes.image.name
 
+@dataclass
+class RLType(InputType):
+    observation: Any
+    action: Any
+    reward: Any

@@ -1,16 +1,15 @@
-import argparse
-from typing import Any, Dict, List
-from generalist.generalist_tokenizers.input_types import ImageType, TextType, Sample
-from torch.utils.data import Dataset
-import torch
-import os
 import json
-
-from config import config
-
+import os
 from dataclasses import dataclass
+from typing import Any, Dict, List
+
+import torch
+from config import config
+from generalist.generalist_tokenizers.input_types import ImageType, Sample, TextType
+from torch.utils.data import Dataset
 from torchvision.io import read_image
 from torchvision.transforms.functional import resize
+
 
 @dataclass
 class AokvqaInstance:
@@ -40,20 +39,20 @@ class AokvqaInstance:
         return self.direct_answers[self.correct_choice_idx]
 
 
-def load_aokvqa(aokvqa_dir: str = config.AOKVQA_DIR, split: str = "train", version="v1p0"):
-    assert split in ["train", "val", "test", "test_w_ans"]
-    dataset = json.load(open(os.path.join(aokvqa_dir, f"aokvqa_{version}_{split}.json")))
-    return dataset
-
-
 class AokvqaDataset(Dataset):
     def __init__(self, aokvqa_dir: str = config.AOKVQA_DIR, split: str = "train", version="v1p0"):
         self.aokvqa_dir = aokvqa_dir
         self.split = split
         self.version = version
-        self.dataset = load_aokvqa(aokvqa_dir, split, version)
+        self.dataset = self.load_aokvqa(aokvqa_dir, split, version)
 
         self.dataset = [AokvqaInstance(**instance) for instance in self.dataset]
+
+    @staticmethod
+    def load_aokvqa(aokvqa_dir: str = config.AOKVQA_DIR, split: str = "train", version="v1p0"):
+        assert split in ["train", "val", "test", "test_w_ans"]
+        dataset = json.load(open(os.path.join(aokvqa_dir, f"aokvqa_{version}_{split}.json")))
+        return dataset
 
     def __len__(self):
         return len(self.dataset)
@@ -76,7 +75,6 @@ class AokvqaDataset(Dataset):
 
         sample = Sample(**inputs)
         return sample
-
 
     def image_transform(self, image: torch.Tensor):
         if image.shape[0] == 1:
