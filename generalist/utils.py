@@ -1,4 +1,10 @@
 import argparse
+from collections import UserDict
+from dataclasses import astuple, dataclass
+from sys import breakpointhook
+from typing import Any, List
+
+from generalist.generalist_tokenizers.input_types import Sample
 
 
 def get_args():
@@ -25,11 +31,32 @@ def _all_keys_match(batch):
     return all_match, _keys
 
 
-def collate_fn(batch):
+@dataclass
+class Batch:
+    """genearic batch class
 
-    batch_out = {
-        "data": [b.data for b in batch],
-        "label": [b.label for b in batch],
-    }
+    usage (one of):
+        data, target = batch
+        data, target = batch.data, batch.target
+        data, target = batch['data'], batch['target']
 
-    return batch_out
+
+    Returns:
+        _type_: _description_
+    """
+
+    data: Any = None
+    target: Any = None
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, key):
+        return getattr(self, key, None)
+
+    def __iter__(self):
+        return iter((self.data, self.target))
+
+
+def collate_fn(samples: List[Sample]):
+    return Batch(data=[s.data for s in samples], target=[s.target for s in samples])

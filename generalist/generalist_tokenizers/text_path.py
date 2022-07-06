@@ -25,15 +25,21 @@ class TextTokenizer:
         padding: bool = True,
         tokenizer_class=XLNetTokenizer,
         pretrained_model_or_path: str = "xlnet-base-cased",
-        model_input_length: int = 1024,
+        model_max_length: int = 1024,
+        padding_side: str = "right",
+        truncation: bool = True,
         **kwargs
     ) -> None:
 
         self.tokenizer = tokenizer_class.from_pretrained(
-            pretrained_model_or_path, padding=padding, model_max_length=model_input_length
+            pretrained_model_or_path,
+            padding=padding,
+            model_max_length=model_max_length,
+            padding_side=padding_side,
         )
         self.return_tensors = "pt"
-        self.model_input_length = model_input_length
+        self.model_max_length = model_max_length
+        self.truncation = truncation
 
     def __call__(self, sample: str, **kwargs) -> torch.Tensor:
         x = sample.data if isinstance(sample, TextType) else sample
@@ -48,7 +54,7 @@ class TextTokenizer:
         return out
 
     def encode(self, x: str, **kwargs) -> torch.Tensor:
-        encoded = self.tokenizer(x, return_tensors=self.return_tensors, **kwargs)
+        encoded = self.tokenizer(x, return_tensors=self.return_tensors, truncation=self.truncation, **kwargs)
         return encoded
 
 

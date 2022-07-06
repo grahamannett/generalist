@@ -3,6 +3,7 @@ import torch.nn as nn
 from config import device
 from generalist.generalist_tokenizers.general_embedding import GeneralEmbedding, GeneralizedTokens
 from generalist.generalist_tokenizers.input_types import ImageType
+from generalist.generalist_tokenizers.tokenizer_utils import GeneralTokenizer
 
 from einops import rearrange
 
@@ -15,7 +16,7 @@ def normalize_image(
     return x
 
 
-class ImageTokenizer:
+class ImageTokenizer(GeneralTokenizer):
     data_type = ImageType.data_type
 
     def __init__(self, p1: int = 16, p2: int = 16, upper_bound: int = 1, lower_bound: int = -1) -> None:

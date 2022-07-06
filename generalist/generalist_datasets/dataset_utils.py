@@ -1,24 +1,102 @@
+from numpy import isin, mat
 import torch.nn as nn
 
 from functools import wraps
+from typing import Any
 
 
-class GeneralistDataset:
+from torch.utils.data import Dataset
+
+from generalist.generalist_tokenizers.image_path import ImageTokenizer
+from generalist.generalist_tokenizers.input_types import InputType, Sample
+from generalist.generalist_tokenizers.prepare_data import PrepareData
+from generalist.generalist_tokenizers.text_path import TextTokenizer
+from generalist.generalist_tokenizers.tokenizer_utils import GeneralTokenizer
+
+
+class DataPaths:
+    # image_path = ImageTokenizer()
+    # text_path = TextTokenizer()
+    image_path = None
+    text_path = None
+
+    @classmethod
+    def setup(cls, **kwargs) -> None:
+        def _helper(base, prop, init):
+            if getattr(base, prop) is None:
+                setattr(base, prop, init(**kwargs))
+
+        _helper(cls, "image_path", ImageTokenizer)
+        _helper(cls, "text_path", TextTokenizer)
+
+
+class GeneralistDataset(Dataset):
+    tokenizers = {}
+
+    def __init__(self, return_raw: bool = False, **kwargs) -> None:
+        self._return_raw = return_raw
+        self._use_prepare_data = kwargs.get("use_prepare_data", False)
+
+    @property
+    def return_raw(self) -> bool:
+        return self._return_raw
+
+    @return_raw.setter
+    def return_raw(self, value: bool) -> None:
+        self._return_raw = value
+
+    def path(self, data_type: str) -> Any:
+        match data_type:
+            case self.paths.image_path.data_type:
+                return data_type
+            case self.paths.text_path.data_type:
+                return data_type
+
+    def use_prepare_data(self, prepare_data: PrepareData) -> None:
+        self._use_prepare_data = True
+        self.tokenizers = prepare_data.path
+
+    def process_input_type(self, input_type: InputType):
+        return self.tokenizers[input_type.data_type](input_type)
+
+    def _process_sample_property(self, sample: Sample, prop: str) -> Sample:
+
+        prop_value = getattr(sample, prop)
+
+        if isinstance(prop_value, list):
+            setattr(sample, prop, [self.process_sample(data) for data in getattr(sample, prop)])
+        else:
+            setattr(sample, prop, self.process_sample(prop_value))
+
+    def process_sample(self, sample: Sample, return_raw: bool = None) -> Sample:
+        if self.return_raw or return_raw:
+            return sample
+
+        self._process_sample_property(sample, "data")
+        self._process_sample_property(sample, "target")
+
+        return sample
+
+
+class DatasetRegistry:
     registry = {}
 
-    @staticmethod
-    def register(model_name: str):
-        def outer_wrapper(dataset_class, *args, **kwargs):
-            GeneralistDataset.registry[model_name] = dataset_class
-            return dataset_class(*args, **kwargs)
+    def __init__(self) -> None:
+        pass
 
-        return outer_wrapper
+    def __call__(self, *args: Any, **kwds: Any) -> Any:
+        pass
 
-    def __class_getitem__(cls, key):
-        return GeneralistDataset.registry.get(key, None)
+    def __class_getitem__(cls, dataset: str):
+        return cls.registry.get(dataset, None)
 
     @staticmethod
-    def get(key: str):
-        if key not in GeneralistDataset.registry:
-            raise KeyError(f"No dataset registered for {key}")
-        return GeneralistDataset.registry.get(key)()
+    def get(dataset: str, *args, **kwargs):
+        if dataset not in GeneralistDataset.registry:
+            raise KeyError(f"No dataset registered for {dataset}")
+        return DatasetRegistry.registry.get(dataset)(*args, **kwargs)
+
+    @staticmethod
+    def register(dataset_class, *args, **kwargs):
+        DatasetRegistry.registry[dataset_class.shortname] = dataset_class
+        return dataset_class

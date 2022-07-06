@@ -10,6 +10,8 @@ from torch.utils.data import Dataset
 from torchvision.io import read_image
 from torchvision.transforms.functional import resize
 
+from generalist.generalist_datasets.dataset_utils import GeneralistDataset
+
 
 @dataclass
 class AokvqaInstance:
@@ -39,8 +41,9 @@ class AokvqaInstance:
         return self.direct_answers[self.correct_choice_idx]
 
 
-class AokvqaDataset(Dataset):
+class AokvqaDataset(GeneralistDataset):
     def __init__(self, aokvqa_dir: str = config.AOKVQA_DIR, split: str = "train", version="v1p0"):
+        super().__init__()
         self.aokvqa_dir = aokvqa_dir
         self.split = split
         self.version = version
@@ -69,7 +72,7 @@ class AokvqaDataset(Dataset):
 
         inputs = {
             "data": [ImageType(image), TextType(question)],
-            "label": TextType(answer),
+            "target": TextType(answer),
         }
         # return inputs
 

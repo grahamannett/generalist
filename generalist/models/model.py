@@ -26,8 +26,8 @@ class EmbeddingModel(nn.Module):
 
         self.model_dim = model_dim
 
-    def forward(self, data: List[List[GeneralizedTokens]]) -> GeneralEmbedding:
-        return self.handle_batch(data)
+    def forward(self, data: List[GeneralizedTokens]) -> GeneralEmbedding:
+        return [self.handle_sample(d) for d in data]
 
     def make_target(self, target: str):
         with torch.no_grad():
@@ -45,7 +45,7 @@ class EmbeddingModel(nn.Module):
 
     def combine_embeddings(self, embeddings: List[GeneralEmbedding]) -> GeneralEmbedding:
         token_size = sum([e.embedding.shape[1] for e in embeddings])
-        max_dims = [self.model_dim - (token_size + e.embedding.shape[1]) for e in embeddings]
+        max_dims = [self.model_dim - (token_size - e.embedding.shape[1]) for e in embeddings]
         hidden_states = []
 
         for idx, _emb in enumerate(embeddings):
@@ -56,15 +56,24 @@ class EmbeddingModel(nn.Module):
                 hidden_states.append(_emb.embedding)
 
         embedded = torch.cat(hidden_states, dim=1)
+
+        # if token_size != embedded.shape[1]:
+        #     breakpoint()
+
         return embedded
 
 
 class GeneralistModel(nn.Module):
-    def __init__(self, output_dim: int = 33024, **kwargs) -> None:
+    def __init__(self, output_dim: int = 33024, pretrained_name: str = "gpt2", **kwargs) -> None:
         super().__init__()
 
-        self.transformer = TransformerDecoder.from_pretrained("gpt2")
+        self.output_dim = output_dim
+        self.pretrained_name = pretrained_name
+
+        self.transformer = TransformerDecoder.from_pretrained(self.pretrained_name)
         self.output = nn.LazyLinear(output_dim)
+
+        self.model_max_length = self.transformer.config.n_ctx
 
     def forward_sample(self, x: GeneralEmbedding) -> torch.Tensor:
         x = self.transformer(x)

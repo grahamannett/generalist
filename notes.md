@@ -12,3 +12,11 @@ Found various implementations, still not exactly clear to me what the ideal way 
 - https://sachinruk.github.io/blog/pytorch/data/2021/07/03/Image-Patches.html
 - https://uvadlc-notebooks.readthedocs.io/en/latest/tutorial_notebooks/tutorial15/Vision_Transformer.html
 
+
+
+# Design choices
+
+## Embeddings
+
+One of the factors 
+
