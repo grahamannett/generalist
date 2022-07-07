@@ -66,7 +66,7 @@ def train():
             encoded_targets = prepare_data.prepare_targets(target, logits)
 
             out = torch.cat(logits, dim=1).squeeze(0)
-            encoded_targets = torch.cat(encoded_targets, dim=1).squeeze(0)
+            encoded_targets = torch.cat(encoded_targets, dim=1).squeeze(0).to(device)
 
             if len(out) != len(encoded_targets):
                 breakpoint()
