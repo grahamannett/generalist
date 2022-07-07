@@ -29,8 +29,8 @@ class GeneralizedTokens(GenearlizedInput):
     token_type_ids: torch.Tensor = None
 
     def __post_init__(self):
-        self.tokens = self.tokens.to(device)
-
+        
+        _device_to(self, "tokens")
         _device_to(self, "attention_mask")
         _device_to(self, "token_type_ids")
 

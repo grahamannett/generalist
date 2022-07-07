@@ -33,7 +33,7 @@ class DataPaths:
 class GeneralistDataset(Dataset):
     tokenizers = {}
 
-    def __init__(self, return_raw: bool = False, **kwargs) -> None:
+    def __init__(self, return_raw: bool = True, **kwargs) -> None:
         self._return_raw = return_raw
         self._use_prepare_data = kwargs.get("use_prepare_data", False)
 
@@ -56,18 +56,6 @@ class GeneralistDataset(Dataset):
         self._use_prepare_data = True
         self.tokenizers = prepare_data.path
 
-    def process_input_type(self, input_type: InputType):
-        return self.tokenizers[input_type.data_type](input_type)
-
-    def _process_sample_property(self, sample: Sample, prop: str) -> Sample:
-
-        prop_value = getattr(sample, prop)
-
-        if isinstance(prop_value, list):
-            setattr(sample, prop, [self.process_sample(data) for data in getattr(sample, prop)])
-        else:
-            setattr(sample, prop, self.process_sample(prop_value))
-
     def process_sample(self, sample: Sample, return_raw: bool = None) -> Sample:
         if self.return_raw or return_raw:
             return sample
@@ -76,6 +64,17 @@ class GeneralistDataset(Dataset):
         self._process_sample_property(sample, "target")
 
         return sample
+
+    def _process_sample_property(self, sample: Sample, prop: str) -> Sample:
+        prop_value = getattr(sample, prop)
+
+        if isinstance(prop_value, list):
+            setattr(sample, prop, [self.process_input_type(data) for data in prop_value])
+        else:
+            setattr(sample, prop, self.process_input_type(prop_value))
+
+    def process_input_type(self, input_type: InputType):
+        return self.tokenizers[input_type.data_type](input_type)
 
 
 class DatasetRegistry:

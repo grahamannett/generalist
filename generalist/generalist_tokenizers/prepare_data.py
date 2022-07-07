@@ -8,19 +8,21 @@ from generalist.models.model import EmbeddingModel, GeneralistModel
 
 
 class PrepareData:
-    def __init__(self, embedding_model: EmbeddingModel, generalist_model: GeneralistModel):
+    def __init__(self, embedding_model: EmbeddingModel, generalist_model: GeneralistModel, device: str):
         self.embedding_model = embedding_model
         self.generalist_model = generalist_model
         self.model_max_length = self.generalist_model.model_max_length
 
-        self.image = ImageTokenizer()
-        self.text = TextTokenizer(max_length=self.generalist_model.model_max_length)
+        self.image = ImageTokenizer(device=device)
+        self.text = TextTokenizer(max_length=self.generalist_model.model_max_length, device=device)
         self.tokenizer = self.text.tokenizer
 
         self.path = {
             self.image.data_type: self.image,
             self.text.data_type: self.text,
         }
+
+        self.device = device
 
     def __call__(self, batch: Any) -> Any:
 
@@ -30,6 +32,7 @@ class PrepareData:
                 out.append(self._path_data(data))
             elif isinstance(data, list):
                 out.append([self._path_data(d) for d in data])
+
         return out
 
     def _path_data(self, data: Any) -> Any:

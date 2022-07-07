@@ -19,7 +19,11 @@ def normalize_image(
 class ImageTokenizer(GeneralTokenizer):
     data_type = ImageType.data_type
 
-    def __init__(self, p1: int = 16, p2: int = 16, upper_bound: int = 1, lower_bound: int = -1) -> None:
+    def __init__(
+        self, p1: int = 16, p2: int = 16, upper_bound: int = 1, lower_bound: int = -1, **kwargs
+    ) -> None:
+
+        super().__init__(**kwargs)
         self.p1 = p1  # h
         self.p2 = p2  # w
         # self.patch_size = self.p1 * self.p2
@@ -35,33 +39,14 @@ class ImageTokenizer(GeneralTokenizer):
         img = normalize_image(img, self.patch_size, self.lower_bound, self.upper_bound)
 
         out = GeneralizedTokens(tokens=img, data_type=self.data_type)
+        out.tokens = out.tokens.to(self.device)
         return out
 
     def to_patches(self, img: torch.Tensor):
         if img.ndim == 3:
             img = img.unsqueeze(0)
         img = rearrange(img, "b c (h p1) (w p2) -> b (h w) (p1 p2 c)", p1=self.p1, p2=self.p2)
-        # img = rearrange(img, "b c (h p1) (w p2) -> b (h w) c p1 p2", p1=self.p1, p2=self.p2)
         return img
-
-    def img_to_patch(self, x, patch_size: int = 16, flatten_channels: bool = True):
-        """
-        https://uvadlc-notebooks.readthedocs.io/en/latest/tutorial_notebooks/tutorial15/Vision_Transformer.html
-        Inputs:
-            x - torch.Tensor representing the image of shape [B, C, H, W]
-            patch_size - Number of pixels per dimension of the patches (integer)
-            flatten_channels - If True, the patches will be returned in a flattened format
-                            as a feature vector instead of a image grid.
-        """
-        if x.ndim == 3:
-            x = x.unsqueeze(0)
-        B, C, H, W = x.shape
-        x = x.reshape(B, C, H // patch_size, patch_size, W // patch_size, patch_size)
-        x = x.permute(0, 2, 4, 1, 3, 5)  # [B, H', W', C, p_H, p_W]
-        x = x.flatten(1, 2)  # [B, H'*W', C, p_H, p_W]
-        if flatten_channels:
-            x = x.flatten(2, 4)  # [B, H'*W', C*p_H*p_W]
-        return x
 
 
 class PatchEmbeddings(nn.Module):
@@ -169,3 +154,23 @@ class ImagePath(nn.Module):
         # cls_token_emb = self.cls_token_emb.expand(-1, x.shape[1], -1)
         # x = torch.cat([cls_token_emb, x])
         return GeneralEmbedding(hidden_states=x, input_shape=input_shape, output_shape=x.shape)
+
+
+def img_to_patch(x, patch_size: int = 16, flatten_channels: bool = True):
+    """
+    https://uvadlc-notebooks.readthedocs.io/en/latest/tutorial_notebooks/tutorial15/Vision_Transformer.html
+    Inputs:
+        x - torch.Tensor representing the image of shape [B, C, H, W]
+        patch_size - Number of pixels per dimension of the patches (integer)
+        flatten_channels - If True, the patches will be returned in a flattened format
+                        as a feature vector instead of a image grid.
+    """
+    if x.ndim == 3:
+        x = x.unsqueeze(0)
+    B, C, H, W = x.shape
+    x = x.reshape(B, C, H // patch_size, patch_size, W // patch_size, patch_size)
+    x = x.permute(0, 2, 4, 1, 3, 5)  # [B, H', W', C, p_H, p_W]
+    x = x.flatten(1, 2)  # [B, H'*W', C, p_H, p_W]
+    if flatten_channels:
+        x = x.flatten(2, 4)  # [B, H'*W', C*p_H*p_W]
+    return x

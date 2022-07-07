@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any, Sequence
 
 import torch
 from torch import nn
@@ -26,24 +26,21 @@ class EmbeddingModel(nn.Module):
 
         self.model_dim = model_dim
 
-    def forward(self, data: List[GeneralizedTokens]) -> GeneralEmbedding:
+    def forward(self, data: Sequence[GeneralizedTokens]) -> GeneralEmbedding:
+        
         return [self.handle_sample(d) for d in data]
 
-    def make_target(self, target: str):
-        with torch.no_grad():
-            return self.data_type["text"].make_target(target)
+    def handle_sample(self, data: GeneralizedTokens | Sequence[GeneralizedTokens]) -> GeneralEmbedding:
+        if isinstance(data, list):
+            embeddings = [self.data_type[d.data_type](d) for d in data]
+            embedding = self.combine_embeddings(embeddings)
+        else:
+            embedding = self.data_type[data.data_type](data)
 
-    def handle_sample(self, data: List[GeneralizedTokens]) -> Any:
-        embeddings = [self.data_type[d.data_type](d) for d in data]
-
-        embedding = self.combine_embeddings(embeddings)
-        embedded = GeneralEmbedding(embedding=embedding)
+        embedded = GeneralEmbedding(embedding=embedding.embedding)
         return embedded
 
-    def handle_batch(self, data: List[List[GeneralizedTokens]]) -> Any:
-        return [self.handle_sample(d) for d in data]
-
-    def combine_embeddings(self, embeddings: List[GeneralEmbedding]) -> GeneralEmbedding:
+    def combine_embeddings(self, embeddings: Sequence[GeneralEmbedding]) -> GeneralEmbedding:
         token_size = sum([e.embedding.shape[1] for e in embeddings])
         max_dims = [self.model_dim - (token_size - e.embedding.shape[1]) for e in embeddings]
         hidden_states = []
@@ -56,9 +53,6 @@ class EmbeddingModel(nn.Module):
                 hidden_states.append(_emb.embedding)
 
         embedded = torch.cat(hidden_states, dim=1)
-
-        # if token_size != embedded.shape[1]:
-        #     breakpoint()
 
         return embedded
 
@@ -80,5 +74,5 @@ class GeneralistModel(nn.Module):
         x = self.output(x)
         return x
 
-    def forward(self, data: List[GeneralEmbedding]) -> List[torch.Tensor]:
+    def forward(self, data: Sequence[GeneralEmbedding]) -> Sequence[torch.Tensor]:
         return [self.forward_sample(x) for x in data]

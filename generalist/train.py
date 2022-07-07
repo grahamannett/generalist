@@ -26,7 +26,7 @@ def train():
     embedding_model = EmbeddingModel().to(device)
     model = GeneralistModel().to(device)
 
-    prepare_data = PrepareData(embedding_model=embedding_model, generalist_model=model)
+    prepare_data = PrepareData(embedding_model=embedding_model, generalist_model=model, device=device)
 
     loss_fn = torch.nn.CrossEntropyLoss()
 
@@ -58,6 +58,7 @@ def train():
             data, target = batch
 
             # the multi step process but explicit
+
             data_tokenized = prepare_data(data)
             data_embedded = embedding_model(data_tokenized)
             logits = model(data_embedded)

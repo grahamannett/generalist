@@ -45,5 +45,6 @@ class SummarizationDataset(GeneralistDataset):
 
     def __getitem__(self, idx: int) -> Any:
         item = self._dataset[idx]
-        sample = Sample(data=[TextType(item["document"])], target=TextType(item["summary"]))
-        return sample
+        sample = Sample(data=TextType(item["document"]), target=TextType(item["summary"]))
+
+        return self.process_sample(sample)

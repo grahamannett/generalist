@@ -36,9 +36,11 @@ class Config:
                 setattr(self, key, val)
 
     def _import_helper(self, config_name: str):
-        exec(f"from config.{config_name} import Config as ConfigEnv")
-        return locals().get("ConfigEnv", None)
-
+        try:
+            exec(f"from config.{config_name}_config import Config as ConfigEnv")
+            return locals().get("ConfigEnv", None)
+        except ModuleNotFoundError:
+            raise ModuleNotFoundError(f"Config {config_name} not found, specify one from config/")
 
 config = Config()
 device = config.device

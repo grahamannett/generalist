@@ -1,4 +1,32 @@
+# For ubuntu install
+
+
+## Install mujoco-py
+
+commands ran:
+conda install -c conda-forge glew -y
+conda install -c conda-forge mesalib -y
+conda install -c menpo glfw3 -y
+
+export CPATH=/home/graham/anaconda3/envs/py310/include
+
+pip install patchelf
+
+pip install mujoco-py
+
+then run: python -c 'import mujoco_py'
+
+pip install git+https://github.com/rail-berkeley/d4rl@master#egg=d4rl
+
+
+pip install torch torchvision transformers datasets sentencepiece  einops
+
+
+
 # for setup.py
+make the project importable better or whatever
+
+pip install -e .
 
 
 # Data
@@ -18,5 +46,8 @@ Found various implementations, still not exactly clear to me what the ideal way 
 
 ## Embeddings
 
-One of the factors 
+One of the factors
+
+
+
 

@@ -11,9 +11,10 @@ from generalist.generalist_tokenizers.general_embedding import (
     GeneralizedTokens,
 )
 from generalist.generalist_tokenizers.input_types import TextType
+from generalist.generalist_tokenizers.tokenizer_utils import GeneralTokenizer
 
 
-class TextTokenizer:
+class TextTokenizer(GeneralTokenizer):
     """
     Text is encoded via SentencePiece (Kudo and Richardson, 2018) with 32000 subwords into the integer range [0, 32000).
     """
@@ -30,6 +31,7 @@ class TextTokenizer:
         truncation: bool = True,
         **kwargs
     ) -> None:
+        super().__init__(**kwargs)
 
         self.tokenizer = tokenizer_class.from_pretrained(
             pretrained_model_or_path,
@@ -51,6 +53,9 @@ class TextTokenizer:
             token_type_ids=encoded["token_type_ids"],
             data_type=self.data_type,
         )
+        out.tokens = out.tokens.to(device)
+        out.attention_mask = out.attention_mask.to(device)
+        out.token_type_ids = out.token_type_ids.to(device)
         return out
 
     def encode(self, x: str, **kwargs) -> torch.Tensor:
