@@ -42,8 +42,10 @@ class AokvqaInstance:
 
 
 class AokvqaDataset(GeneralistDataset):
-    def __init__(self, aokvqa_dir: str = config.AOKVQA_DIR, split: str = "train", version="v1p0"):
-        super().__init__()
+    shortname = "aokvqa"
+
+    def __init__(self, aokvqa_dir: str = config.AOKVQA_DIR, split: str = "train", version="v1p0", **kwargs):
+        super().__init__(**kwargs)
         self.aokvqa_dir = aokvqa_dir
         self.split = split
         self.version = version
@@ -60,23 +62,18 @@ class AokvqaDataset(GeneralistDataset):
     def __len__(self):
         return len(self.dataset)
 
-    def __getitem__(self, idx):
-        sample = self.dataset[idx]
+    def __getitem__(self, idx: int, **kwargs) -> Sample:
+        sample = super().__getitem__(idx, **kwargs)
+        item = self.dataset[idx]
 
-        question = f"question: {sample.question} choices: {', '.join(sample.choices)}"
-        answer = f"{sample.choices[sample.correct_choice_idx]}. {sample.rationales[0]}"
+        question = f"question: {item.question} choices: {', '.join(item.choices)}"
+        answer = f"{item.choices[item.correct_choice_idx]}. {item.rationales[0]}"
 
         # probably want to put this into a different transform type
-        image = read_image(sample.image_path)
-        image = self.image_transform(image)
+        image = self.image_transform(read_image(item.image_path))
 
-        inputs = {
-            "data": [ImageType(image), TextType(question)],
-            "target": TextType(answer),
-        }
-        # return inputs
-
-        sample = Sample(**inputs)
+        sample.data = [ImageType(image), TextType(question)]
+        sample.target = TextType(answer)
         return sample
 
     def image_transform(self, image: torch.Tensor):

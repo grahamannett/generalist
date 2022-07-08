@@ -27,13 +27,11 @@ class EmbeddingModel(nn.Module):
         self.model_dim = model_dim
 
     def forward(self, data: Sequence[GeneralizedTokens]) -> GeneralEmbedding:
-        
         return [self.handle_sample(d) for d in data]
 
     def handle_sample(self, data: GeneralizedTokens | Sequence[GeneralizedTokens]) -> GeneralEmbedding:
         if isinstance(data, list):
-            embeddings = [self.data_type[d.data_type](d) for d in data]
-            embedding = self.combine_embeddings(embeddings)
+            embedding = self.combine_embeddings([self.data_type[d.data_type](d) for d in data])
         else:
             embedding = self.data_type[data.data_type](data)
 
@@ -54,7 +52,7 @@ class EmbeddingModel(nn.Module):
 
         embedded = torch.cat(hidden_states, dim=1)
 
-        return embedded
+        return GeneralEmbedding(embedding=embedded)
 
 
 class GeneralistModel(nn.Module):

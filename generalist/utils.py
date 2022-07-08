@@ -10,6 +10,8 @@ from generalist.generalist_tokenizers.input_types import Sample
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--datasets", nargs="+", type=str, default=["xsum"])
+    parser.add_argument("-bs", "--batch_size", type=int, default=8, dest="batch_size")
+    parser.add_argument("--n_epochs", type=int, default=1, dest="n_epochs")
     return parser.parse_args()
 
 
@@ -20,6 +22,9 @@ def matplotlib_system_setup():
     match platform.system().lower():
         case "darwin":
             matplotlib.use("MacOSX")
+        case "linux":
+            # not sure if i even need this but just doing for uniformity, might need to pass
+            matplotlib.use("agg")
 
 
 def _all_keys_match(batch):
@@ -31,8 +36,6 @@ def _all_keys_match(batch):
     return all_match, _keys
 
 
-
-
 @dataclass
 class Batch:
     """genearic batch class
@@ -41,6 +44,7 @@ class Batch:
         data, target = batch
         data, target = batch.data, batch.target
         data, target = batch['data'], batch['target']
+        sample = batch[0]
 
 
     Returns:
@@ -53,12 +57,17 @@ class Batch:
     def __len__(self):
         return len(self.data)
 
-    def __getitem__(self, key):
-        return getattr(self, key, None)
+    def __getitem__(self, key: str | int):
+        match key:
+            case int():
+                return Sample(self.data[key], self.target[key])
+            case str():
+                return getattr(self, key, None)
 
     def __iter__(self):
         return iter((self.data, self.target))
 
 
-def collate_fn(samples: List[Sample]):
-    return Batch(data=[s.data for s in samples], target=[s.target for s in samples])
+def collate_fn(samples: List[Sample]) -> Batch:
+    batch = Batch(data=[s.data for s in samples], target=[s.target for s in samples])
+    return batch

@@ -6,7 +6,7 @@ from torchvision.io import read_image
 from tqdm import tqdm
 
 from generalist.generalist_datasets.aokvqa.aokvqa import AokvqaDataset
-from generalist.generalist_datasets.hf_datasets import SummarizationDataset
+from generalist.generalist_datasets.hf_datasets import LanguageModelingDataset, SummarizationDataset
 from generalist.generalist_tokenizers.prepare_data import PrepareData
 from generalist.models.model import EmbeddingModel, GeneralistModel
 from generalist.utils import collate_fn, get_args
@@ -20,8 +20,8 @@ def train():
     #
 
     lr = 5.0  # learning rate
-    n_epochs = 1
-    batch_size = 2
+    n_epochs = args.n_epochs
+    batch_size = args.batch_size
 
     embedding_model = EmbeddingModel().to(device)
     model = GeneralistModel().to(device)
@@ -40,10 +40,12 @@ def train():
 
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1.0, gamma=0.95)
 
-    # dataset = AokvqaDataset()
-    dataset = SummarizationDataset()
+    dataset = AokvqaDataset()
+    # dataset = SummarizationDataset()
+    dataset = LanguageModelingDataset()
 
     _ = dataset[0]
+    # breakpoint()
 
     train_dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 

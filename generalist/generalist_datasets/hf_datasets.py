@@ -33,18 +33,43 @@ class QuestionAnswering(Dataset):
 class SummarizationDataset(GeneralistDataset):
     shortname = "hf_summarization"
 
-    def __init__(self, dataset_name: str = "xsum", split: str = "train") -> None:
-        super().__init__()
+    def __init__(self, dataset_name: str = "xsum", split: str = "train", **kwargs) -> None:
+        super().__init__(**kwargs)
 
         self.dataset_name = dataset_name
         self.split = split
         self._dataset = load_dataset(self.dataset_name)[split]
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._dataset)
 
-    def __getitem__(self, idx: int) -> Any:
-        item = self._dataset[idx]
-        sample = Sample(data=TextType(item["document"]), target=TextType(item["summary"]))
+    def __getitem__(self, idx: int, **kwargs) -> Sample:
+        sample = super().__getitem__(idx, **kwargs)
 
-        return self.process_sample(sample)
+        item = self._dataset[idx]
+        sample.data = TextType(item["document"])
+        sample.target = TextType(item["summary"])
+        return sample
+
+
+@DatasetRegistry.register
+class LanguageModelingDataset(GeneralistDataset):
+    shortname = "hf_language_modeling"
+    def __init__(self, dataset_path: str = "wikitext", dataset_name: str = "wikitext-103-raw-v1", split: str = "train", return_raw: bool = True, **kwargs) -> None:
+        super().__init__(return_raw, **kwargs)
+
+        self._dataset_path = dataset_path
+        self._dataset_name = dataset_name
+        self.split = split
+        self._dataset = load_dataset(dataset_path, dataset_name)[split]
+
+    def __len__(self) -> int:
+        return len(self._dataset)
+
+    def __getitem__(self, idx: int, **kwargs) -> Sample:
+        sample = super().__getitem__(idx, **kwargs)
+        item = self._dataset[idx]
+        sample.data = TextType(item["text"])
+        sample.target = TextType(item["text"])
+        return sample
+
