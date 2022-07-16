@@ -2,7 +2,7 @@ from numpy import isin, mat
 import torch.nn as nn
 
 from functools import wraps
-from typing import Any, Callable, ClassVar
+from typing import Any, Callable, ClassVar, Sequence
 
 
 from torch.utils.data import Dataset
@@ -53,7 +53,6 @@ class GeneralistDataset(Dataset):
     def __getitem__(self, idx: int, **kwargs) -> Sample:
         sample = Sample()
         if self._sample_metadata:
-            idx = kwargs.get("idx", None)
             sample.metadata = SampleMetaData(idx=idx, dataset_name=self.shortname)
         else:
             delattr(sample, "metadata")
@@ -92,6 +91,25 @@ class GeneralistDataset(Dataset):
         return self.tokenizers[input_type.data_type](input_type)
 
 
+class ChainedGenearlistDataset(Dataset):
+    def __init__(
+        self, datasets: Sequence[GeneralistDataset], sample_weights: Sequence[float], **kwargs
+    ) -> None:
+        super().__init__(**kwargs)
+        self._datasets = datasets
+        self.sample_weights = sample_weights
+
+        self._lengths = [len(dataset) for dataset in self._datasets]
+        self._lengths_idx = [sum(self._lengths[:i]) for i in range(len(self._lengths))]
+
+    def __len__(self) -> int:
+        return sum(self._lengths)
+
+    def __getitem__(self, index) -> Sample:
+        dataset_idx = [_ for _ in self._lengths_idx if _ <= index].pop()
+        return self._datasets[dataset_idx].__getitem__(index - self._lengths_idx[dataset_idx])
+
+
 class DatasetRegistry:
     registry = {}
 
@@ -118,10 +136,9 @@ class DatasetRegistry:
             raise KeyError(f"No dataset registered for {dataset}")
         return DatasetRegistry.registry.get(dataset)(*args, **kwargs)
 
-
     @staticmethod
-    def register(dataset_class: Any =None, *args, **kwargs):
-    # def register(shortname:str = None, dataset_class: Any =None, *args, **kwargs):
+    def register(dataset_class: Any = None, *args, **kwargs):
+        # def register(shortname:str = None, dataset_class: Any =None, *args, **kwargs):
         # if isinstance(shortname, str):
         #     return DatasetRegistry.registry[shortname]
         DatasetRegistry.registry[dataset_class.shortname] = dataset_class

@@ -68,6 +68,6 @@ class Batch:
         return iter((self.data, self.target))
 
 
-def collate_fn(samples: List[Sample]) -> Batch:
+def sample_collate_fn(samples: List[Sample]) -> Batch:
     batch = Batch(data=[s.data for s in samples], target=[s.target for s in samples])
     return batch

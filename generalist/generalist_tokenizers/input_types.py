@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import KW_ONLY, dataclass
 from typing import Any, List, NamedTuple, Optional, Union
 from enum import Enum
 
@@ -14,7 +14,10 @@ class InputTypes(str, Enum):
 @dataclass
 class InputType:
     data: Any
+
+    # _: KW_ONLY
     data_type = InputTypes.generic.name
+
 
 @dataclass
 class SampleMetaData:
@@ -33,6 +36,7 @@ class Sample:
 @dataclass
 class TextType(InputType):
     data: str
+    # _: KW_ONLY
     data_type = InputTypes.text.name
 
 

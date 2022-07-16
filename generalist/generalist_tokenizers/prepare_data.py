@@ -49,6 +49,7 @@ class PrepareData:
             )
             for target_idx, target in enumerate(targets)
         ]
+
         return encoded_targets
 
     def encode(self, *args, **kwargs):
