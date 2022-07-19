@@ -39,17 +39,16 @@ class PrepareData:
         return self.path[data.data_type](data)
 
     def prepare_targets(self, targets, out, padding="max_length", truncation=True):
-        encoded_targets = [
-            self.tokenizer.encode(
-                target.data,
-                max_length=out[target_idx].shape[1],
-                padding=padding,
-                truncation=truncation,
-                return_tensors="pt",
-            )
-            for target_idx, target in enumerate(targets)
-        ]
-
+        data = [t.data for t in targets]
+        out_max_length = max((o.shape[1] for o in out))
+        encoded_targets = self.tokenizer(
+            data,
+            max_length=out_max_length,
+            padding=padding,
+            truncation=truncation,
+            return_tensors="pt",
+        )
+        encoded_targets = encoded_targets["input_ids"]
         return encoded_targets
 
     def encode(self, *args, **kwargs):
