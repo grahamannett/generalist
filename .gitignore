@@ -216,3 +216,4 @@ submodules/
 .vscode/settings.json
 
 baselines/examples/**
+**/ignore/**
