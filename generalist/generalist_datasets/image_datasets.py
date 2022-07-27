@@ -22,12 +22,13 @@ class ImageDataset(GeneralistDataset):
 class MNISTDataset(GeneralistDataset):
     shortname = "mnist"
 
-    def __init__(self, train: bool = True, **kwargs):
+    def __init__(self, train: bool = True, out_channels: int = 1, **kwargs):
         super().__init__()
-        self.transform = transforms.Compose(
+        self.out_channels = out_channels
+        transform = transforms.Compose(
             [transforms.Resize(320), transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
         )
-        self.dataset = datasets.MNIST("../data", train=train, download=True, transform=self.transform)
+        self.dataset = datasets.MNIST("../data", train=train, download=True, transform=transform)
 
     def __len__(self):
         return len(self.dataset)
@@ -35,8 +36,12 @@ class MNISTDataset(GeneralistDataset):
     def __getitem__(self, idx: int, **kwargs) -> Sample:
         sample = super().__getitem__(idx, **kwargs)
         image, label = self.dataset[idx]
-        image = image.repeat(3, 1, 1)
 
-        sample.data = [ImageType(image), TextType("what number is this?")]
-        sample.target = TextType(str(label))
-        return sample
+        if self.out_channels > 1:
+            image = image.repeat(self.out_channels, 1, 1)
+
+        return image, label
+
+        # sample.data = [ImageType(image), TextType("what number is this?")]
+        # sample.target = TextType(str(label))
+        # return sample
