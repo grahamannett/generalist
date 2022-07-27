@@ -1,3 +1,5 @@
+import torch
+
 from generalist.generalist_datasets.dataset_utils import GeneralistDataset
 from torchvision import datasets, transforms
 
@@ -26,6 +28,7 @@ class MNISTDataset(GeneralistDataset):
         super().__init__()
         self.out_channels = out_channels
 
+        self.feature_extractor = kwargs.get("feature_extractor", None)
         transform = kwargs.get("transform", self._default_transform())
         self.dataset = datasets.MNIST("../data", train=train, download=True, transform=transform)
 
@@ -46,8 +49,12 @@ class MNISTDataset(GeneralistDataset):
         sample = super().__getitem__(idx, **kwargs)
         image, label = self.dataset[idx]
 
-        if self.out_channels > 1:
+        if self.out_channels > 1 and isinstance(image, torch.Tensor):
             image = image.repeat(self.out_channels, 1, 1)
+
+        if self.feature_extractor:
+            image = self.feature_extractor(image, return_tensors="pt")
+            image = image["input_ids"].squeeze(0)
 
         return image, label
 
