@@ -25,10 +25,19 @@ class MNISTDataset(GeneralistDataset):
     def __init__(self, train: bool = True, out_channels: int = 1, **kwargs):
         super().__init__()
         self.out_channels = out_channels
-        transform = transforms.Compose(
-            [transforms.Resize(320), transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
-        )
+
+        transform = kwargs.get("transform", self._default_transform())
         self.dataset = datasets.MNIST("../data", train=train, download=True, transform=transform)
+
+    def _default_transform(self):
+        transform = transforms.Compose(
+            [
+                # transforms.Resize(320),
+                transforms.ToTensor(),
+                # transforms.Normalize((0.1307,), (0.3081,))
+            ]
+        )
+        return transform
 
     def __len__(self):
         return len(self.dataset)
