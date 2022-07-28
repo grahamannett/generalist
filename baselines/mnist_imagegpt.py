@@ -16,11 +16,12 @@ label2id = {label: idx for idx, label in id2label.items()}
 print(id2label)
 print(label2id)
 
-from transformers import PerceiverFeatureExtractor, ImageGPTFeatureExtractor
+from transformers import ImageGPTConfig, ImageGPTModel, PerceiverFeatureExtractor, ImageGPTFeatureExtractor
 
 # feature_extractor = PerceiverFeatureExtractor()
 
 feature_extractor = ImageGPTFeatureExtractor.from_pretrained("openai/imagegpt-medium")
+# feature_extractor = ImageGPTFeatureExtractor(3)
 
 
 import numpy as np
@@ -55,7 +56,7 @@ def collate_fn(examples):
 
 
 train_batch_size = 2
-eval_batch_size = 2
+eval_batch_size = 1
 
 train_dataloader = DataLoader(train_ds, shuffle=True, collate_fn=collate_fn, batch_size=train_batch_size)
 val_dataloader = DataLoader(val_ds, collate_fn=collate_fn, batch_size=eval_batch_size)
@@ -81,13 +82,17 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #                                                                label2id=label2id,
 #                                                                ignore_mismatched_sizes=True)
 
-model = ImageGPTForImageClassification.from_pretrained(
-    "openai/imagegpt-medium",
-    num_labels=10,
-    id2label=id2label,
-    label2id=label2id,
-    ignore_mismatched_sizes=True,
-)
+# model = ImageGPTForImageClassification.from_pretrained(
+#     # pretrained_model_name,
+#     num_labels=10,
+#     id2label=id2label,
+#     label2id=label2id,
+#     ignore_mismatched_sizes=True,
+# )
+
+configuration = ImageGPTConfig(num_labels=10)
+model = ImageGPTForImageClassification(configuration)
+
 model.to(device)
 
 from transformers import AdamW
