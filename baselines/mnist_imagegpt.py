@@ -54,8 +54,8 @@ def collate_fn(examples):
     return {"pixel_values": pixel_values, "labels": labels}
 
 
-train_batch_size = 1
-eval_batch_size = 1
+train_batch_size = 2
+eval_batch_size = 2
 
 train_dataloader = DataLoader(train_ds, shuffle=True, collate_fn=collate_fn, batch_size=train_batch_size)
 val_dataloader = DataLoader(val_ds, collate_fn=collate_fn, batch_size=eval_batch_size)
@@ -101,7 +101,8 @@ optimizer = AdamW(model.parameters(), lr=5e-5)
 model.train()
 for epoch in range(2):  # loop over the dataset multiple times
     print("Epoch:", epoch)
-    for batch in tqdm(train_dataloader):
+    pbar = tqdm(train_dataloader)
+    for batch in pbar:
         # get the inputs;
         inputs = batch["pixel_values"].to(device)
         labels = batch["labels"].to(device)
@@ -118,7 +119,8 @@ for epoch in range(2):  # loop over the dataset multiple times
         # evaluate
         predictions = outputs.logits.argmax(-1).cpu().detach().numpy()
         accuracy = accuracy_score(y_true=batch["labels"].numpy(), y_pred=predictions)
-        print(f"Loss: {loss.item()}, Accuracy: {accuracy}")
+        # print(f"Loss: {loss.item()}, Accuracy: {accuracy}")
+        pbar.set_postfix(loss=loss.item(), accuracy=accuracy)
 
 from tqdm.notebook import tqdm
 from datasets import load_metric
@@ -126,7 +128,9 @@ from datasets import load_metric
 accuracy = load_metric("accuracy")
 
 model.eval()
-for batch in tqdm(val_dataloader):
+
+pbar = tqdm(val_dataloader)
+for batch in pbar:
     # get the inputs;
     inputs = batch["pixel_values"].to(device)
     labels = batch["labels"].to(device)
