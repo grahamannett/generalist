@@ -122,7 +122,7 @@ for epoch in range(2):  # loop over the dataset multiple times
         # print(f"Loss: {loss.item()}, Accuracy: {accuracy}")
         pbar.set_postfix(loss=loss.item(), accuracy=accuracy)
 
-from tqdm.notebook import tqdm
+# from tqdm.notebook import tqdm
 from datasets import load_metric
 
 accuracy = load_metric("accuracy")
