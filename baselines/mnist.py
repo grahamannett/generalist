@@ -2,6 +2,18 @@
 
 pretrained_model_name = "openai/imagegpt-small"
 
+import argparse
+
+
+def get_args():
+    args = argparse.ArgumentParser()
+    args.add_argument("--model_type", type=str, default="imagegpt")
+    return args.parse_args()
+
+
+args = get_args()
+
+
 from datasets import load_dataset
 
 # load cifar10 (only small portion for demonstration purposes)
@@ -34,37 +46,57 @@ import numpy as np
 import torchvision.transforms.functional as F
 
 
-# perceiver
-# feature_extractor = PerceiverFeatureExtractor.from_pretrained("deepmind/vision-perceiver-learned")
-# model = PerceiverForImageClassificationLearned.from_pretrained(
-#     "deepmind/vision-perceiver-learned",
-#     num_labels=10,
-#     id2label=id2label,
-#     label2id=label2id,
-#     ignore_mismatched_sizes=True,
-# )
+def get_perceiver():
+    # perceiver
+    feature_extractor = PerceiverFeatureExtractor.from_pretrained("deepmind/vision-perceiver-learned")
+    model = PerceiverForImageClassificationLearned.from_pretrained(
+        "deepmind/vision-perceiver-learned",
+        num_labels=10,
+        id2label=id2label,
+        label2id=label2id,
+        ignore_mismatched_sizes=True,
+    )
+
+    def preprocess_images(examples):
+        images = [F.pil_to_tensor(i).repeat(3, 1, 1) for i in examples["image"]]
+        examples["pixel_values"] = feature_extractor(images, return_tensors="pt").pixel_values
+        return examples
+
+    return model, feature_extractor, preprocess_images
 
 
-# def preprocess_image(examples):
-#     examples["pixel_values"] = feature_extractor(examples["img"], return_tensors="pt").pixel_values
-#     return examples
+def get_imagegpt():
+    # imagegpt
+    feature_extractor = ImageGPTFeatureExtractor.from_pretrained(pretrained_model_name)
+    model = ImageGPTForImageClassification.from_pretrained(
+        pretrained_model_name,
+        num_labels=10,
+        id2label=id2label,
+        label2id=label2id,
+        ignore_mismatched_sizes=True,
+    )
+
+    def preprocess_images(examples):
+        images = [F.pil_to_tensor(i).repeat(3, 1, 1) for i in examples["image"]]
+        examples["pixel_values"] = feature_extractor(images, return_tensors="pt").input_ids
+        return examples
+
+    return model, feature_extractor, preprocess_images
 
 
-# imagegpt
-feature_extractor = ImageGPTFeatureExtractor.from_pretrained(pretrained_model_name)
-model = ImageGPTForImageClassification.from_pretrained(
-    pretrained_model_name,
-    num_labels=10,
-    id2label=id2label,
-    label2id=label2id,
-    ignore_mismatched_sizes=True,
-)
+def get_model_specific(model_type: str):
+    match model_type:
+        case "imagegpt":
+            func = get_imagegpt
+        case "perceiver":
+            func = get_perceiver
+        case _:
+            raise ValueError(f"Unknown model type: {model_type}")
+
+    return func()
 
 
-def preprocess_images(examples):
-    images = [F.pil_to_tensor(i).repeat(3, 1, 1) for i in examples["image"]]
-    examples["pixel_values"] = feature_extractor(images, return_tensors="pt").input_ids
-    return examples
+model, feature_extractor, preprocess_images = get_model_specific(args.model_type)
 
 
 train_ds.set_transform(preprocess_images)
