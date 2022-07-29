@@ -1,11 +1,13 @@
 # from https://colab.research.google.com/drive/1F4Fn_8kF7FVyzyHOIpM9Sc3Q3AsLmcKT#scrollTo=npMiFNnRznc0
 
-pretrained_model_name = "openai/imagegpt-medium"
+pretrained_model_name = "openai/imagegpt-small"
 
 from datasets import load_dataset
 
 # load cifar10 (only small portion for demonstration purposes)
-train_ds, test_ds = load_dataset("mnist", split=["train[:1000]", "test[:1000]"])
+# train_ds, test_ds = load_dataset("mnist")
+ds = load_dataset("mnist")
+train_ds, test_ds = ds["train"], ds["test"]
 # split up training into training + validation
 splits = train_ds.train_test_split(test_size=0.1)
 train_ds = splits["train"]
@@ -16,22 +18,47 @@ label2id = {label: idx for idx, label in id2label.items()}
 print(id2label)
 print(label2id)
 
-from transformers import ImageGPTConfig, ImageGPTModel, PerceiverFeatureExtractor, ImageGPTFeatureExtractor
+from transformers import (
+    ImageGPTConfig,
+    ImageGPTFeatureExtractor,
+    ImageGPTModel,
+    PerceiverFeatureExtractor,
+    ImageGPTForImageClassification,
+    PerceiverForImageClassificationLearned,
+)
 
 # feature_extractor = PerceiverFeatureExtractor()
 
-feature_extractor = ImageGPTFeatureExtractor.from_pretrained("openai/imagegpt-medium")
-# feature_extractor = ImageGPTFeatureExtractor(3)
-
 
 import numpy as np
-
 import torchvision.transforms.functional as F
 
 
-def preprocess_images_perceiver(examples):
-    examples["pixel_values"] = feature_extractor(examples["img"], return_tensors="pt").pixel_values
-    return examples
+# perceiver
+# feature_extractor = PerceiverFeatureExtractor.from_pretrained("deepmind/vision-perceiver-learned")
+# model = PerceiverForImageClassificationLearned.from_pretrained(
+#     "deepmind/vision-perceiver-learned",
+#     num_labels=10,
+#     id2label=id2label,
+#     label2id=label2id,
+#     ignore_mismatched_sizes=True,
+# )
+
+
+# def preprocess_image(examples):
+#     examples["pixel_values"] = feature_extractor(examples["img"], return_tensors="pt").pixel_values
+#     return examples
+
+
+# imagegpt
+feature_extractor = ImageGPTFeatureExtractor.from_pretrained(pretrained_model_name)
+model = ImageGPTForImageClassification.from_pretrained(
+    pretrained_model_name,
+    num_labels=10,
+    id2label=id2label,
+    label2id=label2id,
+    ignore_mismatched_sizes=True,
+)
 
 
 def preprocess_images(examples):
@@ -45,8 +72,8 @@ val_ds.set_transform(preprocess_images)
 test_ds.set_transform(preprocess_images)
 
 
-from torch.utils.data import DataLoader
 import torch
+from torch.utils.data import DataLoader
 
 
 def collate_fn(examples):
@@ -72,34 +99,14 @@ for k, v in batch.items():
 print(next(iter(val_dataloader))["pixel_values"].shape)
 
 
-from transformers import PerceiverForImageClassificationLearned, ImageGPTForImageClassification
-
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-# model = PerceiverForImageClassificationLearned.from_pretrained("deepmind/vision-perceiver-learned",
-#                                                                num_labels=10,
-#                                                                id2label=id2label,
-#                                                                label2id=label2id,
-#                                                                ignore_mismatched_sizes=True)
-
-# model = ImageGPTForImageClassification.from_pretrained(
-#     # pretrained_model_name,
-#     num_labels=10,
-#     id2label=id2label,
-#     label2id=label2id,
-#     ignore_mismatched_sizes=True,
-# )
-
-configuration = ImageGPTConfig(num_labels=10)
-model = ImageGPTForImageClassification(configuration)
-
 model.to(device)
 
-from transformers import AdamW
+from sklearn.metrics import accuracy_score
 
 # from tqdm.notebook import tqdm
 from tqdm import tqdm
-from sklearn.metrics import accuracy_score
+from transformers import AdamW
 
 optimizer = AdamW(model.parameters(), lr=5e-5)
 
