@@ -110,10 +110,15 @@ from transformers import AdamW
 
 optimizer = AdamW(model.parameters(), lr=5e-5)
 
+
 model.train()
 for epoch in range(2):  # loop over the dataset multiple times
     print("Epoch:", epoch)
     pbar = tqdm(train_dataloader)
+
+    running_correct = 0
+    running_total = 0
+    running_loss = 0
     for batch in pbar:
         # get the inputs;
         inputs = batch["pixel_values"].to(device)
@@ -130,9 +135,15 @@ for epoch in range(2):  # loop over the dataset multiple times
 
         # evaluate
         predictions = outputs.logits.argmax(-1).cpu().detach().numpy()
-        accuracy = accuracy_score(y_true=batch["labels"].numpy(), y_pred=predictions)
+
+        running_correct += (batch["labels"].numpy() == predictions).sum()
+        running_total += len(batch["labels"])
+        running_loss += loss.item()
+
+        accuracy = running_correct / running_total
+        # accuracy = accuracy_score(y_true=batch["labels"].numpy(), y_pred=predictions)
         # print(f"Loss: {loss.item()}, Accuracy: {accuracy}")
-        pbar.set_postfix(loss=loss.item(), accuracy=accuracy)
+        pbar.set_postfix(loss=loss.item(), accuracy=accuracy, running_loss=running_loss)
 
 # from tqdm.notebook import tqdm
 from datasets import load_metric
@@ -142,6 +153,8 @@ accuracy = load_metric("accuracy")
 model.eval()
 
 pbar = tqdm(val_dataloader)
+running_total = 0
+running_correct = 0
 for batch in pbar:
     # get the inputs;
     inputs = batch["pixel_values"].to(device)
@@ -153,6 +166,9 @@ for batch in pbar:
     predictions = logits.argmax(-1).cpu().detach().numpy()
     references = batch["labels"].numpy()
     accuracy.add_batch(predictions=predictions, references=references)
+    # running_correct += (batch["labels"].numpy() == predictions).sum()
+    # running_total += len(batch["labels"])
 
 final_score = accuracy.compute()
+# final_score =
 print("Accuracy on test set:", final_score)
