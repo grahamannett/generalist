@@ -1,0 +1,12 @@
+[config.iaputus]
+name = "iaputus"
+environment = "gpu"
+
+[config.default]
+name = "default"
+environment = "dev"
+
+
+[experiments.mnist]
+dataset = "mnist"
+eval = true

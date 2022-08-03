@@ -14,7 +14,7 @@ from generalist.generalist_datasets.hf_datasets import LanguageModelingDataset, 
 from generalist.generalist_datasets.image_datasets import MNISTDataset
 from generalist.generalist_tokenizers.prepare_data import PrepareData
 from generalist.models.model import EmbeddingModel, GeneralistModel
-from generalist.utils.utils import sample_collate_fn, get_args
+from generalist.utils.utils import Batch, sample_collate_fn, get_args
 
 device = config.device
 
@@ -58,54 +58,43 @@ def train(**kwargs):
     # dataset = AokvqaDataset()
     # dataset = SummarizationDataset()
     # dataset = LanguageModelingDataset()
-    dataset = MNISTDataset(train=True)
-    val_dataset = MNISTDataset(train=False)
+    dataset = MNISTDataset(train=True, out_channels=3)
+    val_dataset = MNISTDataset(train=False, out_channels=3)
 
     _ = dataset[0]
 
-    train_dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=sample_collate_fn)
-    val_dataloader = DataLoader(
-        val_dataset, batch_size=batch_size, shuffle=True, collate_fn=sample_collate_fn
-    )
+    train_dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=Batch.collate_fn)
+    val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, collate_fn=Batch.collate_fn)
 
-
-
-    # with Live(progress_group):
-
-    # live_rich.start(True)
-
-    display_flag = kwargs.get("display", True)
-    display = GeneralistDisplay(Live(progress_group), display=display_flag)
-
+    display = GeneralistDisplay.make(display=kwargs.get("display", True))
     display.manage()
+
     for epoch in range(n_epochs):
         # epoch_progress.update(epoch_task)
 
         running_loss = 0.0
-        display.add_task("batch_task", display.batch_progress, batch_kwargs=)
-        batch_task = batch_progress.add_task(
-            "[green]Batch", total=len(train_dataloader), running_loss=running_loss
+        display.update("epoch_progress", epoch)
+        display.add_task(
+            "batch_progress", "[green]Batch", total=len(train_dataloader), running_loss=running_loss
         )
 
         for idx, batch in enumerate(train_dataloader):
 
-            data, target = batch
+            data, target = batch.data, batch.target
 
             data_tokenized = prepare_data(data)
+
             data_embedded = embedding_model(data_tokenized)
+
+            # this wont work if there are different sizes of data (e.g. different sequence lengths)
+            data_embedded = torch.vstack([d.embedding for d in data_embedded])
             logits = model(data_embedded)
 
-            encoded_targets = prepare_data.prepare_targets(target, logits)
+            logits_max_length = max((l.shape[1] for l in logits))
+            encoded_targets = prepare_data.prepare_targets(target, logits_max_length=logits_max_length)
 
-            out = torch.cat(logits, dim=1).squeeze(0)
-
-            # encoded_targets = torch.cat(encoded_targets, dim=1).squeeze(0).to(device)
-            encoded_targets = encoded_targets.reshape(-1).to(device)
-
-            if len(out) != len(encoded_targets):
-                breakpoint()
-
-            loss = loss_fn(out, encoded_targets)
+            out = torch.cat(logits, dim=0)
+            loss = loss_fn(out.view(-1, out.shape[-1]), encoded_targets.view(-1))
 
             running_loss += loss.item()
 
@@ -115,15 +104,21 @@ def train(**kwargs):
             torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
             optimizer.step()
 
-            batch_progress.update(
-                batch_task,
+            breakpoint()
+            test_examples = out.argmax(1)[0][:2]
+            test_decoded = prepare_data.tokenizer.decode(test_examples)
+            test_actual = prepare_data.tokenizer.decode(encoded_targets[0][0])
+
+            display.update(
+                "batch_progress",
                 advance=1,
                 running_loss=running_loss,
+                test={"pred": test_decoded, "actual": test_actual},
             )
-            break
+            # break
         break
 
-    display.manage()
+    display.manage("epoch", display.END)
     print("done with training")
 
 

@@ -29,10 +29,13 @@ class GeneralizedTokens(GenearlizedInput):
     token_type_ids: torch.Tensor = None
 
     def __post_init__(self):
-        
+
         _device_to(self, "tokens")
         _device_to(self, "attention_mask")
         _device_to(self, "token_type_ids")
+
+    def shape(self):
+        return self.tokens.shape
 
 
 @dataclass
@@ -51,9 +54,16 @@ class GeneralEmbedding(GenearlizedInput):
     def asdict(self):
         return self.__dict__
 
+    @property
+    def shape(self):
+        return self.embedding.shape
+
     @classmethod
     def combine(cls, *args):
         new_encoded = cls(
             hidden_states=torch.cat([arg.hidden_states for arg in args], dim=1),
         )
         return new_encoded
+
+
+# class GeneralizedEmbedding(torch.Tensor):

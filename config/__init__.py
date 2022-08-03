@@ -1,7 +1,8 @@
 import os
 
+import pytomlpp as toml
 from config.helper import ConfigInterface
-
+from generalist.utils.utils import get_hostname
 
 # from config.dev import Config
 
@@ -9,7 +10,7 @@ from config.helper import ConfigInterface
 class Config:
     #
     DEVICE = device = "cuda:1"
-
+    # DATASET RELATED
     BASE_DATADIR = os.environ.get("BASE_DATADIR", __file__.removesuffix("config/__init__.py") + "data")
 
     DEFAULT_AOKVQA_DIR = f"{BASE_DATADIR}/aokvqa"
@@ -25,6 +26,9 @@ class Config:
     FEATURES_DIR = os.environ.get("LOG_DIR", DEFAULT_FEATURES_DIR)
     PRETRAINED_MODELS_DIR = os.environ.get("PRETRAINED_MODELS_DIR", DEFAULT_PRETRAINED_MODELS_DIR)
 
+    # MODEL RELATED
+    EMBEDDING_DIM = 768
+
     def __init__(self, config_name: str = "dev") -> None:
         config_name = os.environ.get("CONFIG_NAME", config_name)
         config_env = self._import_helper(config_name)
@@ -36,11 +40,18 @@ class Config:
                 setattr(self, key, val)
 
     def _import_helper(self, config_name: str):
+        env = self._read_env_file()
         try:
             exec(f"from config.{config_name}_config import Config as ConfigEnv")
             return locals().get("ConfigEnv", None)
         except ModuleNotFoundError:
             raise ModuleNotFoundError(f"Config {config_name} not found, specify one from config/")
+
+    def _read_env_file(self, env_file: str = "info.toml"):
+        params = toml.load(env_file)
+        env = params["config"].get(get_hostname(), params["config"]["default"])
+        return env
+
 
 config = Config()
 device = config.device

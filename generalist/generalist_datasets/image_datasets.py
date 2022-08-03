@@ -56,8 +56,11 @@ class MNISTDataset(GeneralistDataset):
             image = self.feature_extractor(image, return_tensors="pt")
             image = image["input_ids"].squeeze(0)
 
-        return image, label
+        # return image, label
+        image_ = ImageType(image)
+        image_.resize(224)
 
-        # sample.data = [ImageType(image), TextType("what number is this?")]
-        # sample.target = TextType(str(label))
-        # return sample
+        sample.data = [image_, TextType("what number is this?")]
+        # sample.data = [image_]
+        sample.target = TextType(str(label))
+        return sample

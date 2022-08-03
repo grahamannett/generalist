@@ -45,6 +45,13 @@ class ImageTokenizer(GeneralTokenizer):
     def to_patches(self, img: torch.Tensor):
         if img.ndim == 3:
             img = img.unsqueeze(0)
+
+        if img.shape[-1] % self.p1 != 0:
+            raise ValueError(
+                "Image height and width must be divisible by patch size. "
+                f"Got {img.shape[-1]} and {self.p1}"
+            )
+
         img = rearrange(img, "b c (h p1) (w p2) -> b (h w) (p1 p2 c)", p1=self.p1, p2=self.p2)
         return img
 
@@ -108,7 +115,11 @@ class LearnedPositionalEmbeddings(nn.Module):
         * `x` is the patch embeddings of shape `[patches, batch_size, d_model]`
         """
         # Get the positional embeddings for the given patches
+
         pe = self.positional_encodings[x.shape[0]]
+
+        if (scale_factor := (x.shape[-1] / pe.shape[-1])) != 1.0:
+            pe = torch.nn.functional.interpolate(pe.unsqueeze(0), scale_factor=scale_factor).squeeze(0)
 
         return x + pe
 
@@ -116,7 +127,7 @@ class LearnedPositionalEmbeddings(nn.Module):
 class ImageEmbeddingPath(nn.Module):
     data_type = ImageType.data_type
 
-    def __init__(self, d_model: int = 768, patch_size: int = 16, in_channels: int = 3, device: str = device):
+    def __init__(self, d_model: int = 704, patch_size: int = 16, in_channels: int = 3, device: str = device):
         super().__init__()
 
         self.patch_size = patch_size
@@ -131,7 +142,7 @@ class ImageEmbeddingPath(nn.Module):
 
 
 class ImagePath(nn.Module):
-    def __init__(self, d_model: int = 768, patch_size: int = 16, in_channels: int = 3, device: str = device):
+    def __init__(self, d_model: int = 704, patch_size: int = 16, in_channels: int = 3, device: str = device):
         super().__init__()
         self.device = device
 
@@ -174,3 +185,20 @@ def img_to_patch(x, patch_size: int = 16, flatten_channels: bool = True):
     if flatten_channels:
         x = x.flatten(2, 4)  # [B, H'*W', C*p_H*p_W]
     return x
+
+
+class ResNetEmbedding(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.block = nn.Sequential(
+            nn.LazyConv2d(3, 1),
+            nn.LazyBatchNorm2d(),
+            nn.ReLU(),
+            nn.LazyConv2d(3, 1),
+            nn.LazyBatchNorm2d(),
+        )
+
+    def forward(self, x: torch.Tensor):
+        x = self.block(x) + x
+        return nn.functional.relu(x)

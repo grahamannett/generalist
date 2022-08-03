@@ -32,6 +32,7 @@ class TransformerDecoder(GPT2Model):
         self.gradient_checkpointing = False
 
         # Initialize weights and apply final processing
+        self.model_max_length = config.n_ctx
         self.post_init()
 
     def _get_output_shape(self, input_shape: torch.Tensor, hidden_states):

@@ -3,6 +3,7 @@ from typing import Any, List, NamedTuple, Optional, Union
 from enum import Enum
 
 from torch import Tensor
+from torchvision.transforms import functional as F
 
 
 class InputTypes(str, Enum):
@@ -32,6 +33,9 @@ class Sample:
 
     metadata: Optional[SampleMetaData] = None
 
+    def __iter__(self):
+        yield self.data, self.target
+
 
 @dataclass
 class TextType(InputType):
@@ -44,6 +48,10 @@ class TextType(InputType):
 class ImageType(InputType):
     data: Tensor
     data_type = InputTypes.image.name
+
+    def resize(self, size: int) -> "ImageType":
+        self.data = F.resize(self.data, size)
+        return self
 
 
 @dataclass

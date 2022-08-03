@@ -1,7 +1,5 @@
 import argparse
-from collections import UserDict
 from dataclasses import astuple, dataclass
-from sys import breakpointhook
 from typing import Any, List
 
 from generalist.generalist_tokenizers.input_types import Sample
@@ -44,7 +42,7 @@ def _all_keys_match(batch):
 
 
 @dataclass
-class Batch:
+class BatchOld:
     """genearic batch class
 
     usage (one of):
@@ -61,6 +59,12 @@ class Batch:
     data: Any = None
     target: Any = None
 
+    @classmethod
+    def collate_fn(cls, samples: List[Sample]) -> "Batch":
+        """collate_fn for torch.utils.data.DataLoader"""
+        batch = cls(*zip(*((s.data, s.target) for s in samples)))
+        return batch
+
     def __len__(self):
         return len(self.data)
 
@@ -75,6 +79,33 @@ class Batch:
         return iter((self.data, self.target))
 
 
+@dataclass
+class Batch:
+    samples: List[Sample] = None
+
+    def __post_init__(self):
+        # not sure which is quicker:
+        # list(zip(*((s.data, s.target) for s in self.samples)))
+        # or below
+        self.data = [s.data for s in self.samples]
+        self.target = [s.target for s in self.samples]
+
+    @classmethod
+    def collate_fn(cls, samples: List[Sample]) -> "Batch":
+        """collate_fn for torch.utils.data.DataLoader"""
+        batch = cls(samples)
+        return batch
+
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, key: int):
+        return self.samples[key]
+
+    def __iter__(self):
+        return iter(self.samples)
+
+
 def sample_collate_fn(samples: List[Sample]) -> Batch:
-    batch = Batch(data=[s.data for s in samples], target=[s.target for s in samples])
+    batch = Batch.collate_fn(samples)
     return batch

@@ -70,12 +70,11 @@ class TextEmbeddingPath(nn.Module):
         super().__init__()
 
         self.embedder = TextEmbedding.from_pretrained("gpt2")
-
         self.device = device
 
     def forward(self, data: Any) -> torch.Tensor:
-        data = self.embedder(data)
-        return data
+        embedding = self.embedder(data)
+        return GeneralEmbedding(embedding=embedding.embedding, data_type=self.data_type)
 
 
 class TextEmbedding(GPT2PreTrainedModel):

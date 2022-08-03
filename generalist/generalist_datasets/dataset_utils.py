@@ -59,6 +59,9 @@ class GeneralistDataset(Dataset):
 
         return sample
 
+    def _return_tuple(self):
+        pass
+
     def path(self, data_type: str) -> Any:
         match data_type:
             case self.paths.image_path.data_type:
@@ -105,7 +108,7 @@ class ChainedGenearlistDataset(Dataset):
     def __len__(self) -> int:
         return sum(self._lengths)
 
-    def __getitem__(self, index) -> Sample:
+    def __getitem__(self, index: int) -> Sample:
         dataset_idx = [_ for _ in self._lengths_idx if _ <= index].pop()
         return self._datasets[dataset_idx].__getitem__(index - self._lengths_idx[dataset_idx])
 
@@ -147,3 +150,18 @@ class DatasetRegistry:
     @staticmethod
     def register_(shortname: str, *args, **kwargs) -> Callable:
         DatasetRegistry.add_dataset(shortname)
+
+
+class CombinedDataset(GeneralistDataset):
+    def __init__(self, datasets: Sequence[GeneralistDataset], batch_same: bool = False, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self._datasets = datasets
+
+        self.batch_same = batch_same
+
+    def __len__(self) -> int:
+        return sum([len(dataset) for dataset in self._datasets])
+
+    def __getitem__(self, index) -> Sample:
+        dataset_idx = [_ for _ in self._lengths_idx if _ <= index].pop()
+        return self._datasets[dataset_idx].__getitem__(index - self._lengths_idx[dataset_idx])
