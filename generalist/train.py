@@ -16,7 +16,10 @@ from generalist.generalist_tokenizers.prepare_data import PrepareData
 from generalist.models.model import EmbeddingModel, GeneralistModel
 from generalist.utils.utils import Batch, sample_collate_fn, get_args
 
-device = config.device
+from accelerate import Accelerator
+
+accelerator = Accelerator()
+device = accelerator.device
 
 
 from generalist.utils.display import GeneralistDisplay
@@ -71,6 +74,10 @@ def train(**kwargs):
     display = GeneralistDisplay.make(display=kwargs.get("display", True))
     display.manage()
 
+    model, embedding_model, optimizer, data = accelerator.prepare(
+        model, embedding_model, optimizer, train_dataloader
+    )
+
     for epoch in range(n_epochs):
         # epoch_progress.update(epoch_task)
 
@@ -81,6 +88,9 @@ def train(**kwargs):
         display.add_task(
             "batch_progress", "[green]Batch", total=len(train_dataloader), running_loss=running_loss
         )
+
+        embedding_model.train()
+        model.train()
 
         for idx, batch in enumerate(train_dataloader):
 
@@ -118,7 +128,8 @@ def train(**kwargs):
             running_loss += loss.item()
 
             optimizer.zero_grad()
-            loss.backward()
+            # loss.backward()
+            accelerator.backward(loss)
 
             torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
             optimizer.step()
