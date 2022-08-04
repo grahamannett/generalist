@@ -9,7 +9,7 @@ class TransformerDecoder(nn.Module):
         super().__init__()
         d_model = kwargs.get("d_model", 768)
         nhead = kwargs.get("nhead", 4)
-        num_layers = kwargs.get("num_layers", 2)
+        num_layers = kwargs.get("num_layers", 4)
         self.decoder_layer = nn.TransformerDecoderLayer(d_model=d_model, nhead=nhead)
         self.transformer_decoder = nn.TransformerDecoder(self.decoder_layer, num_layers=num_layers)
 
@@ -21,8 +21,8 @@ class TransformerDecoder(nn.Module):
 
         if latents is None:
             latents = embedding
-
-        return self.transformer_decoder(embedding, latents)
+        out = self.transformer_decoder(embedding, latents)
+        return out
 
 
 if __name__ == "__main__":

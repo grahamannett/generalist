@@ -39,9 +39,11 @@ def train(**kwargs):
     batch_size = args.batch_size
 
     embedding_model = EmbeddingModel().to(device)
-    model = GeneralistModel().to(device)
+    # model = GeneralistModel().to(device)
+    model = GeneralistModel(output_dim=10).to(device)
 
     prepare_data = PrepareData(embedding_model=embedding_model, generalist_model=model, device=device)
+    tokenizer = prepare_data.tokenizer
 
     loss_fn = torch.nn.CrossEntropyLoss()
 
@@ -73,6 +75,8 @@ def train(**kwargs):
         # epoch_progress.update(epoch_task)
 
         running_loss = 0.0
+        running_correct = 0
+        running_total = 0
         display.update("epoch_progress", epoch)
         display.add_task(
             "batch_progress", "[green]Batch", total=len(train_dataloader), running_loss=running_loss
@@ -90,11 +94,26 @@ def train(**kwargs):
             data_embedded = torch.vstack([d.embedding for d in data_embedded])
             logits = model(data_embedded)
 
-            logits_max_length = max((l.shape[1] for l in logits))
-            encoded_targets = prepare_data.prepare_targets(target, logits_max_length=logits_max_length)
+            # logits_max_length = max((l.shape[1] for l in logits))
+            logits_max_length = logits.shape[1]
+            # encoded_targets = prepare_data.prepare_targets(target, logits_max_length=logits_max_length)
 
-            out = torch.cat(logits, dim=0)
-            loss = loss_fn(out.view(-1, out.shape[-1]), encoded_targets.view(-1))
+            # encoded_targets = tokenizer(
+            #     [t.data for t in target],
+            #     return_tensors="pt",
+            #     padding="max_length",
+            #     max_length=logits.shape[1],
+            # )["input_ids"]
+            # max_length=logits_max_length,
+            # padding=padding,
+            # truncation=truncation,
+            # )
+            # encoded_targets = encoded_targets["input_ids"]
+            encoded_targets = torch.Tensor([int(t.data) for t in target]).to(int)
+            # breakpoint()
+            out = logits
+            # loss = loss_fn(out.view(-1, out.shape[-1]), encoded_targets.view(-1))
+            loss = loss_fn(out, encoded_targets)
 
             running_loss += loss.item()
 
@@ -104,16 +123,22 @@ def train(**kwargs):
             torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
             optimizer.step()
 
-            breakpoint()
-            test_examples = out.argmax(1)[0][:2]
-            test_decoded = prepare_data.tokenizer.decode(test_examples)
-            test_actual = prepare_data.tokenizer.decode(encoded_targets[0][0])
+            # test_examples = out.argmax(1)[0][:5]
+            # test_decoded = tokenizer.decode(test_examples)
+            # test_actual = tokenizer.decode(encoded_targets[0][0])
+            test_decoded = out.argmax(1)
+            test_actual = encoded_targets
+            running_correct += test_decoded.eq(test_actual).sum().item()
+            running_total += len(test_actual)
+
+            acc = f"{(running_correct / running_total):0.3f}"
 
             display.update(
                 "batch_progress",
                 advance=1,
-                running_loss=running_loss,
-                test={"pred": test_decoded, "actual": test_actual},
+                running_loss=f"{running_loss:.3f}",
+                # test={"pred": test_decoded, "actual": test_actual},
+                test={"pred": test_decoded, "actual": test_actual, "acc": acc},
             )
             # break
         break

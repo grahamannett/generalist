@@ -80,7 +80,7 @@ class GeneralistModel(nn.Module):
 
     def forward(self, data: torch.Tensor) -> torch.Tensor:
         out = self.transformer(data)
-        out = self.output(out)
+        out = self.output(out[:, 0])
         return out
 
     # def forward(self, data: Sequence[GeneralEmbedding]) -> Sequence[torch.Tensor]:

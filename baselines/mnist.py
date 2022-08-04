@@ -97,6 +97,7 @@ def get_model_specific(model_type: str):
 
 
 model, feature_extractor, preprocess_images = get_model_specific(args.model_type)
+breakpoint()
 
 
 train_ds.set_transform(preprocess_images)
