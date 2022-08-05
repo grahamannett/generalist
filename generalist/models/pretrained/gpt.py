@@ -8,7 +8,7 @@ from transformers.models.gpt2.modeling_gpt2 import (
     GPT2PreTrainedModel,
 )
 
-from generalist.generalist_tokenizers.general_embedding import GeneralEmbedding
+from generalist.generalist_tokenizers.general_embedding import GenearlizedTensor
 
 
 class TransformerDecoder(GPT2Model):
@@ -38,7 +38,7 @@ class TransformerDecoder(GPT2Model):
     def _get_output_shape(self, input_shape: torch.Tensor, hidden_states):
         return input_shape + (hidden_states.size(-1),)
 
-    def forward(self, embeddings: GeneralEmbedding, **kwargs):
+    def forward(self, embeddings: GenearlizedTensor, **kwargs):
         output_attentions = kwargs.get("output_attentions", self.config.output_attentions)
         output_hidden_states = kwargs.get("output_hidden_states", self.config.output_hidden_states)
         use_cache = kwargs.get("use_cache", self.config.use_cache)
@@ -46,8 +46,8 @@ class TransformerDecoder(GPT2Model):
 
         attention_mask = getattr(embeddings, "attention_mask", None)
 
-        hidden_states = embeddings.embedding
-        input_shape = embeddings.embedding.shape
+        hidden_states = embeddings
+        input_shape = embeddings.shape
 
         past_length = 0
         past_key_values = tuple([None] * len(self.h))

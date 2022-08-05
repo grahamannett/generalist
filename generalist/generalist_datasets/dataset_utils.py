@@ -15,13 +15,10 @@ from generalist.generalist_tokenizers.tokenizer_utils import GeneralTokenizer
 
 
 class DataPaths:
-    # image_path = ImageTokenizer()
-    # text_path = TextTokenizer()
-    image_path = None
-    text_path = None
-
     @classmethod
     def setup(cls, **kwargs) -> None:
+        breakpoint()
+
         def _helper(base, prop, init):
             if getattr(base, prop) is None:
                 setattr(base, prop, init(**kwargs))
@@ -31,21 +28,20 @@ class DataPaths:
 
 
 class GeneralistDataset(Dataset):
-    tokenizers = {}
     shortname = None
 
-    def __init__(self, return_raw: bool = True, **kwargs) -> None:
-        self._return_raw = return_raw
+    tokenizers = {
+        TextTokenizer.data_type: TextTokenizer(),
+        ImageTokenizer.data_type: ImageTokenizer(),
+    }
+
+    def __init__(self, return_raw: bool = False, **kwargs) -> None:
         self._use_prepare_data = kwargs.get("use_prepare_data", False)
         self._sample_metadata = kwargs.get("sample_metadata", True)
 
-    @property
-    def return_raw(self) -> bool:
-        return self._return_raw
-
-    @return_raw.setter
-    def return_raw(self, value: bool) -> None:
-        self._return_raw = value
+        self.return_raw = return_raw
+        self.process_sample_data = kwargs.get("process_sample_data", True)
+        self.process_sample_target = kwargs.get("process_sample_target", True)
 
     def __class_getitem__(cls, key):
         breakpoint()
@@ -77,21 +73,24 @@ class GeneralistDataset(Dataset):
         if self.return_raw or return_raw:
             return sample
 
-        self._process_sample_property(sample, "data")
-        self._process_sample_property(sample, "target")
+        if self.process_sample_data:
+            self.process_sample_property(sample, "data")
+        if self.process_sample_target:
+            self.process_sample_property(sample, "target")
 
         return sample
 
-    def _process_sample_property(self, sample: Sample, prop: str) -> Sample:
-        prop_value = getattr(sample, prop)
+    def process_sample_property(self, sample: Sample, prop: str) -> Sample:
+        prop_attr = getattr(sample, prop)
 
-        if isinstance(prop_value, list):
-            setattr(sample, prop, [self.process_input_type(data) for data in prop_value])
-        else:
-            setattr(sample, prop, self.process_input_type(prop_value))
-
-    def process_input_type(self, input_type: InputType):
-        return self.tokenizers[input_type.data_type](input_type)
+        match prop_attr:
+            case list():
+                new_prop = [self.tokenizers[data.data_type](data) for data in prop_attr]
+                setattr(sample, prop, new_prop)
+            case InputType():
+                setattr(sample, prop, self.tokenizers[prop_attr.data_type](prop_attr))
+            case _:
+                raise ValueError(f"{prop} is not a list or InputType")
 
 
 class ChainedGenearlistDataset(Dataset):

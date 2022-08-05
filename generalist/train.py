@@ -12,7 +12,8 @@ from rich import print
 from generalist.generalist_datasets.aokvqa.aokvqa import AokvqaDataset
 from generalist.generalist_datasets.hf_datasets import LanguageModelingDataset, SummarizationDataset
 from generalist.generalist_datasets.image_datasets import MNISTDataset
-from generalist.generalist_tokenizers.prepare_data import PrepareData
+
+# from generalist.generalist_tokenizers.prepare_data import PrepareData
 from generalist.models.model import EmbeddingModel, GeneralistModel
 from generalist.utils.utils import Batch, sample_collate_fn, get_args
 
@@ -41,18 +42,16 @@ def train(**kwargs):
     n_epochs = args.n_epochs
     batch_size = args.batch_size
 
-    embedding_model = EmbeddingModel().to(device)
-    # model = GeneralistModel().to(device)
-    model = GeneralistModel(output_dim=10).to(device)
-
-    prepare_data = PrepareData(embedding_model=embedding_model, generalist_model=model, device=device)
-    tokenizer = prepare_data.tokenizer
+    embedding_model = EmbeddingModel(model_dim=1024)
+    model = GeneralistModel(embedding_model=embedding_model, output_dim=10).to(device)
+    # prepare_data = PrepareData(model=model, device=device)
+    # tokenizer = prepare_data.tokenizer
 
     loss_fn = torch.nn.CrossEntropyLoss()
 
     optimizer = torch.optim.SGD(
         [
-            {"params": embedding_model.parameters()},
+            # {"params": embedding_model.parameters()},
             {"params": model.parameters()},
         ],
         lr=lr,
@@ -63,7 +62,7 @@ def train(**kwargs):
     # dataset = AokvqaDataset()
     # dataset = SummarizationDataset()
     # dataset = LanguageModelingDataset()
-    dataset = MNISTDataset(train=True, out_channels=3)
+    dataset = MNISTDataset(train=True, out_channels=3, process_sample_target=False)
     val_dataset = MNISTDataset(train=False, out_channels=3)
 
     _ = dataset[0]
@@ -96,13 +95,15 @@ def train(**kwargs):
 
             data, target = batch.data, batch.target
 
-            data_tokenized = prepare_data(data)
+            logits = model(data)
 
-            data_embedded = embedding_model(data_tokenized)
+            # data_tokenized = prepare_data(data)
+
+            # data_embedded = embedding_model(data_tokenized)
 
             # this wont work if there are different sizes of data (e.g. different sequence lengths)
-            data_embedded = torch.vstack([d.embedding for d in data_embedded])
-            logits = model(data_embedded)
+            # data_embedded = torch.vstack([d.embedding for d in out])
+            # logits = model(data_embedded)
 
             # logits_max_length = max((l.shape[1] for l in logits))
             logits_max_length = logits.shape[1]
@@ -128,7 +129,6 @@ def train(**kwargs):
             running_loss += loss.item()
 
             optimizer.zero_grad()
-            # loss.backward()
             accelerator.backward(loss)
 
             torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)

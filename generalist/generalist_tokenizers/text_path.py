@@ -6,10 +6,7 @@ from transformers import GPT2Model, GPT2PreTrainedModel, XLNetTokenizer
 
 from config import device
 
-from generalist.generalist_tokenizers.general_embedding import (
-    GeneralEmbedding,
-    GeneralizedTokens,
-)
+from generalist.generalist_tokenizers.general_embedding import GenearlizedTensor
 from generalist.generalist_tokenizers.input_types import TextType
 from generalist.generalist_tokenizers.tokenizer_utils import GeneralTokenizer
 
@@ -43,19 +40,14 @@ class TextTokenizer(GeneralTokenizer):
         self.model_max_length = model_max_length
         self.truncation = truncation
 
-    def __call__(self, sample: str, **kwargs) -> torch.Tensor:
+    def __call__(self, sample: TextType | str, **kwargs) -> torch.Tensor:
         x = sample.data if isinstance(sample, TextType) else sample
-
         encoded = self.encode(x, **kwargs)
-        out = GeneralizedTokens(
-            tokens=encoded["input_ids"],
-            attention_mask=encoded["attention_mask"],
-            token_type_ids=encoded["token_type_ids"],
-            data_type=self.data_type,
-        )
-        out.tokens = out.tokens.to(device)
-        out.attention_mask = out.attention_mask.to(device)
-        out.token_type_ids = out.token_type_ids.to(device)
+
+        out = GenearlizedTensor(encoded["input_ids"]).set_data_type(self.data_type)
+        # superflous text data
+        out.attention_mask = encoded["attention_mask"]
+        out.token_type_ids = encoded["token_type_ids"]
         return out
 
     def encode(self, x: str, **kwargs) -> torch.Tensor:
@@ -74,7 +66,8 @@ class TextEmbeddingPath(nn.Module):
 
     def forward(self, data: Any) -> torch.Tensor:
         embedding = self.embedder(data)
-        return GeneralEmbedding(embedding=embedding.embedding, data_type=self.data_type)
+        return embedding.set_data_type(self.data_type)
+        # return GenearlizedTensor(embedding=embedding.embedding, data_type=self.data_type)
 
 
 class TextEmbedding(GPT2PreTrainedModel):
@@ -92,17 +85,14 @@ class TextEmbedding(GPT2PreTrainedModel):
 
     def forward(
         self,
-        data: GeneralizedTokens,
+        data: GenearlizedTensor,
     ):
 
-        tokens = data.tokens
+        tokens = data
         input_shape = tokens.shape
         attention_mask = getattr(data, "attention_mask", None)
         token_type_ids = getattr(data, "token_type_ids", None)
-        # tokens: torch.Tensor,
-        # token_type_ids: torch.Tensor = None,
-        # attention_mask: torch.Tensor = None,
-        # input_shape = tokens.size()
+
         tokens = tokens.view(-1, input_shape[-1])
         batch_size = tokens.shape[0]
 
@@ -138,9 +128,12 @@ class TextEmbedding(GPT2PreTrainedModel):
         hidden_states = self.drop(hidden_states)
         output_shape = input_shape + (hidden_states.size(-1),)
 
-        return GeneralEmbedding(
-            embedding=hidden_states,
-            attention_mask=attention_mask,
-            output_shape=output_shape,
-            input_shape=input_shape,
-        )
+        out = hidden_states
+        return out
+
+        # return GeneralEmbedding(
+        #     embedding=hidden_states,
+        #     attention_mask=attention_mask,
+        #     output_shape=output_shape,
+        #     input_shape=input_shape,
+        # )

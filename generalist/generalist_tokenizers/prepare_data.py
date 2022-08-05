@@ -9,10 +9,9 @@ from generalist.models.model import EmbeddingModel, GeneralistModel
 
 
 class PrepareData:
-    def __init__(self, embedding_model: EmbeddingModel, generalist_model: GeneralistModel, device: str):
-        self.embedding_model = embedding_model
-        self.generalist_model = generalist_model
-        self.model_max_length = self.generalist_model.model_max_length
+    def __init__(self, model: GeneralistModel, device: str):
+
+        self.model_max_length = self.model.model_max_length
 
         self.image = ImageTokenizer(device=device)
         self.text = TextTokenizer(max_length=self.model_max_length, device=device)

@@ -4,8 +4,8 @@ import torch
 from torch import nn
 
 from config import device
-from generalist.generalist_tokenizers.general_embedding import GeneralEmbedding, GeneralizedTokens
-from generalist.generalist_tokenizers.image_path import ImageEmbeddingPath, ImagePath
+from generalist.generalist_embedding.image_embedding import ImageEmbeddingPath
+from generalist.generalist_tokenizers.general_embedding import GenearlizedTensor
 from generalist.generalist_tokenizers.text_path import TextEmbeddingPath
 from generalist.models.pretrained.gpt import TransformerDecoder as TransformerDecoderGPT
 from generalist.models.pretrained.perceiver import TransformerDecoder as TransformerDecoderPerceiver
@@ -28,19 +28,22 @@ class EmbeddingModel(nn.Module):
 
         self.model_dim = model_dim
 
-    def forward(self, data: Sequence[GeneralizedTokens]) -> GeneralEmbedding:
+    def forward(self, data: Sequence[GenearlizedTensor]) -> GenearlizedTensor:
+        # this handles a list of tokenized data.
+        # it is a list since the data can be of differening tokenized shapes/sizes.
+        # for instance if the input is text and image versus input of just text
         return [self.handle_sample(d) for d in data]
 
-    def handle_sample(self, data: GeneralizedTokens | Sequence[GeneralizedTokens]) -> GeneralEmbedding:
+    def handle_sample(self, data: GenearlizedTensor | Sequence[GenearlizedTensor]) -> GenearlizedTensor:
         if isinstance(data, list):
-            embedding = self.combine_embeddings([self.data_type[d.data_type](d) for d in data])
+            embedding = [self.data_type[d.data_type](d) for d in data]
+            embedding = torch.cat(embedding, dim=1)
         else:
             embedding = self.data_type[data.data_type](data)
 
-        embedded = GeneralEmbedding(embedding=embedding.embedding)
-        return embedded
+        return embedding
 
-    def combine_embeddings(self, embeddings: Sequence[GeneralEmbedding]) -> GeneralEmbedding:
+    def _combine_embeddings(self, embeddings: Sequence[GenearlizedTensor]) -> GenearlizedTensor:
 
         token_size = sum([e.embedding.shape[1] for e in embeddings])
         max_dims = [self.model_dim - (token_size - e.embedding.shape[1]) for e in embeddings]
@@ -55,33 +58,50 @@ class EmbeddingModel(nn.Module):
 
         embedded = torch.cat(hidden_states, dim=1)
 
-        return GeneralEmbedding(embedding=embedded)
+        return GenearlizedTensor(embedded)
 
 
 class GeneralistModel(nn.Module):
-    def __init__(self, output_dim: int = 33024, pretrained_name: str = "gpt2", **kwargs) -> None:
+    def __init__(
+        self,
+        embedding_model: EmbeddingModel,
+        output_dim: int = 33024,
+        # pretrained_name: str = "gpt2",
+        token_idx: int = 0,
+        **kwargs
+    ) -> None:
         super().__init__()
 
-        self.output_dim = output_dim
-        self.pretrained_name = pretrained_name
+        self.embedding_model = embedding_model
 
+        self.output_dim = output_dim
+
+        # self.pretrained_name = pretrained_name
         # self.transformer = TransformerDecoder.from_pretrained(self.pretrained_name)
         # self.transformer = TransformerDecoderPerceiver()
         self.transformer = TransformerDecoder()
 
         self.output = nn.LazyLinear(output_dim, bias=False)
-
         self.model_max_length = self.transformer.model_max_length
+        self.token_idx = token_idx
 
-    def forward_sample(self, x: GeneralEmbedding) -> torch.Tensor:
+    def forward_sample(self, x: GenearlizedTensor) -> torch.Tensor:
         x = self.transformer(x)
         x = self.output(x)
         return x
 
     def forward(self, data: torch.Tensor) -> torch.Tensor:
-        out = self.transformer(data)
-        out = self.output(out[:, 0])
+
+        out = self.embedding_model(data)
+        out = torch.cat(out)
+        out = self.transformer(out)
+
+        # if self.token_idx is not None:
+        #     out = out[:, self.token_idx]
+
+        out = out.mean(dim=1)
+        out = self.output(out)
         return out
 
-    # def forward(self, data: Sequence[GeneralEmbedding]) -> Sequence[torch.Tensor]:
+    # def forward(self, data: Sequence[GenearlizedTensor]) -> Sequence[torch.Tensor]:
     #     return [self.forward_sample(x) for x in data]

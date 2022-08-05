@@ -3,8 +3,8 @@ from torch import nn
 from transformers import PerceiverModel, PerceiverPreTrainedModel, PerceiverForMaskedLM
 from transformers.models.perceiver.modeling_perceiver import PerceiverEmbeddings
 
-from generalist.generalist_tokenizers.general_embedding import GeneralEmbedding
-from generalist.models.latents import LatentEmbedding   
+from generalist.generalist_tokenizers.general_embedding import GenearlizedTensor
+from generalist.models.latents import LatentEmbedding
 
 
 class PerceiverHelper(PerceiverModel):
@@ -28,7 +28,7 @@ class TransformerDecoder(nn.Module):
 
         self.model_max_length = kwargs.get("model_max_length", 2048)
 
-    def forward(self, embedding: GeneralEmbedding, latents: torch.Tensor = None):
+    def forward(self, embedding: GenearlizedTensor, latents: torch.Tensor = None):
         if latents is None:
             latents = self.embeddings(batch_size=embedding.shape[0])
 

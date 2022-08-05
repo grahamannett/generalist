@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-from generalist.generalist_tokenizers.general_embedding import GeneralEmbedding
+from generalist.generalist_tokenizers.general_embedding import GenearlizedTensor
 from generalist.models.latents import LatentEmbedding
 
 
@@ -15,9 +15,7 @@ class TransformerDecoder(nn.Module):
 
         self.model_max_length = kwargs.get("model_max_length", 2048)
 
-    def forward(self, embedding: GeneralEmbedding | torch.Tensor, latents: torch.Tensor = None):
-        if isinstance(embedding, GeneralEmbedding):
-            embedding = embedding.embedding
+    def forward(self, embedding: GenearlizedTensor | torch.Tensor, latents: torch.Tensor = None):
 
         if latents is None:
             latents = embedding
@@ -33,6 +31,5 @@ if __name__ == "__main__":
     # latents = latent_embedding(1)
     latents = torch.randn(1, 50, 768)
     # b x t x d
-    x = GeneralEmbedding(torch.rand(1, 50, 768))
+    x = GenearlizedTensor(torch.rand(1, 50, 768))
     out = model(x, latents)
-    breakpoint()
