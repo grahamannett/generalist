@@ -14,8 +14,9 @@ from generalist.generalist_datasets.hf_datasets import LanguageModelingDataset, 
 from generalist.generalist_datasets.image_datasets import MNISTDataset
 
 # from generalist.generalist_tokenizers.prepare_data import PrepareData
-from generalist.models.model import EmbeddingModel, GeneralistModel
-from generalist.utils.utils import Batch, sample_collate_fn, get_args
+from generalist.models.pretrained.perceiver import ImagePath as ImagePathPerceiver
+from generalist.models.model import EmbeddingModel, GeneralistModel, GeneralClassificationOutput
+from generalist.utils.utils import Batch, sample_collate_fn, get_args, collate_func
 
 from accelerate import Accelerator
 
@@ -42,10 +43,13 @@ def train(**kwargs):
     n_epochs = args.n_epochs
     batch_size = args.batch_size
 
-    embedding_model = EmbeddingModel(model_dim=1024)
-    model = GeneralistModel(embedding_model=embedding_model, output_dim=10).to(device)
-    # prepare_data = PrepareData(model=model, device=device)
-    # tokenizer = prepare_data.tokenizer
+    embedding_model = EmbeddingModel(model_dim=512)
+    image_path_perceiver = ImagePathPerceiver()
+    embedding_model.swap_data_type(module=image_path_perceiver)
+    output_model = GeneralClassificationOutput(num_classes=10)
+    model = GeneralistModel(embedding_model=embedding_model, output_model=output_model, d_model=512).to(
+        device
+    )
 
     loss_fn = torch.nn.CrossEntropyLoss()
 
@@ -62,20 +66,20 @@ def train(**kwargs):
     # dataset = AokvqaDataset()
     # dataset = SummarizationDataset()
     # dataset = LanguageModelingDataset()
-    dataset = MNISTDataset(train=True, out_channels=3, process_sample_target=False)
-    val_dataset = MNISTDataset(train=False, out_channels=3)
+    dataset = MNISTDataset(train=True, out_channels=3, process_sample_target=False, return_raw=True)
+    val_dataset = MNISTDataset(train=False, out_channels=3, return_raw=True)
 
-    _ = dataset[0]
+    out = dataset[0]
 
-    train_dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=Batch.collate_fn)
-    val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, collate_fn=Batch.collate_fn)
+    collate_fn = collate_func(device=device, return_target="pt")
+
+    train_dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
+    val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 
     display = GeneralistDisplay.make(display=kwargs.get("display", True))
     display.manage()
 
-    model, embedding_model, optimizer, data = accelerator.prepare(
-        model, embedding_model, optimizer, train_dataloader
-    )
+    model, optimizer, data = accelerator.prepare(model, optimizer, train_dataloader)
 
     for epoch in range(n_epochs):
         # epoch_progress.update(epoch_task)
@@ -88,7 +92,6 @@ def train(**kwargs):
             "batch_progress", "[green]Batch", total=len(train_dataloader), running_loss=running_loss
         )
 
-        embedding_model.train()
         model.train()
 
         for idx, batch in enumerate(train_dataloader):
@@ -97,33 +100,13 @@ def train(**kwargs):
 
             logits = model(data)
 
-            # data_tokenized = prepare_data(data)
-
-            # data_embedded = embedding_model(data_tokenized)
-
-            # this wont work if there are different sizes of data (e.g. different sequence lengths)
-            # data_embedded = torch.vstack([d.embedding for d in out])
-            # logits = model(data_embedded)
-
-            # logits_max_length = max((l.shape[1] for l in logits))
             logits_max_length = logits.shape[1]
-            # encoded_targets = prepare_data.prepare_targets(target, logits_max_length=logits_max_length)
 
-            # encoded_targets = tokenizer(
-            #     [t.data for t in target],
-            #     return_tensors="pt",
-            #     padding="max_length",
-            #     max_length=logits.shape[1],
-            # )["input_ids"]
-            # max_length=logits_max_length,
-            # padding=padding,
-            # truncation=truncation,
-            # )
-            # encoded_targets = encoded_targets["input_ids"]
-            encoded_targets = torch.Tensor([int(t.data) for t in target]).to(int)
+            encoded_targets = target.to(int).to(device)
             # breakpoint()
             out = logits
             # loss = loss_fn(out.view(-1, out.shape[-1]), encoded_targets.view(-1))
+
             loss = loss_fn(out, encoded_targets)
 
             running_loss += loss.item()
@@ -151,8 +134,6 @@ def train(**kwargs):
                 # test={"pred": test_decoded, "actual": test_actual},
                 test={"pred": test_decoded, "actual": test_actual, "acc": acc},
             )
-            # break
-        break
 
     display.manage("epoch", display.END)
     print("done with training")

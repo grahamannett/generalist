@@ -1,7 +1,8 @@
 import argparse
-from dataclasses import astuple, dataclass
-from typing import Any, List
+from dataclasses import dataclass
+from typing import Any, Callable, List
 
+import torch
 from generalist.generalist_tokenizers.input_types import Sample
 
 
@@ -22,6 +23,7 @@ def get_hostname():
 
 def matplotlib_system_setup():
     import platform
+
     import matplotlib
 
     match platform.system().lower():
@@ -104,6 +106,62 @@ class Batch:
 
     def __iter__(self):
         return iter(self.samples)
+
+
+class BatchAdvanced_:
+    def __init__(self, samples: List[Sample] = None):
+        self.samples = samples
+
+        self.data = [s.data for s in self.samples]
+        self.target = [s.target for s in self.samples]
+
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, key: int):
+        return self.samples[key]
+
+    def __iter__(self):
+        return iter(self.samples)
+
+
+@dataclass
+class collate_func_transform:
+    transform: Callable[[Any], Any] = None
+    dtype: type | torch.dtype = None
+
+
+class collate_func:
+    def __init__(
+        self,
+        device: str = None,
+        return_data: collate_func_transform = None,
+        return_target: collate_func_transform = None,
+    ):
+        self.device = device
+        self.return_data = return_data
+        self.return_target = return_target
+
+    def __call__(self, samples: List[Sample]) -> Batch:
+        batch = BatchAdvanced_(samples)
+
+        self._return_tensor(self.return_data, batch, "data")
+        self._return_tensor(self.return_target, batch, "target")
+
+        for i, sample in enumerate(batch.samples):
+            if isinstance(sample.data.data, torch.Tensor):
+                sample.data.data = sample.data.data.to(self.device)
+        return batch
+
+    def _return_tensor(self, flag: bool, obj: BatchAdvanced_, prop: str):
+        match flag:
+            case None:
+                pass
+            case "pt":
+                setattr(obj, prop, torch.tensor(getattr(obj, prop)))
+            case _:
+                breakpoint()
+                # raise ValueError(f"{flag} is not a valid return_data flag")
 
 
 def sample_collate_fn(samples: List[Sample]) -> Batch:
