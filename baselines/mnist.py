@@ -8,6 +8,7 @@ import argparse
 def get_args():
     args = argparse.ArgumentParser()
     args.add_argument("--model_type", type=str, default="imagegpt")
+    args.add_argument("--pretrained", action=argparse.BooleanOptionalAction, default=False)
     return args.parse_args()
 
 
@@ -46,7 +47,7 @@ import numpy as np
 import torchvision.transforms.functional as F
 
 
-def get_perceiver():
+def get_perceiver(use_pretrained: bool = False):
     # perceiver
     feature_extractor = PerceiverFeatureExtractor.from_pretrained("deepmind/vision-perceiver-learned")
     model = PerceiverForImageClassificationLearned.from_pretrained(
@@ -57,6 +58,10 @@ def get_perceiver():
         ignore_mismatched_sizes=True,
     )
 
+    if not use_pretrained:
+        config = model.config
+        model = PerceiverForImageClassificationLearned(config)
+
     def preprocess_images(examples):
         images = [F.pil_to_tensor(i).repeat(3, 1, 1) for i in examples["image"]]
         examples["pixel_values"] = feature_extractor(images, return_tensors="pt").pixel_values
@@ -65,7 +70,7 @@ def get_perceiver():
     return model, feature_extractor, preprocess_images
 
 
-def get_imagegpt():
+def get_imagegpt(use_pretrained: bool = False):
     # imagegpt
     feature_extractor = ImageGPTFeatureExtractor.from_pretrained(pretrained_model_name)
     model = ImageGPTForImageClassification.from_pretrained(
@@ -75,6 +80,10 @@ def get_imagegpt():
         label2id=label2id,
         ignore_mismatched_sizes=True,
     )
+
+    if not use_pretrained:
+        config = model.config
+        model = ImageGPTForImageClassification(config)
 
     def preprocess_images(examples):
         images = [F.pil_to_tensor(i).repeat(3, 1, 1) for i in examples["image"]]
@@ -93,10 +102,12 @@ def get_model_specific(model_type: str):
         case _:
             raise ValueError(f"Unknown model type: {model_type}")
 
-    return func()
+    return func
 
 
-model, feature_extractor, preprocess_images = get_model_specific(args.model_type)
+model, feature_extractor, preprocess_images = get_model_specific(model_type=args.model_type)(
+    use_pretrained=args.pretrained
+)
 
 
 train_ds.set_transform(preprocess_images)
