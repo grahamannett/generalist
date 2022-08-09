@@ -19,17 +19,35 @@ class PerceiverHelper(PerceiverModel):
     _keys_to_ignore_on_load_unexpected = ["perceiver"]
 
 
+class PerceiverClassificationOutput(nn.Module):
+    def __init__(self, num_classes: int = 10, **kwargs) -> None:
+        super().__init__()
+        model = PerceiverForImageClassificationLearned.from_pretrained("deepmind/vision-perceiver-learned")
+        self.decoder = model.perceiver.decoder
+
+        self.decoder.decoder.final_layer = nn.LazyLinear(num_classes)
+
+        linear_hidden_shape = list(self.decoder.decoder.output_position_encodings.parameters())[0].shape[-1]
+        self.linear_hidden = nn.LazyLinear(linear_hidden_shape)
+
+    def forward(self, hidden_states: torch.Tensor, decoder_query: torch.Tensor, **kwargs) -> torch.Tensor:
+        query = self.decoder.decoder_query(decoder_query)
+        sequence_output = self.linear_hidden(hidden_states[:, 0])
+        out = self.decoder(query, z=sequence_output.unsqueeze(1))
+        return out[0]
+
+
 class ImagePath(nn.Module):
     def __init__(self, **kwargs):
         super().__init__()
         self.data_type = "image"
-        model_ = PerceiverForImageClassificationLearned.from_pretrained("deepmind/vision-perceiver-learned")
-        config = model_.config
+        model = PerceiverForImageClassificationLearned.from_pretrained("deepmind/vision-perceiver-learned")
+        config = model.config
 
         # pretrained
-        input_preprocessor = model_.perceiver.input_preprocessor
-        latents = model_.perceiver.embeddings
-        decoder = model_.perceiver.decoder
+        input_preprocessor = model.perceiver.input_preprocessor
+        latents = model.perceiver.embeddings
+        # decoder = model.perceiver.decoder
 
         self.embedding_path = input_preprocessor
 

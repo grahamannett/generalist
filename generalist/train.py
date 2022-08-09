@@ -14,7 +14,10 @@ from generalist.generalist_datasets.hf_datasets import LanguageModelingDataset, 
 from generalist.generalist_datasets.image_datasets import MNISTDataset
 
 # from generalist.generalist_tokenizers.prepare_data import PrepareData
-from generalist.models.pretrained.perceiver import ImagePath as ImagePathPerceiver
+from generalist.models.pretrained.perceiver import (
+    ImagePath as ImagePathPerceiver,
+    PerceiverClassificationOutput,
+)
 from generalist.models.model import EmbeddingModel, GeneralistModel, GeneralClassificationOutput
 from generalist.utils.utils import Batch, sample_collate_fn, get_args, collate_func
 
@@ -45,11 +48,12 @@ def train(**kwargs):
 
     embedding_model = EmbeddingModel(model_dim=512)
     image_path_perceiver = ImagePathPerceiver()
+    output_model_perceiver = PerceiverClassificationOutput()
     embedding_model.swap_data_type(module=image_path_perceiver)
-    output_model = GeneralClassificationOutput(num_classes=10)
-    model = GeneralistModel(embedding_model=embedding_model, output_model=output_model, d_model=512).to(
-        device
-    )
+    # output_model = GeneralClassificationOutput(num_classes=10)
+    model = GeneralistModel(
+        embedding_model=embedding_model, output_model=output_model_perceiver, d_model=512
+    ).to(device)
 
     loss_fn = torch.nn.CrossEntropyLoss()
 
@@ -74,6 +78,10 @@ def train(**kwargs):
 
     train_dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
     val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
+
+    # out = next(iter(train_dataloader))
+    # out = model(out)
+    # breakpoint()
 
     display = GeneralistDisplay.make(display=kwargs.get("display", True))
     display.manage()

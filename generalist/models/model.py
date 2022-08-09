@@ -19,8 +19,8 @@ class GeneralOutput(nn.Module):
         self.output_dim = output_dim
         self.output = nn.LazyLinear(self.output_dim, bias=False)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.output(x)
+    def forward(self, hidden_states: torch.Tensor, **kwargs) -> torch.Tensor:
+        return self.output(hidden_states)
 
 
 class GeneralClassificationOutput(GeneralOutput):
@@ -41,11 +41,11 @@ class GeneralClassificationOutput(GeneralOutput):
     def reduce_mean(self, x: torch.Tensor) -> torch.Tensor:
         return torch.mean(x, dim=1)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, hidden_states: torch.Tensor, **kwargs) -> torch.Tensor:
         if self.reduce_type is not None:
-            x = self.reduce_dict[self.reduce_type](x)
+            hidden_states = self.reduce_dict[self.reduce_type](hidden_states)
 
-        return self.output(x)
+        return self.output(hidden_states)
 
 
 class GeneralistModel(nn.Module):
@@ -75,11 +75,12 @@ class GeneralistModel(nn.Module):
 
     def forward(self, data: torch.Tensor) -> torch.Tensor:
 
-        out = self.embedding_model(data)
-        out = torch.cat(out)
-        out = self.transformer(out)
+        embedding = self.embedding_model(data)
+        if isinstance(embedding, list):
+            embedding = torch.cat(embedding)
+        hidden_states = self.transformer(embedding)
 
-        out = self.output(out)
+        out = self.output(hidden_states, decoder_query=embedding)
         return out
 
     # def forward(self, data: Sequence[GenearlizedTensor]) -> Sequence[torch.Tensor]:
