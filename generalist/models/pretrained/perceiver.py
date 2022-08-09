@@ -23,32 +23,22 @@ class ImagePath(nn.Module):
     def __init__(self, **kwargs):
         super().__init__()
         self.data_type = "image"
-        config = PerceiverForImageClassificationLearned.from_pretrained(
-            "deepmind/vision-perceiver-learned"
-        ).config
+        model_ = PerceiverForImageClassificationLearned.from_pretrained("deepmind/vision-perceiver-learned")
+        config = model_.config
 
-        trainable_position_encoding_kwargs_preprocessor = {
-            "num_channels": 256,
-            "index_dims": config.image_size**2,
-        }
-        input_preprocessor = PerceiverImagePreprocessor(
-            config=config,
-            prep_type="conv1x1",
-            spatial_downsample=1,
-            out_channels=256,
-            position_encoding_type="trainable",
-            concat_or_add_pos="concat",
-            project_pos_dim=256,
-            trainable_position_encoding_kwargs=trainable_position_encoding_kwargs_preprocessor,
-        )
+        # pretrained
+        input_preprocessor = model_.perceiver.input_preprocessor
+        latents = model_.perceiver.embeddings
+        decoder = model_.perceiver.decoder
 
-        self.embedding = input_preprocessor
+        self.embedding_path = input_preprocessor
 
     def forward(self, data: GenearlizedTensor) -> GenearlizedTensor:
         if data.data.ndim == 3:
             data.data = data.data.unsqueeze(0)
-        out = GenearlizedTensor(self.embedding(data.data)[0]).set_data_type(self.data_type)
-        return out
+        embedding = self.embedding_path(data.data)[0]
+        embedding = GenearlizedTensor(embedding).set_data_type(self.data_type)
+        return embedding
 
 
 class TransformerDecoder(nn.Module):

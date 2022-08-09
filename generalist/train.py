@@ -55,7 +55,6 @@ def train(**kwargs):
 
     optimizer = torch.optim.SGD(
         [
-            # {"params": embedding_model.parameters()},
             {"params": model.parameters()},
         ],
         lr=lr,
