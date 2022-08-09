@@ -9,6 +9,7 @@ def get_args():
     args = argparse.ArgumentParser()
     args.add_argument("--model_type", type=str, default="imagegpt")
     args.add_argument("--pretrained", action=argparse.BooleanOptionalAction, default=False)
+    args.add_argument("--bs", default=2, type=int)
     return args.parse_args()
 
 
@@ -125,8 +126,8 @@ def collate_fn(examples):
     return {"pixel_values": pixel_values, "labels": labels}
 
 
-train_batch_size = 2
-eval_batch_size = 1
+train_batch_size = args.bs
+eval_batch_size = args.bs
 
 train_dataloader = DataLoader(train_ds, shuffle=True, collate_fn=collate_fn, batch_size=train_batch_size)
 val_dataloader = DataLoader(val_ds, collate_fn=collate_fn, batch_size=eval_batch_size)
