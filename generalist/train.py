@@ -99,7 +99,7 @@ def train(**kwargs):
 
         model.train()
 
-        for idx, batch in enumerate(train_dataloader):
+        for batch_idx, batch in enumerate(train_dataloader):
 
             data, target = batch.data, batch.target
 
@@ -137,7 +137,7 @@ def train(**kwargs):
                 advance=1,
                 running_loss=f"{running_loss:.3f}",
                 # test={"pred": test_decoded, "actual": test_actual},
-                test={"pred": test_decoded, "actual": test_actual, "acc": acc},
+                test={"pred": test_decoded, "actual": test_actual, "acc": acc, "batch_idx": batch_idx},
             )
 
     display.manage("epoch", display.END)
