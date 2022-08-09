@@ -38,12 +38,10 @@ def manage_live(group):
 
 
 def train(**kwargs):
-
-    #
-
-    lr = 5.0  # learning rate
-    n_epochs = args.n_epochs
-    batch_size = args.batch_size
+    lr = kwargs.get("lr", 5e-5)
+    n_epochs = kwargs.get("n_epochs", 1)
+    batch_size = kwargs.get("batch_size", 1)
+    display_flag = kwargs.get("display", True)
 
     embedding_model = EmbeddingModel(model_dim=512)
     image_path_perceiver = ImagePathPerceiver()
@@ -54,10 +52,9 @@ def train(**kwargs):
         embedding_model=embedding_model, output_model=output_model_perceiver, d_model=512
     ).to(device)
 
-    breakpoint()
-
     loss_fn = torch.nn.CrossEntropyLoss()
 
+    # optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
     optimizer = torch.optim.SGD(
         [
             {"params": model.parameters()},
@@ -84,7 +81,7 @@ def train(**kwargs):
     # out = model(out)
     # breakpoint()
 
-    display = GeneralistDisplay.make(display=kwargs.get("display", True))
+    display = GeneralistDisplay.make(display=display_flag)
     display.manage()
 
     model, optimizer, data = accelerator.prepare(model, optimizer, train_dataloader)

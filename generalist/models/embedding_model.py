@@ -18,7 +18,7 @@ class EmbeddingPath:
 def default_embedding_paths() -> List[EmbeddingPath]:
     return [
         EmbeddingPath(module=ImageEmbeddingPath(), name="image_apth", data_type=ImageEmbeddingPath.data_type),
-        EmbeddingPath(module=TextEmbeddingPath(), name="text_path", data_type=TextEmbeddingPath.data_type),
+        # EmbeddingPath(module=TextEmbeddingPath(), name="text_path", data_type=TextEmbeddingPath.data_type),
     ]
 
 
