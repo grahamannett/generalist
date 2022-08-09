@@ -6,7 +6,7 @@ class LatentEmbedding(nn.Module):
     """Construct the latent embeddings."""
 
     # defaults from PerceiverModel
-    def __init__(self, num_latents: int = 784, d_latents: int = 512):
+    def __init__(self, num_latents: int = 784, d_latents: int = 1024):
         super().__init__()
         self.latents = nn.Parameter(torch.randn(num_latents, d_latents))
 

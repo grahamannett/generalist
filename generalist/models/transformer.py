@@ -7,7 +7,7 @@ from generalist.models.latents import LatentEmbedding
 class TransformerDecoder(nn.Module):
     def __init__(self, **kwargs):
         super().__init__()
-        d_model = kwargs.get("d_model", 768)
+        d_model = kwargs.get("d_model", 512)
         nhead = kwargs.get("nhead", 4)
         num_layers = kwargs.get("num_layers", 4)
         self.decoder_layer = nn.TransformerDecoderLayer(d_model=d_model, nhead=nhead)

@@ -68,20 +68,12 @@ class GeneralistModel(nn.Module):
         self.model_max_length = self.transformer.model_max_length
         self.token_idx = token_idx
 
-    def forward_sample(self, x: GenearlizedTensor) -> torch.Tensor:
-        x = self.transformer(x)
-        x = self.output(x)
-        return x
-
     def forward(self, data: torch.Tensor) -> torch.Tensor:
-
         embedding = self.embedding_model(data)
+
         if isinstance(embedding, list):
             embedding = torch.cat(embedding)
-        hidden_states = self.transformer(embedding)
 
+        hidden_states = self.transformer(embedding)
         out = self.output(hidden_states, decoder_query=embedding)
         return out
-
-    # def forward(self, data: Sequence[GenearlizedTensor]) -> Sequence[torch.Tensor]:
-    #     return [self.forward_sample(x) for x in data]

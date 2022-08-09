@@ -17,8 +17,6 @@ from generalist.generalist_tokenizers.tokenizer_utils import GeneralTokenizer
 class DataPaths:
     @classmethod
     def setup(cls, **kwargs) -> None:
-        breakpoint()
-
         def _helper(base, prop, init):
             if getattr(base, prop) is None:
                 setattr(base, prop, init(**kwargs))
@@ -44,7 +42,7 @@ class GeneralistDataset(Dataset):
         self.process_sample_target = kwargs.get("process_sample_target", True)
 
     def __class_getitem__(cls, key):
-        breakpoint()
+        pass
 
     def __getitem__(self, idx: int, **kwargs) -> Sample:
         sample = Sample()

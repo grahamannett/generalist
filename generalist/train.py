@@ -1,9 +1,7 @@
-from argparse import Namespace
-from base64 import encode
 import torch
 from config import config
 from torch.utils.data import DataLoader
-from torchvision.io import read_image
+
 
 # from tqdm import tqdm
 
@@ -19,7 +17,8 @@ from generalist.models.pretrained.perceiver import (
     PerceiverClassificationOutput,
 )
 from generalist.models.model import EmbeddingModel, GeneralistModel, GeneralClassificationOutput
-from generalist.utils.utils import Batch, sample_collate_fn, get_args, collate_func
+from generalist.utils.utils import Batch, sample_collate_fn, collate_func
+from generalist.utils.cli import train_get_args
 
 from accelerate import Accelerator
 
@@ -147,5 +146,5 @@ def train(**kwargs):
 
 
 if __name__ == "__main__":
-    args = get_args()
+    args = train_get_args()
     train(**vars(args))

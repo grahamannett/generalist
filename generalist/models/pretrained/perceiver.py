@@ -31,6 +31,7 @@ class PerceiverClassificationOutput(nn.Module):
         self.linear_hidden = nn.LazyLinear(linear_hidden_shape)
 
     def forward(self, hidden_states: torch.Tensor, decoder_query: torch.Tensor, **kwargs) -> torch.Tensor:
+
         query = self.decoder.decoder_query(decoder_query)
         sequence_output = self.linear_hidden(hidden_states[:, 0])
         out = self.decoder(query, z=sequence_output.unsqueeze(1))
@@ -73,7 +74,6 @@ class TransformerDecoder(nn.Module):
         d_latents = kwargs.get("d_latents", self.config.d_latents)
 
         self.embeddings = LatentEmbedding(num_latents, d_latents)
-
         self.model_max_length = kwargs.get("model_max_length", 2048)
 
     def forward(self, embedding: GenearlizedTensor, latents: torch.Tensor = None):
