@@ -1,4 +1,5 @@
-from typing import Sequence
+from dataclasses import dataclass
+from typing import List, Sequence
 
 import torch
 import torch.nn as nn
@@ -7,21 +8,44 @@ from generalist.generalist_tokenizers.general_embedding import GenearlizedTensor
 from generalist.generalist_tokenizers.text_path import TextEmbeddingPath
 
 
+@dataclass
+class EmbeddingPath:
+    module: nn.Module
+    name: str = None
+    data_type: str = None
+
+
+def default_embedding_paths() -> List[EmbeddingPath]:
+    return [
+        EmbeddingPath(module=ImageEmbeddingPath(), name="image_apth", data_type=ImageEmbeddingPath.data_type),
+        EmbeddingPath(module=TextEmbeddingPath(), name="text_path", data_type=TextEmbeddingPath.data_type),
+    ]
+
+
 class EmbeddingModel(nn.Module):
-    def __init__(self, model_dim: int = 1024, **kwargs) -> None:
+    def __init__(
+        self,
+        embedding_paths: List[EmbeddingPath] = None,
+        model_dim: int = 1024,
+        **kwargs,
+    ) -> None:
         super().__init__()
 
-        self.text_path = TextEmbeddingPath()
-        self.image_path = ImageEmbeddingPath()
+        self.data_type = nn.ModuleDict({})
 
-        self.data_type = nn.ModuleDict(
-            {
-                self.text_path.data_type: self.text_path,
-                self.image_path.data_type: self.image_path,
-            }
-        )
+        if embedding_paths is None:
+            embedding_paths = default_embedding_paths()
 
         self.model_dim = model_dim
+
+    def _setup_path(self, module: nn.Module, name: str = None, data_type: str = None, **kwargs) -> None:
+        if name is None:
+            name = module.__class__.__name__
+        if data_type is None:
+            data_type = module.data_type
+
+        setattr(self, name, module)
+        self.data_type[data_type] = module
 
     def swap_data_type(self, module: nn.Module, data_type: str = None) -> "EmbeddingModel":
         if (data_type := getattr(module, "data_type", data_type)) is None:

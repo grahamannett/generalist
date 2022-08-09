@@ -54,6 +54,8 @@ def train(**kwargs):
         embedding_model=embedding_model, output_model=output_model_perceiver, d_model=512
     ).to(device)
 
+    breakpoint()
+
     loss_fn = torch.nn.CrossEntropyLoss()
 
     optimizer = torch.optim.SGD(
