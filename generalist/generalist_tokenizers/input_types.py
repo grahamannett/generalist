@@ -2,7 +2,7 @@ from dataclasses import KW_ONLY, dataclass
 from typing import Any, List, NamedTuple, Optional, Union
 from enum import Enum
 
-from torch import Tensor
+import torch
 from torchvision.transforms import functional as F
 
 
@@ -12,11 +12,9 @@ class InputTypes(str, Enum):
     text = "text"
 
 
-@dataclass
 class InputType:
     data: Any
-
-    # _: KW_ONLY
+    _: KW_ONLY
     data_type = InputTypes.generic.name
 
 
@@ -37,16 +35,11 @@ class Sample:
         yield self.data, self.target
 
 
-@dataclass
-class TextType(InputType):
-    data: str
-    # _: KW_ONLY
+class TextType(torch.Tensor, InputType):
     data_type = InputTypes.text.name
 
 
-@dataclass
-class ImageType(InputType):
-    data: Tensor
+class ImageType(torch.Tensor, InputType):
     data_type = InputTypes.image.name
 
     def resize(self, size: int) -> "ImageType":

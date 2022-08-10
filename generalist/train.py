@@ -38,7 +38,7 @@ def manage_live(group):
 
 
 def train(**kwargs):
-    lr = kwargs.get("lr", 1e-3)
+    lr = kwargs.get("lr", 5e-5)
     n_epochs = kwargs.get("n_epochs", 1)
     batch_size = kwargs.get("batch_size", 1)
     display_flag = kwargs.get("display", True)
@@ -55,8 +55,7 @@ def train(**kwargs):
 
     loss_fn = torch.nn.CrossEntropyLoss()
 
-    # optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
-    optimizer = torch.optim.Adam(
+    optimizer = torch.optim.AdamW(
         [
             {"params": embedding_model.parameters()},
             {"params": model.transformer.parameters()},

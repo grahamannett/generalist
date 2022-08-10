@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from generalist.generalist_tokenizers.general_embedding import GenearlizedTensor
 from generalist.generalist_tokenizers.input_types import ImageType
+from generalist.generalist_tokenizers.image_path import normalize_image
 
 
 class PatchEmbeddings(nn.Module):
@@ -27,6 +28,7 @@ class PatchEmbeddings(nn.Module):
         """
         * `x` is the input image of shape `[batch_size, channels, height, width]`
         """
+
         if x.ndim == 3:
             x = x.unsqueeze(0)
 
@@ -69,13 +71,14 @@ class LearnedPositionalEmbeddings(nn.Module):
         if (scale_factor := (x.shape[-1] / pe.shape[-1])) != 1.0:
             pe = torch.nn.functional.interpolate(pe.unsqueeze(0), scale_factor=scale_factor).squeeze(0)
 
-        return x + pe
+        x += pe
+        return x
 
 
 class ImageEmbeddingPath(nn.Module):
     data_type = ImageType.data_type
 
-    def __init__(self, d_model: int = 704, patch_size: int = 16, in_channels: int = 3):
+    def __init__(self, d_model: int = 512, patch_size: int = 16, in_channels: int = 3):
         super().__init__()
 
         self.patch_size = patch_size
@@ -92,7 +95,9 @@ class ImageEmbeddingPath(nn.Module):
 
 
 class ImagePath(nn.Module):
-    def __init__(self, d_model: int = 704, patch_size: int = 16, in_channels: int = 3):
+    data_type = ImageType.data_type
+
+    def __init__(self, d_model: int = 512, patch_size: int = 16, in_channels: int = 3):
         super().__init__()
 
         self.patch_size = 16
@@ -101,12 +106,12 @@ class ImagePath(nn.Module):
         )
         self.positional_embeddings = LearnedPositionalEmbeddings(d_model=d_model)
 
-        self.cls_token_emb = nn.Parameter(torch.randn(1, 1, d_model), requires_grad=True)
+        # self.cls_token_emb = nn.Parameter(torch.randn(1, 1, d_model), requires_grad=True)
 
     def forward(self, x: torch.Tensor):
         # input_shape = x.shape
         x = self.patch_embeddings(x)
-        x = self.normalize(x)
+        x = normalize_image(x)
         x = self.positional_embeddings(x)
         return GenearlizedTensor(x)
         # i dont know if we need this?  and it makes the dims wrong

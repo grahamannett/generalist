@@ -8,43 +8,56 @@ from config import device
 from generalist.generalist_tokenizers.general_embedding import GenearlizedTensor
 from generalist.models.pretrained.gpt import TransformerDecoder as TransformerDecoderGPT
 from generalist.models.pretrained.perceiver import TransformerDecoder as TransformerDecoderPerceiver
-from generalist.models.transformer import TransformerDecoder as TransformerDecoder
+
+from generalist.models.transformer import TransformerDecoder as TransformerDecoderBasic
+from generalist.models.transformers.layers import TransformerDecoder as TransformerDecoderKarpathy
 
 from generalist.models.embedding_model import EmbeddingModel
 
 
 class GeneralOutput(nn.Module):
-    def __init__(self, output_dim: int = 33024, bias: bool = False) -> None:
+    def __init__(self, model_dim: int = 512, output_dim: int = 33024, bias: bool = False) -> None:
         super().__init__()
-        self.output_dim = output_dim
-        self.output = nn.LazyLinear(self.output_dim, bias=False)
+        # self.output_dim = output_dim
+
+        self.output = nn.Sequential(nn.LayerNorm(model_dim), nn.Linear(model_dim, output_dim, bias=False))
 
     def forward(self, hidden_states: torch.Tensor, **kwargs) -> torch.Tensor:
         return self.output(hidden_states)
 
 
+def reduce_dummy_(x: torch.Tensor, **kwargs) -> torch.Tensor:
+    return x
+
+
+def reduce_cls_(x: torch.Tensor, dim: int = 0, **kwargs) -> torch.Tensor:
+    return x[:, dim]
+
+
+def reduce_mean_(x: torch.Tensor, dim: int = 1, **kwargs) -> torch.Tensor:
+    return x.mean(dim=dim)
+
+
 class GeneralClassificationOutput(GeneralOutput):
-    def __init__(self, num_classes: int = 10, reduce_type: str = "mean", bias: bool = False) -> None:
-        super().__init__(output_dim=num_classes, bias=bias)
+    reduce_dict = {
+        "mean": reduce_mean_,
+        "cls": reduce_cls_,
+        None: reduce_dummy_,
+    }
+
+    def __init__(
+        self, model_dim: int, num_classes: int = 10, reduce_type: str = "mean", bias: bool = False
+    ) -> None:
+        super().__init__(model_dim=model_dim, output_dim=num_classes, bias=bias)
 
         self.num_classes = num_classes
         self.reduce_type = reduce_type
 
-        self.reduce_dict = {
-            "mean": self.reduce_mean,
-            "token_idx": self.reduce_token_idx,
-        }
-
-    def reduce_token_idx(self, x: torch.Tensor) -> torch.Tensor:
-        return x[:, 0]
-
-    def reduce_mean(self, x: torch.Tensor) -> torch.Tensor:
-        return torch.mean(x, dim=1)
+        if reduce_type not in self.reduce_dict:
+            raise ValueError(f"reduce_type {reduce_type} not in {self.reduce_dict}")
 
     def forward(self, hidden_states: torch.Tensor, **kwargs) -> torch.Tensor:
-        if self.reduce_type is not None:
-            hidden_states = self.reduce_dict[self.reduce_type](hidden_states)
-
+        hidden_states = self.reduce_dict[self.reduce_type](hidden_states)
         return self.output(hidden_states)
 
 
@@ -53,15 +66,17 @@ class GeneralistModel(nn.Module):
         self,
         embedding_model: EmbeddingModel,
         output_model: GeneralOutput,
-        # output_dim: int = 33024,
-        # pretrained_name: str = "gpt2",
+        embed_dim: int = 512,
         token_idx: int = 0,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__()
 
         self.embedding_model = embedding_model
-        self.transformer = TransformerDecoder(**kwargs)
+        # self.transformer = TransformerDecoderBasic()
+        self.transformer = TransformerDecoderKarpathy(
+            n_layer=4, embed_dim=embed_dim, num_heads=8, attn_pdrop=0.1, resid_pdrop=0.1, block_size=1024
+        )
 
         self.output = output_model
 
