@@ -38,26 +38,29 @@ def manage_live(group):
 
 
 def train(**kwargs):
-    lr = kwargs.get("lr", 5e-5)
+    lr = kwargs.get("lr", 1e-3)
     n_epochs = kwargs.get("n_epochs", 1)
     batch_size = kwargs.get("batch_size", 1)
     display_flag = kwargs.get("display", True)
+    model_dim = kwargs.get("model_dim", 512)
 
-    embedding_model = EmbeddingModel(model_dim=512)
-    image_path_perceiver = ImagePathPerceiver()
-    output_model_perceiver = PerceiverClassificationOutput()
-    embedding_model.swap_data_type(module=image_path_perceiver)
-    # output_model = GeneralClassificationOutput(num_classes=10)
-    model = GeneralistModel(
-        embedding_model=embedding_model, output_model=output_model_perceiver, d_model=512
-    ).to(device)
+    embedding_model = EmbeddingModel(model_dim=model_dim)
+    # image_path_perceiver = ImagePathPerceiver()
+    # output_model_perceiver = PerceiverClassificationOutput()
+    # embedding_model.swap_data_type(module=image_path_perceiver)
+    output_model = GeneralClassificationOutput(num_classes=10, reduce_type="cls", model_dim=model_dim)
+    model = GeneralistModel(embedding_model=embedding_model, output_model=output_model, d_model=512).to(
+        device
+    )
 
     loss_fn = torch.nn.CrossEntropyLoss()
 
     # optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
-    optimizer = torch.optim.SGD(
+    optimizer = torch.optim.Adam(
         [
-            {"params": model.parameters()},
+            {"params": embedding_model.parameters()},
+            {"params": model.transformer.parameters()},
+            {"params": output_model.parameters()},
         ],
         lr=lr,
     )
@@ -79,7 +82,6 @@ def train(**kwargs):
 
     # out = next(iter(train_dataloader))
     # out = model(out)
-    # breakpoint()
 
     display = GeneralistDisplay.make(display=display_flag)
     display.manage()
@@ -113,11 +115,14 @@ def train(**kwargs):
             # loss = loss_fn(out.view(-1, out.shape[-1]), encoded_targets.view(-1))
 
             loss = loss_fn(out, encoded_targets)
+            # out = torch.nn.functional.log_softmax(logits, dim=1)
+            # loss = torch.nn.functional.nll_loss(out, target)
 
             running_loss += loss.item()
 
             optimizer.zero_grad()
-            accelerator.backward(loss)
+            # accelerator.backward(loss)
+            loss.backward()
 
             torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
             optimizer.step()
@@ -132,12 +137,18 @@ def train(**kwargs):
 
             acc = f"{(running_correct / running_total):0.3f}"
 
+            display_vals = {
+                # "pred": test_decoded,
+                # "actual": test_actual,
+                "acc": acc,
+                "batch_idx": batch_idx,
+            }
+
             display.update(
                 "batch_progress",
                 advance=1,
                 running_loss=f"{running_loss:.3f}",
-                # test={"pred": test_decoded, "actual": test_actual},
-                test={"pred": test_decoded, "actual": test_actual, "acc": acc, "batch_idx": batch_idx},
+                test=display_vals,
             )
 
     display.manage("epoch", display.END)
