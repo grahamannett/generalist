@@ -6,11 +6,12 @@ from torch import nn
 from config import device
 
 from generalist.generalist_tokenizers.general_embedding import GenearlizedTensor
-from generalist.models.pretrained.gpt import TransformerDecoder as TransformerDecoderGPT
-from generalist.models.pretrained.perceiver import TransformerDecoder as TransformerDecoderPerceiver
 
-from generalist.models.transformer import TransformerDecoder as TransformerDecoderBasic
-from generalist.models.transformers.layers import TransformerDecoder as TransformerDecoderKarpathy
+# from generalist.models.pretrained.gpt import TransformerDecoder as TransformerDecoderGPT
+# from generalist.models.pretrained.perceiver import TransformerDecoder as TransformerDecoderPerceiver
+
+from generalist.models.transformers.transformerdecoder import TransformerDecoder
+
 
 from generalist.models.embedding_model import EmbeddingModel
 
@@ -73,8 +74,8 @@ class GeneralistModel(nn.Module):
         super().__init__()
 
         self.embedding_model = embedding_model
-        # self.transformer = TransformerDecoderBasic()
-        self.transformer = TransformerDecoderKarpathy(
+
+        self.transformer = TransformerDecoder(
             n_layer=4, embed_dim=embed_dim, num_heads=8, attn_pdrop=0.1, resid_pdrop=0.1, block_size=1024
         )
 

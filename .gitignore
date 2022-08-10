@@ -216,4 +216,5 @@ submodules/
 .vscode/settings.json
 
 baselines/examples/**
+baselines/tmp/**
 **/ignore/**
