@@ -6,7 +6,7 @@ from transformers import GPT2Model, GPT2PreTrainedModel, XLNetTokenizer
 
 from config import device
 
-from generalist.generalist_tokenizers.general_embedding import GenearlizedTensor
+from generalist.generalist_embedding.general_embedding import GenearlizedTensor
 from generalist.generalist_tokenizers.input_types import TextType
 from generalist.generalist_tokenizers.tokenizer_utils import GeneralTokenizer
 

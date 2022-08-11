@@ -11,7 +11,7 @@ from transformers.models.perceiver.modeling_perceiver import (
     PerceiverForImageClassificationLearned,
 )
 
-from generalist.generalist_tokenizers.general_embedding import GenearlizedTensor
+from generalist.generalist_embedding.general_embedding import GenearlizedTensor
 from generalist.models.latents import LatentEmbedding
 
 

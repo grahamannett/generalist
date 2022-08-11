@@ -5,7 +5,7 @@ from torch import nn
 
 from config import device
 
-from generalist.generalist_tokenizers.general_embedding import GenearlizedTensor
+from generalist.generalist_embedding.general_embedding import GenearlizedTensor
 
 # from generalist.models.pretrained.gpt import TransformerDecoder as TransformerDecoderGPT
 # from generalist.models.pretrained.perceiver import TransformerDecoder as TransformerDecoderPerceiver
@@ -74,12 +74,11 @@ class GeneralistModel(nn.Module):
         super().__init__()
 
         self.embedding_model = embedding_model
+        self.output_model = output_model
 
         self.transformer = TransformerDecoder(
             n_layer=4, embed_dim=embed_dim, num_heads=8, attn_pdrop=0.1, resid_pdrop=0.1, block_size=1024
         )
-
-        self.output = output_model
 
         self.model_max_length = self.transformer.model_max_length
         self.token_idx = token_idx
@@ -87,9 +86,10 @@ class GeneralistModel(nn.Module):
     def forward(self, data: torch.Tensor) -> torch.Tensor:
         embedding = self.embedding_model(data)
 
+        # if embedding is list, means we probably got in variable length data for a sample
         if isinstance(embedding, list):
             embedding = torch.cat(embedding)
 
         hidden_states = self.transformer(embedding)
-        out = self.output(hidden_states, decoder_query=embedding)
+        out = self.output_model(hidden_states, decoder_query=embedding)
         return out

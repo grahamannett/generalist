@@ -2,7 +2,10 @@ from dataclasses import KW_ONLY, dataclass
 from typing import Any, List, NamedTuple, Optional, Union
 from enum import Enum
 
+from generalist.generalist_tokenizers.tokenizer_utils import GeneralTokenizer
+
 import torch
+from torch import nn
 from torchvision.transforms import functional as F
 
 
@@ -17,6 +20,12 @@ class InputType:
     _: KW_ONLY
     data_type = InputTypes.generic.name
 
+
+@dataclass
+class DataTypePath:
+    module: nn.Module | GeneralTokenizer
+    name: str = None
+    data_type: str = None
 
 @dataclass
 class SampleMetaData:

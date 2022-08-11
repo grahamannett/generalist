@@ -48,7 +48,7 @@ def train(**kwargs):
     # image_path_perceiver = ImagePathPerceiver()
     # output_model_perceiver = PerceiverClassificationOutput()
     # embedding_model.swap_data_type(module=image_path_perceiver)
-    output_model = GeneralClassificationOutput(num_classes=10, reduce_type="cls", model_dim=model_dim)
+    output_model = GeneralClassificationOutput(model_dim=model_dim, num_classes=10, reduce_type="cls")
     model = GeneralistModel(embedding_model=embedding_model, output_model=output_model, d_model=512).to(
         device
     )
@@ -58,8 +58,8 @@ def train(**kwargs):
     optimizer = torch.optim.AdamW(
         [
             {"params": embedding_model.parameters()},
-            {"params": model.transformer.parameters()},
             {"params": output_model.parameters()},
+            {"params": model.transformer.parameters()},
         ],
         lr=lr,
     )

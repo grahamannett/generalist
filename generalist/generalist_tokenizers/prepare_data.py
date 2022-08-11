@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Any, Callable, TypeVar
 
 import torch
@@ -7,9 +8,17 @@ from generalist.generalist_tokenizers.input_types import InputType
 from generalist.generalist_tokenizers.text_path import TextTokenizer
 from generalist.models.model import EmbeddingModel, GeneralistModel
 
+@dataclass
+class TokenizerPath:
+    tokenizer: GeneralTokenizer
+    name: str = None
+    data_type: str = None
+
+
+
 
 class PrepareData:
-    def __init__(self, model: GeneralistModel, device: str):
+    def __init__(self, model: GeneralistModel, device: str, tokenizers: List[TokenizerPath] = None):
 
         self.model_max_length = self.model.model_max_length
 

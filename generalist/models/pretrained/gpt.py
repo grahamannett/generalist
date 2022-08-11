@@ -8,7 +8,7 @@ from transformers.models.gpt2.modeling_gpt2 import (
     GPT2PreTrainedModel,
 )
 
-from generalist.generalist_tokenizers.general_embedding import GenearlizedTensor
+from generalist.generalist_embedding.general_embedding import GenearlizedTensor
 
 
 class TransformerDecoder(GPT2Model):
