@@ -9,10 +9,24 @@ from torch import nn
 from torchvision.transforms import functional as F
 
 
+@dataclass
+class DataHandlerPath:
+    module: nn.Module | GeneralTokenizer
+    name: str = None  # the name to bind to the handler object
+    data_type: str = None  # the data type it handles
+
+    def __post_init__(self):
+        if self.name is None:
+            self.name = self.module.__class__.__name__
+        if self.data_type is None:
+            self.data_type = self.module.data_type
+
+
 class InputTypes(str, Enum):
     generic = "generic"
-    image = "image"
-    text = "text"
+    image = "image"  # PIL or similar
+    text = "text"  # str/text
+    rl = "rl"  # actions/states/rewards
 
 
 class InputType:
@@ -20,12 +34,6 @@ class InputType:
     _: KW_ONLY
     data_type = InputTypes.generic.name
 
-
-@dataclass
-class DataTypePath:
-    module: nn.Module | GeneralTokenizer
-    name: str = None
-    data_type: str = None
 
 @dataclass
 class SampleMetaData:

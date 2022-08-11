@@ -1,24 +1,16 @@
 from dataclasses import dataclass
-from typing import Any, Callable, TypeVar
+from typing import Any, Callable, List
 
 import torch
 import torch.nn as nn
-from generalist.generalist_tokenizers.image_path import ImageTokenizer
-from generalist.generalist_tokenizers.input_types import InputType
+from generalist.generalist_tokenizers.image_tokenizer import ImageTokenizer
+from generalist.generalist_tokenizers.input_types import DataHandlerPath, InputType
 from generalist.generalist_tokenizers.text_path import TextTokenizer
 from generalist.models.model import EmbeddingModel, GeneralistModel
 
-@dataclass
-class TokenizerPath:
-    tokenizer: GeneralTokenizer
-    name: str = None
-    data_type: str = None
-
-
-
 
 class PrepareData:
-    def __init__(self, model: GeneralistModel, device: str, tokenizers: List[TokenizerPath] = None):
+    def __init__(self, model: GeneralistModel, device: str, tokenizers: List[DataHandlerPath] = None):
 
         self.model_max_length = self.model.model_max_length
 

@@ -5,19 +5,13 @@ import torch
 import torch.nn as nn
 from generalist.generalist_embedding.image_embedding import ImageEmbeddingPath, ImagePath
 from generalist.generalist_embedding.general_embedding import GenearlizedTensor
+from generalist.generalist_tokenizers.input_types import DataHandlerPath
 from generalist.generalist_tokenizers.text_path import TextEmbeddingPath
 
 
-@dataclass
-class EmbeddingPath:
-    module: nn.Module
-    name: str = None
-    data_type: str = None
-
-
-def default_embedding_paths() -> List[EmbeddingPath]:
+def default_embedding_paths() -> List[DataHandlerPath]:
     return [
-        EmbeddingPath(module=ImagePath(), name="image_path", data_type=ImagePath.data_type),
+        DataHandlerPath(module=ImagePath(), name="image_path", data_type=ImagePath.data_type),
         # EmbeddingPath(module=TextEmbeddingPath(), name="text_path", data_type=TextEmbeddingPath.data_type),
     ]
 
@@ -25,7 +19,7 @@ def default_embedding_paths() -> List[EmbeddingPath]:
 class EmbeddingModel(nn.Module):
     def __init__(
         self,
-        embedding_paths: List[EmbeddingPath] = None,
+        embedding_paths: List[DataHandlerPath] = None,
         model_dim: int = 1024,
         **kwargs,
     ) -> None:
@@ -40,13 +34,9 @@ class EmbeddingModel(nn.Module):
 
         self.model_dim = model_dim
 
-    # def _setup_path(self, module: nn.Module, name: str = None, data_type: str = None, **kwargs) -> None:
-    def _setup_path(self, embedding_path: EmbeddingPath, **kwargs) -> None:
-        name = getattr(embedding_path, "name", embedding_path.module.__class__.__name__)
-        data_type = getattr(embedding_path, "data_type", embedding_path.module.data_type)
-
-        setattr(self, name, embedding_path.module)
-        self.data_type[data_type] = embedding_path.module
+    def _setup_path(self, embedding_path: DataHandlerPath, **kwargs) -> None:
+        setattr(self, embedding_path.name, embedding_path.module)
+        self.data_type[embedding_path.data_type] = embedding_path.module
 
     def swap_data_type(self, module: nn.Module, data_type: str = None) -> "EmbeddingModel":
         if (data_type := getattr(module, "data_type", data_type)) is None:

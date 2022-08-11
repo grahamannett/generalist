@@ -8,10 +8,30 @@ from einops import rearrange
 
 
 def normalize_image(
-    x: torch.Tensor, patch_size: int = 16, lower_bound: float = -1, upper_bound: float = 1
+    x: torch.Tensor, patch_size: int = 16, lower_bound: float = -1.0, upper_bound: float = 1.0
 ) -> torch.Tensor:
     x = ((x - x.max()) / (x.max() - x.min())) * (upper_bound - lower_bound) + lower_bound
     x /= patch_size ** (1 / 2)
+    return x
+
+
+def img_to_patch(x, patch_size: int = 16, flatten_channels: bool = True):
+    """
+    https://uvadlc-notebooks.readthedocs.io/en/latest/tutorial_notebooks/tutorial15/Vision_Transformer.html
+    Inputs:
+        x - torch.Tensor representing the image of shape [B, C, H, W]
+        patch_size - Number of pixels per dimension of the patches (integer)
+        flatten_channels - If True, the patches will be returned in a flattened format
+                        as a feature vector instead of a image grid.
+    """
+    if x.ndim == 3:
+        x = x.unsqueeze(0)
+    B, C, H, W = x.shape
+    x = x.reshape(B, C, H // patch_size, patch_size, W // patch_size, patch_size)
+    x = x.permute(0, 2, 4, 1, 3, 5)  # [B, H', W', C, p_H, p_W]
+    x = x.flatten(1, 2)  # [B, H'*W', C, p_H, p_W]
+    if flatten_channels:
+        x = x.flatten(2, 4)  # [B, H'*W', C*p_H*p_W]
     return x
 
 
@@ -52,23 +72,3 @@ class ImageTokenizer(GeneralTokenizer):
 
         img = rearrange(img, "b c (h p1) (w p2) -> b (h w) (p1 p2 c)", p1=self.p1, p2=self.p2)
         return img
-
-
-def img_to_patch(x, patch_size: int = 16, flatten_channels: bool = True):
-    """
-    https://uvadlc-notebooks.readthedocs.io/en/latest/tutorial_notebooks/tutorial15/Vision_Transformer.html
-    Inputs:
-        x - torch.Tensor representing the image of shape [B, C, H, W]
-        patch_size - Number of pixels per dimension of the patches (integer)
-        flatten_channels - If True, the patches will be returned in a flattened format
-                        as a feature vector instead of a image grid.
-    """
-    if x.ndim == 3:
-        x = x.unsqueeze(0)
-    B, C, H, W = x.shape
-    x = x.reshape(B, C, H // patch_size, patch_size, W // patch_size, patch_size)
-    x = x.permute(0, 2, 4, 1, 3, 5)  # [B, H', W', C, p_H, p_W]
-    x = x.flatten(1, 2)  # [B, H'*W', C, p_H, p_W]
-    if flatten_channels:
-        x = x.flatten(2, 4)  # [B, H'*W', C*p_H*p_W]
-    return x

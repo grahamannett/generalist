@@ -14,60 +14,15 @@ def _device_to(self, name: str, device_: str = device):
         setattr(self, name, _tensor.to(device_))
 
 
+# this is basically just a torch tensor but make it easier to add data_type
 class GenearlizedTensor(torch.Tensor):
-    def set_data_type(self, data_type: str):
-        self.data_type = data_type
-        return self
+    _custom_prop = []
 
     def set_prop(self, prop: str, value: Any):
+        if hasattr(self, prop) and prop not in self._custom_prop:
+            raise KeyError(f"only use set_prop for {prop}")
         setattr(self, prop, value)
         return self
 
-
-# @dataclass
-# class GeneralizedTokens(GenearlizedInput):
-#     tokens: torch.Tensor
-
-#     data_type: str = None
-#     attention_mask: torch.Tensor = None
-#     token_type_ids: torch.Tensor = None
-
-#     def __post_init__(self):
-
-#         _device_to(self, "tokens")
-#         _device_to(self, "attention_mask")
-#         _device_to(self, "token_type_ids")
-
-#     def shape(self):
-#         return self.tokens.shape
-
-
-# @dataclass
-# class GeneralEmbedding(GenearlizedInput):
-#     embedding: torch.Tensor = None
-#     attention_mask: torch.Tensor = None
-#     output_shape: torch.Tensor = None
-#     encoder_hidden_states: torch.Tensor = None
-#     encoder_attention_mask: torch.Tensor = None
-#     use_cache: bool = True
-#     output_attentions: bool = False
-
-#     input_shape: torch.Tensor = None
-#     data_type: str = None
-
-#     def asdict(self):
-#         return self.__dict__
-
-#     @property
-#     def shape(self):
-#         return self.embedding.shape
-
-#     @classmethod
-#     def combine(cls, *args):
-#         new_encoded = cls(
-#             hidden_states=torch.cat([arg.hidden_states for arg in args], dim=1),
-#         )
-#         return new_encoded
-
-
-# class GeneralizedEmbedding(torch.Tensor):
+    def set_data_type(self, data_type: str):
+        return self.set_prop("data_type", data_type)

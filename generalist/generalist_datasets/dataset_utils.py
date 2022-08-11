@@ -7,7 +7,7 @@ from typing import Any, Callable, ClassVar, Sequence
 
 from torch.utils.data import Dataset
 
-from generalist.generalist_tokenizers.image_path import ImageTokenizer
+from generalist.generalist_tokenizers.image_tokenizer import ImageTokenizer
 from generalist.generalist_tokenizers.input_types import InputType, Sample, SampleMetaData
 from generalist.generalist_tokenizers.prepare_data import PrepareData
 from generalist.generalist_tokenizers.text_path import TextTokenizer

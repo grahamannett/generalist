@@ -1,30 +1,11 @@
 from typing import Any, Sequence
 
 import torch
-from torch import nn
-
 from config import device
-
 from generalist.generalist_embedding.general_embedding import GenearlizedTensor
-
-# from generalist.models.pretrained.gpt import TransformerDecoder as TransformerDecoderGPT
-# from generalist.models.pretrained.perceiver import TransformerDecoder as TransformerDecoderPerceiver
-
-from generalist.models.transformers.transformerdecoder import TransformerDecoder
-
-
 from generalist.models.embedding_model import EmbeddingModel
-
-
-class GeneralOutput(nn.Module):
-    def __init__(self, model_dim: int = 512, output_dim: int = 33024, bias: bool = False) -> None:
-        super().__init__()
-        # self.output_dim = output_dim
-
-        self.output = nn.Sequential(nn.LayerNorm(model_dim), nn.Linear(model_dim, output_dim, bias=False))
-
-    def forward(self, hidden_states: torch.Tensor, **kwargs) -> torch.Tensor:
-        return self.output(hidden_states)
+from generalist.models.transformers.transformerdecoder import TransformerDecoder
+from torch import nn
 
 
 def reduce_dummy_(x: torch.Tensor, **kwargs) -> torch.Tensor:
@@ -37,6 +18,17 @@ def reduce_cls_(x: torch.Tensor, dim: int = 0, **kwargs) -> torch.Tensor:
 
 def reduce_mean_(x: torch.Tensor, dim: int = 1, **kwargs) -> torch.Tensor:
     return x.mean(dim=dim)
+
+
+class GeneralOutput(nn.Module):
+    def __init__(self, model_dim: int = 512, output_dim: int = 33024, bias: bool = False) -> None:
+        super().__init__()
+        # self.output_dim = output_dim
+
+        self.output = nn.Sequential(nn.LayerNorm(model_dim), nn.Linear(model_dim, output_dim, bias=False))
+
+    def forward(self, hidden_states: torch.Tensor, **kwargs) -> torch.Tensor:
+        return self.output(hidden_states)
 
 
 class GeneralClassificationOutput(GeneralOutput):
