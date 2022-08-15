@@ -21,7 +21,7 @@ def reduce_mean_(x: torch.Tensor, dim: int = 1, **kwargs) -> torch.Tensor:
 
 
 class GeneralOutput(nn.Module):
-    def __init__(self, model_dim: int = 512, output_dim: int = 33024, bias: bool = False) -> None:
+    def __init__(self, model_dim: int = 768, output_dim: int = 33024, bias: bool = False) -> None:
         super().__init__()
         # self.output_dim = output_dim
 
@@ -59,7 +59,7 @@ class GeneralistModel(nn.Module):
         self,
         embedding_model: EmbeddingModel,
         output_model: GeneralOutput,
-        embed_dim: int = 512,
+        embed_dim: int = 768,
         token_idx: int = 0,
         **kwargs,
     ) -> None:
@@ -79,8 +79,10 @@ class GeneralistModel(nn.Module):
         embedding = self.embedding_model(data)
 
         # if embedding is list, means we probably got in variable length data for a sample
+        # breakpoint()
         if isinstance(embedding, list):
-            embedding = torch.cat(embedding)
+            embedding = torch.cat([torch.cat(emb, dim=1) for emb in embedding], dim=0)
+            # embedding = torch.cat(embedding)
 
         hidden_states = self.transformer(embedding)
         out = self.output_model(hidden_states, decoder_query=embedding)

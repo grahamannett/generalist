@@ -1,8 +1,21 @@
+from typing import Tuple
+
 import torch
 import torch.nn as nn
 from generalist.generalist_embedding.general_embedding import GenearlizedTensor
 from generalist.generalist_tokenizers.input_types import ImageType
 from generalist.generalist_tokenizers.image_tokenizer import normalize_image
+
+from einops import repeat
+
+
+def calculate_dims(img_size: torch.Size | torch.Tensor, patch_size: int) -> Tuple[int, int]:
+    if isinstance(img_size, torch.Size):
+        img_size = torch.as_tensor(img_size)
+
+    d_model = (patch_size**2) * img_size[0]
+    seq_length = img_size.prod() / d_model
+    return seq_length, d_model
 
 
 class PatchEmbeddings(nn.Module):
@@ -71,14 +84,13 @@ class LearnedPositionalEmbeddings(nn.Module):
         if (scale_factor := (x.shape[-1] / pe.shape[-1])) != 1.0:
             pe = torch.nn.functional.interpolate(pe.unsqueeze(0), scale_factor=scale_factor).squeeze(0)
 
-        x += pe
-        return x
+        return x + pe
 
 
 class ImageEmbeddingPath(nn.Module):
     data_type = ImageType.data_type
 
-    def __init__(self, d_model: int = 512, patch_size: int = 16, in_channels: int = 3):
+    def __init__(self, d_model: int = 768, patch_size: int = 16, in_channels: int = 3):
         super().__init__()
 
         self.patch_size = patch_size
@@ -88,16 +100,17 @@ class ImageEmbeddingPath(nn.Module):
         self.cls_token_emb = nn.Parameter(torch.randn(1, 1, d_model), requires_grad=True)
 
     def forward(self, data: GenearlizedTensor):
-        # embeddings = self.positional_embeddings(data.tokens)
         embeddings = self.positional_embeddings(data)
-        # return GenearlizedTensor(embedding=embeddings, data_type=self.data_type)
+
+        cls_tokens = repeat(self.cls_token_emb, "1 1 d -> b 1 d", b=len(embeddings))
+        embeddings = torch.cat((cls_tokens, embeddings), dim=1)
         return GenearlizedTensor(embeddings).set_data_type(self.data_type)
 
 
 class ImagePath(nn.Module):
     data_type = ImageType.data_type
 
-    def __init__(self, d_model: int = 512, patch_size: int = 16, in_channels: int = 3):
+    def __init__(self, d_model: int = 768, patch_size: int = 16, in_channels: int = 3):
         super().__init__()
 
         self.patch_size = 16
@@ -105,7 +118,6 @@ class ImagePath(nn.Module):
             d_model=d_model, patch_size=patch_size, in_channels=in_channels
         )
         self.positional_embeddings = LearnedPositionalEmbeddings(d_model=d_model)
-
         # self.cls_token_emb = nn.Parameter(torch.randn(1, 1, d_model), requires_grad=True)
 
     def forward(self, x: torch.Tensor):
@@ -113,11 +125,10 @@ class ImagePath(nn.Module):
         x = self.patch_embeddings(x)
         x = normalize_image(x)
         x = self.positional_embeddings(x)
-        return GenearlizedTensor(x)
         # i dont know if we need this?  and it makes the dims wrong
         # cls_token_emb = self.cls_token_emb.expand(-1, x.shape[1], -1)
         # x = torch.cat([cls_token_emb, x])
-        # return GenearlizedTensor(hidden_states=x, input_shape=input_shape, output_shape=x.shape)
+        return GenearlizedTensor(x).set_data_type(self.data_type)
 
 
 class ResNetEmbedding(nn.Module):

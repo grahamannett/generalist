@@ -1,17 +1,17 @@
 from numpy import isin, mat
+import torch
 import torch.nn as nn
 
-from functools import wraps
-from typing import Any, Callable, ClassVar, Sequence
+from typing import Any, Callable, Sequence
 
 
 from torch.utils.data import Dataset
+from ..generalist_tokenizers.general_tokenizer import GeneralTokenizer
 
 from generalist.generalist_tokenizers.image_tokenizer import ImageTokenizer
 from generalist.generalist_tokenizers.input_types import InputType, Sample, SampleMetaData
 from generalist.generalist_tokenizers.prepare_data import PrepareData
 from generalist.generalist_tokenizers.text_path import TextTokenizer
-from generalist.generalist_tokenizers.tokenizer_utils import GeneralTokenizer
 
 
 class DataPaths:
@@ -27,22 +27,22 @@ class DataPaths:
 
 class GeneralistDataset(Dataset):
     shortname = None
-
-    tokenizers = {
-        TextTokenizer.data_type: TextTokenizer(),
-        ImageTokenizer.data_type: ImageTokenizer(),
-    }
+    tokenizers = {}
 
     def __init__(self, return_raw: bool = False, **kwargs) -> None:
-        self._use_prepare_data = kwargs.get("use_prepare_data", False)
         self._sample_metadata = kwargs.get("sample_metadata", True)
 
         self.return_raw = return_raw
         self.process_sample_data = kwargs.get("process_sample_data", True)
         self.process_sample_target = kwargs.get("process_sample_target", True)
 
-    def __class_getitem__(cls, key):
-        pass
+    @classmethod
+    def use_tokenizers(cls, tokenizers: Sequence[GeneralTokenizer], *args, **kwargs) -> None:
+        if isinstance(tokenizers, GeneralTokenizer):
+            tokenizers = [GeneralTokenizer]
+        if args:
+            tokenizers.extend(args)
+        cls.tokenizers = {tok.data_type: tok for tok in tokenizers}
 
     def __getitem__(self, idx: int, **kwargs) -> Sample:
         sample = Sample()
@@ -63,9 +63,10 @@ class GeneralistDataset(Dataset):
             case self.paths.text_path.data_type:
                 return data_type
 
-    def use_prepare_data(self, prepare_data: PrepareData) -> None:
-        self._use_prepare_data = True
-        self.tokenizers = prepare_data.path
+    # def apply_tokenizer(self, *arg_types, **kwargs):
+    #     for arg in arg_types:
+
+    #     pass
 
     def process_sample(self, sample: Sample, return_raw: bool = None) -> Sample:
         if self.return_raw or return_raw:
@@ -88,7 +89,8 @@ class GeneralistDataset(Dataset):
             case InputType():
                 setattr(sample, prop, self.tokenizers[prop_attr.data_type](prop_attr))
             case _:
-                raise ValueError(f"{prop} is not a list or InputType")
+                pass
+                # raise ValueError(f"{prop} is not a list or InputType")
 
 
 class ChainedGenearlistDataset(Dataset):
@@ -138,9 +140,6 @@ class DatasetRegistry:
 
     @staticmethod
     def register(dataset_class: Any = None, *args, **kwargs):
-        # def register(shortname:str = None, dataset_class: Any =None, *args, **kwargs):
-        # if isinstance(shortname, str):
-        #     return DatasetRegistry.registry[shortname]
         DatasetRegistry.registry[dataset_class.shortname] = dataset_class
         return dataset_class
 

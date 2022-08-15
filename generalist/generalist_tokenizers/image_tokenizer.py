@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
+from generalist.generalist_tokenizers.general_tokenizer import GeneralTokenizer
 from generalist.generalist_embedding.general_embedding import GenearlizedTensor
 from generalist.generalist_tokenizers.input_types import ImageType
-from generalist.generalist_tokenizers.tokenizer_utils import GeneralTokenizer
 
 from einops import rearrange
 
@@ -36,16 +36,33 @@ def img_to_patch(x, patch_size: int = 16, flatten_channels: bool = True):
 
 
 class ImageTokenizer(GeneralTokenizer):
+    """image tokenizer
+
+    convert image to patches and normalize between bounds
+
+    Args:
+        GeneralTokenizer (_type_): _description_
+
+    Raises:
+        ValueError: _description_
+
+    Returns:
+        _type_: _description_
+    """
+
     data_type = ImageType.data_type
 
     def __init__(
         self, p1: int = 16, p2: int = 16, upper_bound: int = 1, lower_bound: int = -1, **kwargs
     ) -> None:
 
+        # print(self._instance)
+
         super().__init__(**kwargs)
         self.p1 = p1  # h
         self.p2 = p2  # w
         # self.patch_size = self.p1 * self.p2
+
         self.patch_size = self.p1
 
         self.lower_bound = lower_bound

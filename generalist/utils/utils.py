@@ -5,7 +5,6 @@ import torch
 from generalist.generalist_tokenizers.input_types import Sample
 
 
-
 def get_hostname():
     import platform
 
@@ -136,20 +135,39 @@ class collate_func:
     def __call__(self, samples: List[Sample]) -> Batch:
         batch = BatchAdvanced_(samples)
 
-        self._return_tensor(self.return_data, batch, "data")
-        self._return_tensor(self.return_target, batch, "target")
+        # self._return_tensor(self.return_data, batch, "data")
+
+        # self._return_tensor(self.return_target, batch, "target")
 
         for i, sample in enumerate(batch.samples):
-            if isinstance(sample.data.data, torch.Tensor):
-                sample.data.data = sample.data.data.to(self.device)
+
+            for prop_name in ["data", "target"]:
+                inst = getattr(sample, prop_name)
+
+                # if isinstance(sample.data, list):
+                if isinstance(inst, list):
+                    new_val = [d.to(self.device) if isinstance(d, torch.Tensor) else d for d in inst]
+                    setattr(sample, prop_name, new_val)
+
+                    # sample.data = [d.to(self.device) for d in sample.data if isinstance(d, torch.Tensor)]
+                else:
+                    new_val = inst.to(self.device) if isinstance(inst, torch.Tensor) else inst
+                    setattr(sample, prop_name, new_val)
+                    # sample.data = sample.data.to(device) if isinstance(sample.data, torch.Tensor)
+
+            # if isinstance(sample.data.data, torch.Tensor):
+            #     sample.data.data = sample.data.data.to(self.device)
+
         return batch
 
     def _return_tensor(self, flag: bool, obj: BatchAdvanced_, prop: str):
+        print("prop", prop)
         match flag:
             case None:
                 pass
             case "pt":
-                setattr(obj, prop, torch.tensor(getattr(obj, prop)))
+                # setattr(obj, prop, torch.tensor(getattr(obj, prop)))
+                pass
             case _:
                 breakpoint()
                 # raise ValueError(f"{flag} is not a valid return_data flag")

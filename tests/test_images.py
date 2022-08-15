@@ -9,7 +9,7 @@ from generalist.generalist_embedding.image_embedding import ImageEmbeddingPath, 
 class TestImages(unittest.TestCase):
     def setUp(self):
         self.image_tokenizer = ImageTokenizer()
-        self.image_embedder = ImagePath()
+        self.image_embedder = ImageEmbeddingPath(d_model=768)
 
     def test_tokenizer(self):
         # 3x224x224
@@ -25,4 +25,19 @@ class TestImages(unittest.TestCase):
         self.assertEqual(tokenized.shape, torch.Size([1, 400, 768]))
 
     def test_embedding(self):
-        pass
+        import timeit
+
+        # def _func
+
+        # outtime = timeit.timeit(lambda: "-".join(map(str, range(100))), number=10000)
+        # print(outtime)
+        # pass
+        image_tensor = torch.rand(3, 224, 224)
+        image = ImageType(image_tensor)
+        tokenized = self.image_tokenizer(image)
+
+        def _func():
+            embedded = self.image_embedder(tokenized)
+
+        outtime = timeit.timeit(_func, number=10)
+        breakpoint()

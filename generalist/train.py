@@ -10,13 +10,20 @@ from rich import print
 from generalist.generalist_datasets.aokvqa.aokvqa import AokvqaDataset
 from generalist.generalist_datasets.hf_datasets import LanguageModelingDataset, SummarizationDataset
 from generalist.generalist_datasets.image_datasets import MNISTDataset
+from generalist.generalist_tokenizers.image_tokenizer import ImageTokenizer
+from generalist.generalist_tokenizers.text_path import TextTokenizer
 
 # from generalist.generalist_tokenizers.prepare_data import PrepareData
 from generalist.models.pretrained.perceiver import (
     ImagePath as ImagePathPerceiver,
     PerceiverClassificationOutput,
 )
-from generalist.models.model import EmbeddingModel, GeneralistModel, GeneralClassificationOutput
+from generalist.models.model import (
+    EmbeddingModel,
+    GeneralOutput,
+    GeneralistModel,
+    GeneralClassificationOutput,
+)
 from generalist.utils.utils import Batch, sample_collate_fn, collate_func
 from generalist.utils.cli import train_get_args
 
@@ -42,14 +49,12 @@ def train(**kwargs):
     n_epochs = kwargs.get("n_epochs", 1)
     batch_size = kwargs.get("batch_size", 1)
     display_flag = kwargs.get("display", True)
-    model_dim = kwargs.get("model_dim", 512)
+    model_dim = kwargs.get("model_dim", 768)
 
     embedding_model = EmbeddingModel(model_dim=model_dim)
-    # image_path_perceiver = ImagePathPerceiver()
-    # output_model_perceiver = PerceiverClassificationOutput()
-    # embedding_model.swap_data_type(module=image_path_perceiver)
-    output_model = GeneralClassificationOutput(model_dim=model_dim, num_classes=10, reduce_type="cls")
-    model = GeneralistModel(embedding_model=embedding_model, output_model=output_model, d_model=512).to(
+    # output_model = GeneralClassificationOutput(model_dim=model_dim, num_classes=10, reduce_type="cls")
+    output_model = GeneralOutput(model_dim=model_dim)
+    model = GeneralistModel(embedding_model=embedding_model, output_model=output_model, d_model=model_dim).to(
         device
     )
 
@@ -57,19 +62,32 @@ def train(**kwargs):
 
     optimizer = torch.optim.AdamW(
         [
-            {"params": embedding_model.parameters()},
-            {"params": output_model.parameters()},
-            {"params": model.transformer.parameters()},
+            # {"params": embedding_model.parameters()},
+            # {"params": output_model.parameters()},
+            # {"params": model.transformer.parameters()},
+            {"params": model.parameters()},
         ],
         lr=lr,
     )
 
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1.0, gamma=0.95)
 
+    image_tokenizer = ImageTokenizer()
+    text_tokenizer = TextTokenizer()
+    tokenizers = [image_tokenizer, text_tokenizer]
+
     # dataset = AokvqaDataset()
     # dataset = SummarizationDataset()
     # dataset = LanguageModelingDataset()
-    dataset = MNISTDataset(train=True, out_channels=3, process_sample_target=False, return_raw=True)
+    proc_target = True
+    return_raw = False
+
+    MNISTDataset.use_tokenizers(tokenizers)
+
+    dataset = MNISTDataset(
+        train=True, out_channels=3, process_sample_target=proc_target, return_raw=return_raw
+    )
+
     val_dataset = MNISTDataset(train=False, out_channels=3, return_raw=True)
 
     out = dataset[0]
@@ -99,6 +117,7 @@ def train(**kwargs):
         )
 
         model.train()
+        image_tokenizer = ImageTokenizer()
 
         for batch_idx, batch in enumerate(train_dataloader):
 
@@ -108,14 +127,12 @@ def train(**kwargs):
 
             logits_max_length = logits.shape[1]
 
-            encoded_targets = target.to(int).to(device)
-            # breakpoint()
-            out = logits
-            # loss = loss_fn(out.view(-1, out.shape[-1]), encoded_targets.view(-1))
+            encoded_targets = torch.stack(target).squeeze(1).to(int).to(device)
+            # encoded_targets = target.to(int).to(device)
 
-            loss = loss_fn(out, encoded_targets)
-            # out = torch.nn.functional.log_softmax(logits, dim=1)
-            # loss = torch.nn.functional.nll_loss(out, target)
+            # breakpoint()
+            loss = loss_fn(logits[:, 0], encoded_targets[:, 0])
+            # loss = loss_fn(logits, encoded_targets)
 
             running_loss += loss.item()
 
@@ -126,10 +143,7 @@ def train(**kwargs):
             torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
             optimizer.step()
 
-            # test_examples = out.argmax(1)[0][:5]
-            # test_decoded = tokenizer.decode(test_examples)
-            # test_actual = tokenizer.decode(encoded_targets[0][0])
-            test_decoded = out.argmax(1)
+            test_decoded = logits.argmax(1)
             test_actual = encoded_targets
             running_correct += test_decoded.eq(test_actual).sum().item()
             running_total += len(test_actual)
@@ -137,8 +151,6 @@ def train(**kwargs):
             acc = f"{(running_correct / running_total):0.3f}"
 
             display_vals = {
-                # "pred": test_decoded,
-                # "actual": test_actual,
                 "acc": acc,
                 "batch_idx": batch_idx,
             }

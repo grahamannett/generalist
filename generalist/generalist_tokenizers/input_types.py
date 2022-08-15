@@ -1,8 +1,8 @@
 from dataclasses import KW_ONLY, dataclass
-from typing import Any, List, NamedTuple, Optional, Union
+from typing import Any, List, Optional
 from enum import Enum
+from generalist.generalist_tokenizers.general_tokenizer import GeneralTokenizer
 
-from generalist.generalist_tokenizers.tokenizer_utils import GeneralTokenizer
 
 import torch
 from torch import nn
@@ -52,8 +52,28 @@ class Sample:
         yield self.data, self.target
 
 
-class TextType(torch.Tensor, InputType):
+def _new_tensor_helper(tensor_subclass):
+    def __new__(cls, *args):
+        if isinstance(args[0], torch.Tensor):
+            return tensor_subclass(args[0])
+        return super(cls).__new__(cls)
+
+    return __new__
+
+
+@dataclass
+class TextType(InputType):
+    data: Any
     data_type = InputTypes.text.name
+
+    def __new__(cls, *args):
+        if isinstance(args[0], torch.Tensor):
+            return TextTypeTensor(args[0])
+        return super(TextType, cls).__new__(cls)
+
+
+class TextTypeTensor(torch.Tensor, TextType):
+    data_type: InputTypes.text.name
 
 
 class ImageType(torch.Tensor, InputType):
@@ -69,3 +89,12 @@ class RLType(InputType):
     observation: Any
     action: Any
     reward: Any
+
+
+if __name__ == "__main__":
+    x = TextType("this is a string")
+    x2 = TextType(torch.Tensor([1, 2, 3]))
+    x3 = ImageType(torch.rand(3, 224, 224))
+    assert type(x) == TextType
+    assert type(x2) == TextTypeTensor
+    breakpoint()
