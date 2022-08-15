@@ -2,10 +2,12 @@ from dataclasses import dataclass
 from typing import Any, Callable, List
 
 import torch
+
 from generalist.generalist_tokenizers.input_types import Sample
 
 
 def get_device():
+    # from config import device
     device = "cuda:1" if torch.cuda.is_available() else "cpu"
     return device
 
@@ -69,9 +71,9 @@ class BatchAdv:
 
         self.data = [s.data for s in self.samples]
         self.target = [s.target for s in self.samples]
-        self.device = device if device else get_device()
+        # self.device = device if device else get_device()
 
-        self.fix()
+        # self.fix()
 
     def __len__(self):
         return len(self.samples)
@@ -82,9 +84,9 @@ class BatchAdv:
     def __iter__(self):
         return iter(self.samples)
 
-    def fix(self):
-        self.data = [[d_.to(self.device) for d_ in d] for d in self.data]
-        self.target = [d.to(self.device) for d in self.target]
+    # def fix(self):
+    #     self.data = [[d_.to(self.device) for d_ in d] for d in self.data]
+    #     self.target = [d.to(self.device) for d in self.target]
 
 
 @dataclass

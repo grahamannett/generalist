@@ -20,7 +20,7 @@ class ImageDatasetMixin:
 
 class MNISTDataset(ImageDatasetMixin, GeneralistDataset):
     shortname = "mnist"
-
+ 
     def __init__(self, train: bool = True, out_channels: int = 1, **kwargs):
         super().__init__(**kwargs)
 

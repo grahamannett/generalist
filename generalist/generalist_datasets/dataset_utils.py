@@ -6,7 +6,9 @@ from typing import Any, Callable, Sequence
 
 
 from torch.utils.data import Dataset
-from ..generalist_tokenizers.general_tokenizer import GeneralTokenizer
+
+from generalist.utils.utils import get_device
+from generalist.generalist_tokenizers.general_tokenizer import GeneralTokenizer
 
 from generalist.generalist_tokenizers.image_tokenizer import ImageTokenizer
 from generalist.generalist_tokenizers.input_types import InputType, Sample, SampleMetaData
@@ -36,6 +38,8 @@ class GeneralistDataset(Dataset):
         self.process_sample_data = kwargs.get("process_sample_data", True)
         self.process_sample_target = kwargs.get("process_sample_target", True)
 
+        self.device = kwargs.get("device", get_device())
+
     @classmethod
     def use_tokenizers(cls, tokenizers: Sequence[GeneralTokenizer], *args, **kwargs) -> None:
         if isinstance(tokenizers, GeneralTokenizer):
@@ -63,11 +67,6 @@ class GeneralistDataset(Dataset):
             case self.paths.text_path.data_type:
                 return data_type
 
-    # def apply_tokenizer(self, *arg_types, **kwargs):
-    #     for arg in arg_types:
-
-    #     pass
-
     def process_sample(self, sample: Sample, return_raw: bool = None) -> Sample:
         if self.return_raw or return_raw:
             return sample
@@ -84,10 +83,11 @@ class GeneralistDataset(Dataset):
 
         match prop_attr:
             case list():
-                new_prop = [self.tokenizers[data.data_type](data) for data in prop_attr]
+                new_prop = [self.tokenizers[data.data_type](data).to(self.device) for data in prop_attr]
                 setattr(sample, prop, new_prop)
             case InputType():
-                setattr(sample, prop, self.tokenizers[prop_attr.data_type](prop_attr))
+                new_val = self.tokenizers[prop_attr.data_type](prop_attr).to(self.device)
+                setattr(sample, prop, new_val)
             case _:
                 pass
                 # raise ValueError(f"{prop} is not a list or InputType")
