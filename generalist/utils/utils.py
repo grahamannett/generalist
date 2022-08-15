@@ -5,6 +5,11 @@ import torch
 from generalist.generalist_tokenizers.input_types import Sample
 
 
+def get_device():
+    device = "cuda:1" if torch.cuda.is_available() else "cpu"
+    return device
+
+
 def get_hostname():
     import platform
 
@@ -34,51 +39,11 @@ def _all_keys_match(batch):
 
 
 @dataclass
-class BatchOld:
-    """genearic batch class
-
-    usage (one of):
-        data, target = batch
-        data, target = batch.data, batch.target
-        data, target = batch['data'], batch['target']
-        sample = batch[0]
-
-
-    Returns:
-        _type_: _description_
-    """
-
-    data: Any = None
-    target: Any = None
-
-    @classmethod
-    def collate_fn(cls, samples: List[Sample]) -> "Batch":
-        """collate_fn for torch.utils.data.DataLoader"""
-        batch = cls(*zip(*((s.data, s.target) for s in samples)))
-        return batch
-
-    def __len__(self):
-        return len(self.data)
-
-    def __getitem__(self, key: str | int):
-        match key:
-            case int():
-                return Sample(self.data[key], self.target[key])
-            case str():
-                return getattr(self, key, None)
-
-    def __iter__(self):
-        return iter((self.data, self.target))
-
-
-@dataclass
 class Batch:
     samples: List[Sample] = None
 
     def __post_init__(self):
         # not sure which is quicker:
-        # list(zip(*((s.data, s.target) for s in self.samples)))
-        # or below
         self.data = [s.data for s in self.samples]
         self.target = [s.target for s in self.samples]
 
@@ -98,12 +63,15 @@ class Batch:
         return iter(self.samples)
 
 
-class BatchAdvanced_:
-    def __init__(self, samples: List[Sample] = None):
+class BatchAdv:
+    def __init__(self, samples: List[Sample] = None, device: str = None):
         self.samples = samples
 
         self.data = [s.data for s in self.samples]
         self.target = [s.target for s in self.samples]
+        self.device = device if device else get_device()
+
+        self.fix()
 
     def __len__(self):
         return len(self.samples)
@@ -113,6 +81,10 @@ class BatchAdvanced_:
 
     def __iter__(self):
         return iter(self.samples)
+
+    def fix(self):
+        self.data = [[d_.to(self.device) for d_ in d] for d in self.data]
+        self.target = [d.to(self.device) for d in self.target]
 
 
 @dataclass
@@ -133,7 +105,7 @@ class collate_func:
         self.return_target = return_target
 
     def __call__(self, samples: List[Sample]) -> Batch:
-        batch = BatchAdvanced_(samples)
+        batch = BatchAdv(samples)
 
         # self._return_tensor(self.return_data, batch, "data")
 
@@ -149,18 +121,16 @@ class collate_func:
                     new_val = [d.to(self.device) if isinstance(d, torch.Tensor) else d for d in inst]
                     setattr(sample, prop_name, new_val)
 
-                    # sample.data = [d.to(self.device) for d in sample.data if isinstance(d, torch.Tensor)]
                 else:
                     new_val = inst.to(self.device) if isinstance(inst, torch.Tensor) else inst
                     setattr(sample, prop_name, new_val)
-                    # sample.data = sample.data.to(device) if isinstance(sample.data, torch.Tensor)
 
             # if isinstance(sample.data.data, torch.Tensor):
             #     sample.data.data = sample.data.data.to(self.device)
 
         return batch
 
-    def _return_tensor(self, flag: bool, obj: BatchAdvanced_, prop: str):
+    def _return_tensor(self, flag: bool, obj: BatchAdv, prop: str):
         print("prop", prop)
         match flag:
             case None:
