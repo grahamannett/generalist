@@ -55,6 +55,9 @@ class TextTokenizer(GeneralTokenizer):
         encoded = self.tokenizer(x, return_tensors=self.return_tensors, truncation=self.truncation, **kwargs)
         return encoded
 
+    def decode(self, *args, **kwargs):
+        return self.tokenizer.decode(*args, **kwargs)
+
 
 class TextEmbeddingPath(nn.Module):
     data_type = TextType.data_type

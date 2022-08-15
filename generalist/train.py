@@ -143,15 +143,20 @@ def train(**kwargs):
             torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
             optimizer.step()
 
-            test_decoded = logits.argmax(1)
-            test_actual = encoded_targets
-            running_correct += test_decoded.eq(test_actual).sum().item()
-            running_total += len(test_actual)
+            test_decoded = logits[:, 0].argmax(1)
+            test_actual = encoded_targets[:, 0]
+
+            batch_correct = test_decoded.eq(test_actual).sum().item()
+            batch_total = len(test_actual)
+
+            running_correct += batch_correct
+            running_total += batch_total
 
             acc = f"{(running_correct / running_total):0.3f}"
 
             display_vals = {
                 "acc": acc,
+                "batch_acc": batch_correct / batch_total,
                 "batch_idx": batch_idx,
             }
 
