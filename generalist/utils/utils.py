@@ -108,11 +108,6 @@ class collate_func:
 
     def __call__(self, samples: List[Sample]) -> Batch:
         batch = BatchAdv(samples)
-
-        # self._return_tensor(self.return_data, batch, "data")
-
-        # self._return_tensor(self.return_target, batch, "target")
-
         for i, sample in enumerate(batch.samples):
 
             for prop_name in ["data", "target"]:

@@ -27,10 +27,13 @@ from generalist.models.model import (
 from generalist.utils.utils import Batch, sample_collate_fn, collate_func
 from generalist.utils.cli import train_get_args
 
-from accelerate import Accelerator
 
-accelerator = Accelerator()
-device = accelerator.device
+from config import device
+
+# from accelerate import Accelerator
+
+# accelerator = Accelerator()
+# device = accelerator.device
 
 
 from generalist.utils.display import GeneralistDisplay
@@ -57,6 +60,8 @@ def train(**kwargs):
     model = GeneralistModel(embedding_model=embedding_model, output_model=output_model, d_model=model_dim).to(
         device
     )
+
+    model = model.to(device)
 
     loss_fn = torch.nn.CrossEntropyLoss()
 
@@ -103,7 +108,7 @@ def train(**kwargs):
     display = GeneralistDisplay.make(display=display_flag)
     display.manage()
 
-    model, optimizer, data = accelerator.prepare(model, optimizer, train_dataloader)
+    # model, optimizer, data = accelerator.prepare(model, optimizer, train_dataloader)
 
     for epoch in range(n_epochs):
         # epoch_progress.update(epoch_task)
@@ -124,7 +129,6 @@ def train(**kwargs):
             data, target = batch.data, batch.target
 
             logits = model(data)
-
             logits_max_length = logits.shape[1]
 
             encoded_targets = torch.stack(target).squeeze(1).to(int).to(device)

@@ -104,7 +104,11 @@ class ImageEmbeddingPath(nn.Module):
 
         cls_tokens = repeat(self.cls_token_emb, "1 1 d -> b 1 d", b=len(embeddings))
         embeddings = torch.cat((cls_tokens, embeddings), dim=1)
-        return GenearlizedTensor(embeddings).set_data_type(self.data_type)
+        embeddings = GenearlizedTensor(embeddings)
+
+        embeddings.set_data_type(self.data_type)
+
+        return embeddings
 
 
 class ImagePath(nn.Module):

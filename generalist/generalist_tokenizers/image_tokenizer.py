@@ -74,7 +74,8 @@ class ImageTokenizer(GeneralTokenizer):
         img = self.to_patches(img)
         img = normalize_image(img, self.patch_size, self.lower_bound, self.upper_bound)
 
-        out = GenearlizedTensor(img).set_data_type(self.data_type)
+        out = GenearlizedTensor(img)
+        out.set_data_type(self.data_type)
         return out
 
     def to_patches(self, img: torch.Tensor):

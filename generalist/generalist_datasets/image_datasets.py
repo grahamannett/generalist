@@ -20,7 +20,7 @@ class ImageDatasetMixin:
 
 class MNISTDataset(ImageDatasetMixin, GeneralistDataset):
     shortname = "mnist"
- 
+
     def __init__(self, train: bool = True, out_channels: int = 1, **kwargs):
         super().__init__(**kwargs)
 
@@ -53,7 +53,6 @@ class MNISTDataset(ImageDatasetMixin, GeneralistDataset):
         # self.apply_tokenizer(*sample.data)
         # self.apply_tokenizer(sample.target)
 
-        # breakpoint()
         # sample.data = [image_]
         # sample.data = image_
         # sample.target = label

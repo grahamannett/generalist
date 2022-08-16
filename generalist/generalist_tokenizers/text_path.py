@@ -42,10 +42,11 @@ class TextTokenizer(GeneralTokenizer):
         self.truncation = truncation
 
     def __call__(self, sample: TextType | str, **kwargs) -> torch.Tensor:
-        x = sample.data if isinstance(sample, TextType) else sample
-        encoded = self.encode(x, **kwargs)
+        text = sample.data if isinstance(sample, TextType) else sample
+        encoded = self.encode(text, **kwargs)
 
-        out = GenearlizedTensor(encoded["input_ids"]).set_data_type(self.data_type)
+        out = GenearlizedTensor(encoded["input_ids"])
+        out.set_data_type(self.data_type)
         # superflous text data
         out.attention_mask = encoded["attention_mask"]
         out.token_type_ids = encoded["token_type_ids"]

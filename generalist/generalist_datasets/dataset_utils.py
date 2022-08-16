@@ -83,10 +83,17 @@ class GeneralistDataset(Dataset):
 
         match prop_attr:
             case list():
-                new_prop = [self.tokenizers[data.data_type](data).to(self.device) for data in prop_attr]
+                new_prop = [
+                    self.tokenizers[data.data_type](data).to(self.device).set_data_type(data.data_type)
+                    for data in prop_attr
+                ]
                 setattr(sample, prop, new_prop)
             case InputType():
-                new_val = self.tokenizers[prop_attr.data_type](prop_attr).to(self.device)
+                new_val = (
+                    self.tokenizers[prop_attr.data_type](prop_attr)
+                    .to(self.device)
+                    .set_data_type(prop_attr.data_type)
+                )
                 setattr(sample, prop, new_val)
             case _:
                 pass

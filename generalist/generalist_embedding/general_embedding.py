@@ -16,13 +16,16 @@ def _device_to(self, name: str, device_: str = device):
 
 # this is basically just a torch tensor but make it easier to add data_type
 class GenearlizedTensor(torch.Tensor):
-    _custom_prop = []
+    data_type: str = None
+    _custom_prop: List[str] = None
+    # _custom_prop = []
 
-    def set_prop(self, prop: str, value: Any):
-        if hasattr(self, prop) and prop not in self._custom_prop:
-            raise KeyError(f"only use set_prop for {prop}")
-        setattr(self, prop, value)
-        return self
+    # def set_prop(self, prop: str, value: Any):
+    #     if hasattr(self, prop) and prop not in self._custom_prop:
+    #         raise KeyError(f"only use set_prop for {prop}")
+    #     setattr(self, prop, value)
+    #     return self
 
     def set_data_type(self, data_type: str):
-        return self.set_prop("data_type", data_type)
+        self.data_type = data_type
+        return self
