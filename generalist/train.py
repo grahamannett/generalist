@@ -1,39 +1,25 @@
 import torch
+from accelerate import Accelerator
 from config import config
-from torch.utils.data import DataLoader
-
-
-# from tqdm import tqdm
-
 from rich import print
+from torch.utils.data import DataLoader
 
 from generalist.generalist_datasets.aokvqa.aokvqa import AokvqaDataset
 from generalist.generalist_datasets.hf_datasets import LanguageModelingDataset, SummarizationDataset
 from generalist.generalist_datasets.image_datasets import MNISTDataset
 from generalist.generalist_tokenizers.image_tokenizer import ImageTokenizer
 from generalist.generalist_tokenizers.text_path import TextTokenizer
+from generalist.models.model import EmbeddingModel, GeneralistModel
+from generalist.models.output_model import GeneralClassificationOutput, GeneralOutput
 
 # from generalist.generalist_tokenizers.prepare_data import PrepareData
-from generalist.models.pretrained.perceiver import (
-    ImagePath as ImagePathPerceiver,
-    PerceiverClassificationOutput,
-)
-from generalist.models.model import (
-    EmbeddingModel,
-    GeneralOutput,
-    GeneralistModel,
-    GeneralClassificationOutput,
-)
-from generalist.utils.utils import Batch, sample_collate_fn, collate_func
+from generalist.models.pretrained.perceiver import ImagePath as ImagePathPerceiver
+from generalist.models.pretrained.perceiver import PerceiverClassificationOutput
 from generalist.utils.cli import train_get_args
 
+from accelerate import Accelerator
 
 from config import device
-
-# from accelerate import Accelerator
-
-# accelerator = Accelerator()
-# device = accelerator.device
 
 
 from generalist.utils.display import GeneralistDisplay
@@ -107,8 +93,6 @@ def train(**kwargs):
 
     display = GeneralistDisplay.make(display=display_flag)
     display.manage()
-
-    # model, optimizer, data = accelerator.prepare(model, optimizer, train_dataloader)
 
     for epoch in range(n_epochs):
         # epoch_progress.update(epoch_task)
