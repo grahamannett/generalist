@@ -1,8 +1,10 @@
 import os
 
 import pytomlpp as toml
-from config.helper import ConfigInterface
+import torch
 from generalist.utils.utils import get_hostname
+
+from config.helper import ConfigInterface
 
 # from config.dev import Config
 
@@ -54,4 +56,5 @@ class Config:
 
 
 config = Config()
-device = config.device
+# device = config.device
+device = "cuda:1" if torch.cuda.is_available() else "cpu"

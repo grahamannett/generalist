@@ -134,14 +134,25 @@ def train(**kwargs):
             torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
             optimizer.step()
 
-            test_decoded = logits[:, 0].argmax(1)
-            test_actual = encoded_targets[:, 0]
+            test_decoded = text_tokenizer.tokenizer.batch_decode(logits[:, 0].argmax(1))
+            test_actual = text_tokenizer.tokenizer.batch_decode(encoded_targets[:, 0])
 
-            batch_correct = test_decoded.eq(test_actual).sum().item()
-            batch_total = len(test_actual)
+            batch_correct = [1 if a == b else 0 for a, b in zip(test_decoded, test_actual)]
+            batch_total = len(batch_correct)
 
-            running_correct += batch_correct
+            running_correct += sum(batch_correct)
             running_total += batch_total
+
+            # test_decoded = logits.argmax(dim=1)
+            # test_actual = encoded_targets
+            # test_decoded = logits[:, 0].argmax(1)
+            # test_actual = encoded_targets[:, 0]
+
+            # batch_correct = test_decoded.eq(test_actual).sum().item()
+            # batch_total = len(test_actual)
+
+            # running_correct += batch_correct
+            # running_total += batch_total
 
             acc = f"{(running_correct / running_total):0.3f}"
 
@@ -150,6 +161,10 @@ def train(**kwargs):
                 "batch_acc": batch_correct / batch_total,
                 "batch_idx": batch_idx,
             }
+
+            if batch_idx % 50 == 0:
+                display_vals["test_decoded"] = test_decoded
+                display_vals["test_actual"] = test_actual
 
             display.update(
                 "batch_progress",
