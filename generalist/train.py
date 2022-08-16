@@ -12,10 +12,10 @@ from generalist.generalist_tokenizers.text_path import TextTokenizer
 from generalist.models.model import EmbeddingModel, GeneralistModel
 from generalist.models.output_model import GeneralClassificationOutput, GeneralOutput
 
-# from generalist.generalist_tokenizers.prepare_data import PrepareData
 from generalist.models.pretrained.perceiver import ImagePath as ImagePathPerceiver
 from generalist.models.pretrained.perceiver import PerceiverClassificationOutput
 from generalist.utils.cli import train_get_args
+from generalist.utils.utils import collate_func
 
 from accelerate import Accelerator
 
@@ -115,11 +115,14 @@ def train(**kwargs):
             logits = model(data)
             logits_max_length = logits.shape[1]
 
-            encoded_targets = torch.stack(target).squeeze(1).to(int).to(device)
+            # encoded_targets = torch.stack(target).squeeze(1).to(int).to(device)
+            encoded_targets = torch.nn.functional.pad(
+                torch.cat(target), (0, logits.shape[1] - target[0].shape[-1], 0, 0), mode="constant", value=0
+            )
+            loss = loss_fn(logits.view(-1, logits.shape[-1]), encoded_targets.view(-1))
             # encoded_targets = target.to(int).to(device)
 
-            # breakpoint()
-            loss = loss_fn(logits[:, 0], encoded_targets[:, 0])
+            # loss = loss_fn(logits[:, 0], encoded_targets[:, 0])
             # loss = loss_fn(logits, encoded_targets)
 
             running_loss += loss.item()
