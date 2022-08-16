@@ -137,10 +137,10 @@ def train(**kwargs):
             test_decoded = text_tokenizer.tokenizer.batch_decode(logits[:, 0].argmax(1))
             test_actual = text_tokenizer.tokenizer.batch_decode(encoded_targets[:, 0])
 
-            batch_correct = [1 if a == b else 0 for a, b in zip(test_decoded, test_actual)]
-            batch_total = len(batch_correct)
+            batch_correct = sum([1 if a == b else 0 for a, b in zip(test_decoded, test_actual)])
+            batch_total = len(test_decoded)
 
-            running_correct += sum(batch_correct)
+            running_correct += batch_correct
             running_total += batch_total
 
             # test_decoded = logits.argmax(dim=1)
