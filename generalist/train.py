@@ -4,17 +4,13 @@ from config import config, device
 from rich import print
 from torch.utils.data import DataLoader
 
-from generalist.generalist_datasets.aokvqa import AokvqaDataset
-from generalist.generalist_datasets.base import GeneralistDataset
-from generalist.generalist_datasets.coco import CocoDataset
-from generalist.generalist_datasets.hf_datasets import LanguageModelingDataset, SummarizationDataset
-from generalist.generalist_datasets.image_datasets import MNISTDataset
-from generalist.generalist_tokenizers.image_tokenizer import ImageTokenizer
-from generalist.generalist_tokenizers.text_path import TextTokenizer
+from generalist.generalist_datasets import AokvqaDataset, GeneralistDataset, CocoDataset, MNISTDataset
+
+from generalist.generalist_tokenizers import ImageTokenizer, TextTokenizer
+
 from generalist.models.model import EmbeddingModel, GeneralistModel
 from generalist.models.output_model import GeneralClassificationOutput, GeneralOutput
-from generalist.models.pretrained.perceiver import ImagePath as ImagePathPerceiver
-from generalist.models.pretrained.perceiver import PerceiverClassificationOutput
+
 from generalist.utils.cli import train_get_args
 from generalist.utils.display import GeneralistDisplay
 from generalist.utils.utils import collate_func
@@ -68,7 +64,8 @@ def train(**kwargs):
     # or can call on a specific dataset
     MNISTDataset.use_tokenizers(tokenizers)
 
-    dataset = CocoDataset()
+    breakpoint()
+    dataset = CocoDataset(codo_dir=config.COCO_DIR)
     out = dataset[0]
     # dataset = AokvqaDataset()
     # dataset = SummarizationDataset()

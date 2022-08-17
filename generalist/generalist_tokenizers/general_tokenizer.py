@@ -1,6 +1,3 @@
-import torch
-
-
 class GeneralTokenizer:
     data_type = None
     _instance = None
@@ -16,7 +13,4 @@ class GeneralTokenizer:
         raise Exception("not okay fam -> singleton related")
 
     def fix_device(self, prop: str) -> None:
-        # tensor = getattr(self, prop, None)
-        # if isinstance(tensor, torch.Tensor):
-        #     setattr(self, prop, tensor.to(self.device))
         raise NotImplementedError()

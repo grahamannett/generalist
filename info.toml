@@ -1,11 +1,12 @@
 [config.iaputus]
 name = "iaputus"
 environment = "gpu"
+coco_dir = "/data/graham/datasets/coco/aokvqacoco/datasets/coco"
 
 [config.default]
 name = "default"
 environment = "dev"
-
+coco_dir = "~/code/boise_research_group/generalist"
 
 [experiments.mnist]
 dataset = "mnist"

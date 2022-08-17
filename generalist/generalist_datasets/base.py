@@ -4,7 +4,7 @@ from typing import Any, Sequence
 from generalist.generalist_tokenizers.general_tokenizer import GeneralTokenizer
 from generalist.generalist_tokenizers.input_types import InputType, Sample, SampleMetaData
 
-from generalist.utils.utils import get_device
+from generalist.utils.device import get_device
 
 
 class GeneralistDataset(Dataset):

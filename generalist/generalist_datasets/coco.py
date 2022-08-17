@@ -35,7 +35,7 @@ class CocoDataset(ImageDatasetMixin, GeneralistDataset):
         "val": _val_transform,
     }
 
-    def __init__(self, coco_dir: str = "data/coco", split: str = "train") -> None:
+    def __init__(self, coco_dir: str, split: str = "train") -> None:
         assert split in ["train", "test", "val"]
 
         super().__init__()

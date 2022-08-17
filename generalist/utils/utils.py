@@ -2,14 +2,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, List
 
 import torch
-
 from generalist.generalist_tokenizers.input_types import Sample
-
-
-def get_device():
-    # from config import device
-    device = "cuda:1" if torch.cuda.is_available() else "cpu"
-    return device
 
 
 def get_hostname():
@@ -71,7 +64,6 @@ class BatchAdv:
 
         self.data = [s.data for s in self.samples]
         self.target = [s.target for s in self.samples]
-        # self.device = device if device else get_device()
 
         # self.fix()
 

@@ -5,7 +5,7 @@ import torch.nn as nn
 from typing import Any, Callable, Sequence
 from generalist.generalist_datasets.base import GeneralistDataset
 
-from generalist.utils.utils import get_device
+from generalist.utils.device import get_device
 from generalist.generalist_tokenizers.general_tokenizer import GeneralTokenizer
 
 from generalist.generalist_tokenizers.image_tokenizer import ImageTokenizer
@@ -59,5 +59,3 @@ class DatasetRegistry:
     @staticmethod
     def register_(shortname: str, *args, **kwargs) -> Callable:
         DatasetRegistry.add_dataset(shortname)
-
-

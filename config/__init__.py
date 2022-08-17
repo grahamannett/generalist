@@ -6,8 +6,6 @@ from generalist.utils.utils import get_hostname
 
 from config.helper import ConfigInterface
 
-# from config.dev import Config
-
 
 class Config:
     #
@@ -40,9 +38,9 @@ class Config:
         for key, val in config_env.__dict__.items():
             if not key.endswith("__"):
                 setattr(self, key, val)
+                breakpoint()
 
     def _import_helper(self, config_name: str):
-        env = self._read_env_file()
         try:
             exec(f"from config.{config_name}_config import Config as ConfigEnv")
             return locals().get("ConfigEnv", None)
@@ -53,6 +51,10 @@ class Config:
         params = toml.load(env_file)
         env = params["config"].get(get_hostname(), params["config"]["default"])
         return env
+
+    def put_env_into_config(self, env: dict):
+        # for key, val in
+        pass
 
 
 config = Config()

@@ -2,10 +2,12 @@ from typing import Any
 
 import torch
 import torch.nn as nn
-from config import device
+
 from generalist.generalist_tokenizers.general_tokenizer import GeneralTokenizer
 from generalist.generalist_tokenizers.input_types import GenearlizedTensor, TextTypeRaw, TextType
 from transformers import GPT2Model, GPT2PreTrainedModel, XLNetTokenizer, BertTokenizer
+
+from generalist.utils.device import get_device
 
 
 class TextTokenizer(GeneralTokenizer):
@@ -59,11 +61,11 @@ class TextTokenizer(GeneralTokenizer):
 class TextEmbeddingPath(nn.Module):
     data_type = TextType.data_type
 
-    def __init__(self, device: str = device, **kwargs) -> None:
+    def __init__(self, device: str = None, **kwargs) -> None:
         super().__init__()
 
         self.embedder = TextEmbedding.from_pretrained("gpt2")
-        self.device = device
+        self.device = get_device() if device is None else device
 
     def forward(self, data: Any) -> torch.Tensor:
         embedding = self.embedder(data)

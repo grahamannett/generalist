@@ -1,5 +1,5 @@
-from dataclasses import KW_ONLY, dataclass, field
-from typing import Any, List, Optional
+from dataclasses import KW_ONLY, dataclass
+from typing import Any, List
 from enum import Enum
 from generalist.generalist_tokenizers.general_tokenizer import GeneralTokenizer
 
