@@ -1,12 +1,12 @@
 from typing import Any, Sequence
 
 import torch
+import torch.nn as nn
 from config import device
 
 from generalist.models.embedding_model import EmbeddingModel
 from generalist.models.output_model import GeneralOutput
 from generalist.models.transformers.transformerdecoder import TransformerDecoder
-from torch import nn
 
 
 class GeneralistModel(nn.Module):
@@ -33,13 +33,11 @@ class GeneralistModel(nn.Module):
     def forward(self, data: torch.Tensor) -> torch.Tensor:
         embedding = self.embedding_model(data)
 
-        # if embedding is list, means we probably got in variable length data for a sample
-        # breakpoint()
         if isinstance(embedding, list):
-            embedding = torch.cat([torch.cat(emb, dim=1) for emb in embedding], dim=0)
-            # embedding = torch.cat(embedding)
+            if isinstance(embedding[0], list):
+                embedding = [torch.cat(emb, dim=1) for emb in embedding]
+            embedding = torch.cat(embedding, dim=0)
 
         hidden_states = self.transformer(embedding)
-        breakpoint()
         out = self.output_model(hidden_states, decoder_query=embedding)
         return out

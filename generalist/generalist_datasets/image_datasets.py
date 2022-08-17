@@ -2,10 +2,11 @@ import torch
 from generalist.generalist_datasets.base import GeneralistDataset
 from generalist.generalist_tokenizers.input_types import ImageType, Sample, TextType, TextTypeRaw
 from torchvision import datasets, transforms
+from torchvision.io import read_image as _read_image
 
 
 class ImageDatasetMixin:
-    def default_transform(self):
+    def default_image_transform(self):
         transform = transforms.Compose(
             [
                 transforms.Resize(320),
@@ -13,6 +14,9 @@ class ImageDatasetMixin:
             ]
         )
         return transform
+
+    def read_image(self, *args, **kwargs):
+        return _read_image(*args, **kwargs)
 
 
 class MNISTDataset(ImageDatasetMixin, GeneralistDataset):
@@ -29,7 +33,7 @@ class MNISTDataset(ImageDatasetMixin, GeneralistDataset):
         self.dataset = datasets.MNIST("../data", train=train, download=True, transform=transform)
 
     def transform_helper(self):
-        transform = self.default_transform()
+        transform = self.default_image_transform()
         transform.transforms.append(transforms.Normalize((0.1307,), (0.3081,)))
         return transform
 
@@ -50,7 +54,7 @@ class MNISTDataset(ImageDatasetMixin, GeneralistDataset):
         # return image, label
         image_ = ImageType(image)
 
-        image_.resize(320)
+        image_.resize_image(320)
 
         # sample.data = [image_, TextType("what number is this?")]
         sample.data = [image_]

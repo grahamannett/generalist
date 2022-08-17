@@ -1,20 +1,45 @@
-from pathlib import Path
-import pickle
-import sys
-from typing import Tuple
-
-import torch
-from generalist.generalist_datasets.base import GeneralistDataset
-
 import json
 
-from generalist.generalist_tokenizers.input_types import ImageType, Sample
+from pathlib import Path
 
 
-class CocoDataset(GeneralistDataset):
+import torch
+import numpy as np
+
+from generalist.generalist_datasets.base import GeneralistDataset
+from generalist.generalist_datasets.image_datasets import ImageDatasetMixin
+from generalist.generalist_tokenizers.input_types import ImageType, Sample, TextTypeRaw
+from torchvision import transforms
+
+
+_train_transform = transforms.Compose(
+    [
+        transforms.ColorJitter(brightness=[0.5, 1.3], contrast=[0.8, 1.5], saturation=[0.2, 1.5]),
+        transforms.RandomHorizontalFlip(),
+        # transforms.ToTensor(),
+        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+    ]
+)
+
+_val_transform = transforms.Compose(
+    [
+        # transforms.ToTensor(),
+        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+    ]
+)
+
+
+class CocoDataset(ImageDatasetMixin, GeneralistDataset):
+    _transforms = {
+        "train": _train_transform,
+        "val": _val_transform,
+    }
+
     def __init__(self, coco_dir: str = "data/coco", split: str = "train") -> None:
-        coco_dir = Path(coco_dir)
+        assert split in ["train", "test", "val"]
+
         super().__init__()
+        coco_dir = Path(coco_dir)
         self.coco_dir = coco_dir
         self.split = split
 
@@ -24,6 +49,8 @@ class CocoDataset(GeneralistDataset):
         self.person_keypoints = coco_dir / "annotations" / f"person_keypoints_{split}2017.json"
 
         self.captions_data = json.load(open(self.captions))
+
+        self.image_transform = CocoDataset._transforms[self.split]
 
         # these other ones only have segmentation maps
         # self.instances_data = json.load(open(self.instances))
@@ -47,10 +74,18 @@ class CocoDataset(GeneralistDataset):
                 }
             )
 
+    def __len__(self):
+        return len(self._dataset)
+
     def __getitem__(self, idx: int, **kwargs) -> Sample:
         sample = super().__getitem__(idx, **kwargs)
-
-        breakpoint()
         item = self._dataset[idx]
-        image = item["image_path"]
-        sample.data = ImageType()
+
+        image = ImageType(self.read_image(item["image_path"]))
+        image.resize_image((320, 320))
+        image = image / 255.0
+        sample.data = self.image_transform(image)
+        sample.target = TextTypeRaw(item["caption"]["caption"])
+
+        self.process_sample(sample)
+        return sample

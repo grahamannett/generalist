@@ -77,6 +77,7 @@ class AokvqaDataset(GeneralistDataset):
         return sample
 
     def image_transform(self, image: torch.Tensor):
+        # some images are greyscale and should probably convert ot rgb but this suffices
         if image.shape[0] == 1:
             image = image.repeat(3, 1, 1)
 

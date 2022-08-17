@@ -1,4 +1,4 @@
-from dataclasses import KW_ONLY, dataclass
+from dataclasses import KW_ONLY, dataclass, field
 from typing import Any, List, Optional
 from enum import Enum
 from generalist.generalist_tokenizers.general_tokenizer import GeneralTokenizer
@@ -35,26 +35,27 @@ class InputType:
     data_type = InputTypes.generic.name
 
 
-# @dataclass
-# class SampleMetaData:
-#     idx: Any = None
-#     dataset_name: Any = None
-
-
 @dataclass
+class SampleMetaData:
+    idx: Any = None
+    dataset_name: Any = None
+
+
 class Sample:
-    data: List[InputType] = None
-    target: Any = None
-
-    # metadata: Optional[SampleMetaData] = None
-
-    @dataclass
-    class SampleMetaData:
-        idx: Any = None
-        dataset_name: Any = None
+    def __init__(self, data: List[InputType] = None, target: Any = None, metadata: SampleMetaData = None):
+        self.data = data
+        self.target = target
+        self.metadata = metadata
 
     def __iter__(self):
         yield self.data, self.target
+
+    def __repr__(self) -> str:
+        string = f"Sample(data={self.data}, target={self.target}"
+        if self.metadata is not None:
+            string += f", metadata={self.metadata}"
+        string += ")"
+        return string
 
 
 def _new_tensor_helper(tensor_subclass):
@@ -93,8 +94,8 @@ class ImageType(InputType, GenearlizedTensor):
     data: torch.Tensor
     data_type = InputTypes.image.name
 
-    def resize(self, size: int) -> "ImageType":
-        self.data = F.resize(self.data, size)
+    def resize_image(self, size: List[int], **kwargs) -> "ImageType":
+        self.data = F.resize(self.data, size=size, **kwargs)
         return self
 
 

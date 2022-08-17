@@ -1,10 +1,11 @@
 import torch
 from accelerate import Accelerator
-from config import config
+from config import config, device
 from rich import print
 from torch.utils.data import DataLoader
 
 from generalist.generalist_datasets.aokvqa import AokvqaDataset
+from generalist.generalist_datasets.base import GeneralistDataset
 from generalist.generalist_datasets.coco import CocoDataset
 from generalist.generalist_datasets.hf_datasets import LanguageModelingDataset, SummarizationDataset
 from generalist.generalist_datasets.image_datasets import MNISTDataset
@@ -12,18 +13,11 @@ from generalist.generalist_tokenizers.image_tokenizer import ImageTokenizer
 from generalist.generalist_tokenizers.text_path import TextTokenizer
 from generalist.models.model import EmbeddingModel, GeneralistModel
 from generalist.models.output_model import GeneralClassificationOutput, GeneralOutput
-
 from generalist.models.pretrained.perceiver import ImagePath as ImagePathPerceiver
 from generalist.models.pretrained.perceiver import PerceiverClassificationOutput
 from generalist.utils.cli import train_get_args
-from generalist.utils.utils import collate_func
-
-from accelerate import Accelerator
-
-from config import device
-
-
 from generalist.utils.display import GeneralistDisplay
+from generalist.utils.utils import collate_func
 
 
 def train_step(embedding_model, genearlist_model, dataloader):
@@ -69,29 +63,30 @@ def train(**kwargs):
 
     tokenizers = [image_tokenizer, text_tokenizer]
 
+    # can just call this with the base class for all datasets
+    GeneralistDataset.use_tokenizers(tokenizers)
+    # or can call on a specific dataset
+    MNISTDataset.use_tokenizers(tokenizers)
+
     dataset = CocoDataset()
     out = dataset[0]
-    breakpoint()
     # dataset = AokvqaDataset()
     # dataset = SummarizationDataset()
     # dataset = LanguageModelingDataset()
     proc_target = True
     return_raw = False
 
-    MNISTDataset.use_tokenizers(tokenizers)
+    # dataset = MNISTDataset(
+    #     train=True, out_channels=3, process_sample_target=proc_target, return_raw=return_raw
+    # )
+    # out = dataset[0]
 
-    dataset = MNISTDataset(
-        train=True, out_channels=3, process_sample_target=proc_target, return_raw=return_raw
-    )
-
-    val_dataset = MNISTDataset(train=False, out_channels=3, return_raw=True)
-
-    out = dataset[0]
+    # val_dataset = MNISTDataset(train=False, out_channels=3, return_raw=True)
 
     collate_fn = collate_func(device=device, return_target="pt")
 
     train_dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
-    val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
+    # val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 
     # out = next(iter(train_dataloader))
     # out = model(out)
@@ -118,13 +113,20 @@ def train(**kwargs):
             data, target = batch.data, batch.target
 
             logits = model(data)
+
             logits_max_length = logits.shape[1]
 
             # encoded_targets = torch.stack(target).squeeze(1).to(int).to(device)
-            encoded_targets = torch.nn.functional.pad(
-                torch.cat(target), (0, logits.shape[1] - target[0].shape[-1], 0, 0), mode="constant", value=0
-            )
+            encoded_targets = [
+                torch.nn.functional.pad(
+                    t, (0, logits_max_length - t.shape[-1], 0, 0), mode="constant", value=0
+                )
+                for t in target
+            ]
+            encoded_targets = torch.stack(encoded_targets)
+
             loss = loss_fn(logits.view(-1, logits.shape[-1]), encoded_targets.view(-1))
+
             # encoded_targets = target.to(int).to(device)
 
             # loss = loss_fn(logits[:, 0], encoded_targets[:, 0])
@@ -167,13 +169,14 @@ def train(**kwargs):
                 "batch_idx": batch_idx,
             }
 
-            if batch_idx % 50 == 0:
-                display_vals["test_decoded"] = test_decoded
-                display_vals["test_actual"] = test_actual
+            # if batch_idx % 50 == 0:
+            #     display_vals["test_decoded"] = test_decoded
+            #     display_vals["test_actual"] = test_actual
 
             display.update(
                 "batch_progress",
                 advance=1,
+                batch_loss=f"{loss.item():0.3f}",
                 running_loss=f"{running_loss:.3f}",
                 test=display_vals,
             )

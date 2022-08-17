@@ -2,7 +2,7 @@ from torch.utils.data import Dataset
 
 from typing import Any, Sequence
 from generalist.generalist_tokenizers.general_tokenizer import GeneralTokenizer
-from generalist.generalist_tokenizers.input_types import InputType, Sample
+from generalist.generalist_tokenizers.input_types import InputType, Sample, SampleMetaData
 
 from generalist.utils.utils import get_device
 
@@ -28,14 +28,11 @@ class GeneralistDataset(Dataset):
             tokenizers.extend(args)
         cls.tokenizers = {tok.data_type: tok for tok in tokenizers}
 
-    def __getitem__(self, idx: int, **kwargs) -> Sample:
-        sample = Sample()
+    def __getitem__(self, idx: int, metadata: SampleMetaData = None, **kwargs) -> Sample:
         if self._sample_metadata:
-            sample.metadata = Sample.SampleMetaData(idx=idx, dataset_name=self.shortname)
-        else:
-            delattr(sample, "metadata")
+            metadata = SampleMetaData(idx=idx, dataset_name=self.shortname)
 
-        return sample
+        return Sample(metadata=metadata)
 
     def _return_tuple(self):
         pass
@@ -58,26 +55,20 @@ class GeneralistDataset(Dataset):
 
         return sample
 
-    def process_sample_property(self, sample: Sample, prop: str) -> Sample:
-        prop_attr = getattr(sample, prop)
+    def process_sample_property(self, sample: Sample, name: str) -> Sample:
+        value = getattr(sample, name)
 
-        match prop_attr:
+        match value:
             case list():
-                new_prop = [
-                    self.tokenizers[data.data_type](data).to(self.device).set_data_type(data.data_type)
-                    for data in prop_attr
-                ]
-                setattr(sample, prop, new_prop)
+                new_data = [self._from_tokenizer(p) for p in value]
+                setattr(sample, value, new_data)
             case InputType():
-                new_val = (
-                    self.tokenizers[prop_attr.data_type](prop_attr)
-                    .to(self.device)
-                    .set_data_type(prop_attr.data_type)
-                )
-                setattr(sample, prop, new_val)
+                setattr(sample, name, self._from_tokenizer(value))
             case _:
-                pass
-                # raise ValueError(f"{prop} is not a list or InputType")
+                raise ValueError(f"{value} is not a list or InputType")
+
+    def _from_tokenizer(self, prop: InputType):
+        return self.tokenizers[prop.data_type](prop).to(self.device).set_data_type(prop.data_type)
 
 
 class ChainedGenearlistDataset(Dataset):
@@ -95,5 +86,20 @@ class ChainedGenearlistDataset(Dataset):
         return sum(self._lengths)
 
     def __getitem__(self, index: int) -> Sample:
+        dataset_idx = [_ for _ in self._lengths_idx if _ <= index].pop()
+        return self._datasets[dataset_idx].__getitem__(index - self._lengths_idx[dataset_idx])
+
+
+class CombinedDataset(GeneralistDataset):
+    def __init__(self, datasets: Sequence[GeneralistDataset], batch_same: bool = False, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self._datasets = datasets
+
+        self.batch_same = batch_same
+
+    def __len__(self) -> int:
+        return sum([len(dataset) for dataset in self._datasets])
+
+    def __getitem__(self, index) -> Sample:
         dataset_idx = [_ for _ in self._lengths_idx if _ <= index].pop()
         return self._datasets[dataset_idx].__getitem__(index - self._lengths_idx[dataset_idx])

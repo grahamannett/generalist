@@ -5,7 +5,7 @@ import torch.nn as nn
 from config import device
 from generalist.generalist_tokenizers.general_tokenizer import GeneralTokenizer
 from generalist.generalist_tokenizers.input_types import GenearlizedTensor, TextTypeRaw, TextType
-from transformers import GPT2Model, GPT2PreTrainedModel, XLNetTokenizer
+from transformers import GPT2Model, GPT2PreTrainedModel, XLNetTokenizer, BertTokenizer
 
 
 class TextTokenizer(GeneralTokenizer):
