@@ -40,5 +40,6 @@ class GeneralistModel(nn.Module):
             # embedding = torch.cat(embedding)
 
         hidden_states = self.transformer(embedding)
+        breakpoint()
         out = self.output_model(hidden_states, decoder_query=embedding)
         return out

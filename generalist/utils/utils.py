@@ -137,7 +137,7 @@ class collate_func:
                 pass
             case _:
                 breakpoint()
-                # raise ValueError(f"{flag} is not a valid return_data flag")
+                raise ValueError(f"{flag} is not a valid return_data flag")
 
 
 def sample_collate_fn(samples: List[Sample]) -> Batch:

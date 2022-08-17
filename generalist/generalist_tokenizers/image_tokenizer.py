@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 from generalist.generalist_tokenizers.general_tokenizer import GeneralTokenizer
-from generalist.generalist_embedding.general_embedding import GenearlizedTensor
 from generalist.generalist_tokenizers.input_types import ImageType
 
 from einops import rearrange
@@ -74,7 +73,7 @@ class ImageTokenizer(GeneralTokenizer):
         img = self.to_patches(img)
         img = normalize_image(img, self.patch_size, self.lower_bound, self.upper_bound)
 
-        out = GenearlizedTensor(img)
+        out = ImageType(img)
         out.set_data_type(self.data_type)
         return out
 

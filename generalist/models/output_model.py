@@ -2,15 +2,15 @@ import torch
 import torch.nn as nn
 
 
-def reduce_dummy_(x: torch.Tensor, **kwargs) -> torch.Tensor:
+def identity(x: torch.Tensor, **kwargs) -> torch.Tensor:
     return x
 
 
-def reduce_cls_(x: torch.Tensor, dim: int = 0, **kwargs) -> torch.Tensor:
+def reduce_cls(x: torch.Tensor, dim: int = 0, **kwargs) -> torch.Tensor:
     return x[:, dim]
 
 
-def reduce_mean_(x: torch.Tensor, dim: int = 1, **kwargs) -> torch.Tensor:
+def reduce_mean(x: torch.Tensor, dim: int = 1, **kwargs) -> torch.Tensor:
     return x.mean(dim=dim)
 
 
@@ -27,9 +27,9 @@ class GeneralOutput(nn.Module):
 
 class GeneralClassificationOutput(GeneralOutput):
     reduce_dict = {
-        "mean": reduce_mean_,
-        "cls": reduce_cls_,
-        None: reduce_dummy_,
+        "mean": reduce_mean,
+        "cls": reduce_cls,
+        None: identity,
     }
 
     def __init__(
@@ -39,6 +39,10 @@ class GeneralClassificationOutput(GeneralOutput):
 
         self.num_classes = num_classes
         self.reduce_type = reduce_type
+
+        # self.reduce = nn.ModuleDict({
+        #     "mean": reduce_mean
+        # })
 
         if reduce_type not in self.reduce_dict:
             raise ValueError(f"reduce_type {reduce_type} not in {self.reduce_dict}")

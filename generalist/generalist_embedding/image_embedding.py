@@ -2,8 +2,7 @@ from typing import Tuple
 
 import torch
 import torch.nn as nn
-from generalist.generalist_embedding.general_embedding import GenearlizedTensor
-from generalist.generalist_tokenizers.input_types import ImageType
+from generalist.generalist_tokenizers.input_types import ImageType, GenearlizedTensor
 from generalist.generalist_tokenizers.image_tokenizer import normalize_image
 
 from einops import repeat

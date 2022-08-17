@@ -1,5 +1,6 @@
 from datasets import load_dataset
-from generalist.generalist_datasets.dataset_utils import GeneralistDataset, DatasetRegistry
+from generalist.generalist_datasets.base import GeneralistDataset
+from generalist.generalist_datasets.dataset_utils import DatasetRegistry
 from torch.utils.data import Dataset
 from typing import Any
 
@@ -55,7 +56,15 @@ class SummarizationDataset(GeneralistDataset):
 @DatasetRegistry.register
 class LanguageModelingDataset(GeneralistDataset):
     shortname = "hf_language_modeling"
-    def __init__(self, dataset_path: str = "wikitext", dataset_name: str = "wikitext-103-raw-v1", split: str = "train", return_raw: bool = True, **kwargs) -> None:
+
+    def __init__(
+        self,
+        dataset_path: str = "wikitext",
+        dataset_name: str = "wikitext-103-raw-v1",
+        split: str = "train",
+        return_raw: bool = True,
+        **kwargs
+    ) -> None:
         super().__init__(return_raw, **kwargs)
 
         self._dataset_path = dataset_path
@@ -72,4 +81,3 @@ class LanguageModelingDataset(GeneralistDataset):
         sample.data = TextType(item["text"])
         sample.target = TextType(item["text"])
         return sample
-

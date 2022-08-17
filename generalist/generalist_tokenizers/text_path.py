@@ -2,14 +2,10 @@ from typing import Any
 
 import torch
 import torch.nn as nn
-from transformers import GPT2Model, GPT2PreTrainedModel, XLNetTokenizer
-
 from config import device
-
-from generalist.generalist_embedding.general_embedding import GenearlizedTensor
-from generalist.generalist_tokenizers.input_types import TextType
-
 from generalist.generalist_tokenizers.general_tokenizer import GeneralTokenizer
+from generalist.generalist_tokenizers.input_types import GenearlizedTensor, TextTypeRaw, TextType
+from transformers import GPT2Model, GPT2PreTrainedModel, XLNetTokenizer
 
 
 class TextTokenizer(GeneralTokenizer):
@@ -41,11 +37,11 @@ class TextTokenizer(GeneralTokenizer):
         self.model_max_length = model_max_length
         self.truncation = truncation
 
-    def __call__(self, sample: TextType | str, **kwargs) -> torch.Tensor:
-        text = sample.data if isinstance(sample, TextType) else sample
+    def __call__(self, sample: TextTypeRaw | str, **kwargs) -> torch.Tensor:
+        text = sample.data if isinstance(sample, TextTypeRaw) else sample
         encoded = self.encode(text, **kwargs)
 
-        out = GenearlizedTensor(encoded["input_ids"])
+        out = TextType(encoded["input_ids"])
         out.set_data_type(self.data_type)
         # superflous text data
         out.attention_mask = encoded["attention_mask"]
@@ -72,7 +68,6 @@ class TextEmbeddingPath(nn.Module):
     def forward(self, data: Any) -> torch.Tensor:
         embedding = self.embedder(data)
         return embedding.set_data_type(self.data_type)
-        # return GenearlizedTensor(embedding=embedding.embedding, data_type=self.data_type)
 
 
 class TextEmbedding(GPT2PreTrainedModel):
@@ -90,7 +85,7 @@ class TextEmbedding(GPT2PreTrainedModel):
 
     def forward(
         self,
-        data: GenearlizedTensor,
+        data: TextType,
     ):
 
         tokens = data

@@ -92,4 +92,3 @@ if __name__ == "__main__":
 
     x = torch.rand(2, 3, 224, 224)
     out = ImagePath()(x)
-    breakpoint()

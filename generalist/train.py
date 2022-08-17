@@ -4,7 +4,8 @@ from config import config
 from rich import print
 from torch.utils.data import DataLoader
 
-from generalist.generalist_datasets.aokvqa.aokvqa import AokvqaDataset
+from generalist.generalist_datasets.aokvqa import AokvqaDataset
+from generalist.generalist_datasets.coco import CocoDataset
 from generalist.generalist_datasets.hf_datasets import LanguageModelingDataset, SummarizationDataset
 from generalist.generalist_datasets.image_datasets import MNISTDataset
 from generalist.generalist_tokenizers.image_tokenizer import ImageTokenizer
@@ -65,8 +66,12 @@ def train(**kwargs):
 
     image_tokenizer = ImageTokenizer()
     text_tokenizer = TextTokenizer()
+
     tokenizers = [image_tokenizer, text_tokenizer]
 
+    dataset = CocoDataset()
+    out = dataset[0]
+    breakpoint()
     # dataset = AokvqaDataset()
     # dataset = SummarizationDataset()
     # dataset = LanguageModelingDataset()

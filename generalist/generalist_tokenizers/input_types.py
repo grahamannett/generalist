@@ -35,10 +35,10 @@ class InputType:
     data_type = InputTypes.generic.name
 
 
-@dataclass
-class SampleMetaData:
-    idx: Any = None
-    dataset_name: Any = None
+# @dataclass
+# class SampleMetaData:
+#     idx: Any = None
+#     dataset_name: Any = None
 
 
 @dataclass
@@ -46,7 +46,12 @@ class Sample:
     data: List[InputType] = None
     target: Any = None
 
-    metadata: Optional[SampleMetaData] = None
+    # metadata: Optional[SampleMetaData] = None
+
+    @dataclass
+    class SampleMetaData:
+        idx: Any = None
+        dataset_name: Any = None
 
     def __iter__(self):
         yield self.data, self.target
@@ -61,22 +66,31 @@ def _new_tensor_helper(tensor_subclass):
     return __new__
 
 
+class GenearlizedTensor(torch.Tensor):
+    data_type: str = None
+    _custom_prop: List[str] = None
+
+    def set_data_type(self, data_type: str):
+        self.data_type = data_type
+        return self
+
+
 @dataclass
-class TextType(InputType):
+class TextTypeRaw(InputType):
     data: Any
     data_type = InputTypes.text.name
 
-    def __new__(cls, *args):
-        if isinstance(args[0], torch.Tensor):
-            return TextTypeTensor(args[0])
-        return super(TextType, cls).__new__(cls)
+    def convert(self, tokenizer: GeneralTokenizer):
+        return TextType(tokenizer(self.data))
 
 
-class TextTypeTensor(torch.Tensor, TextType):
-    data_type: InputTypes.text.name
+class TextType(InputType, GenearlizedTensor):
+    data: torch.Tensor
+    data_type = InputTypes.text.name
 
 
-class ImageType(torch.Tensor, InputType):
+class ImageType(InputType, GenearlizedTensor):
+    data: torch.Tensor
     data_type = InputTypes.image.name
 
     def resize(self, size: int) -> "ImageType":
@@ -96,5 +110,5 @@ if __name__ == "__main__":
     x2 = TextType(torch.Tensor([1, 2, 3]))
     x3 = ImageType(torch.rand(3, 224, 224))
     assert type(x) == TextType
-    assert type(x2) == TextTypeTensor
+    assert type(x2) == TextType
     breakpoint()

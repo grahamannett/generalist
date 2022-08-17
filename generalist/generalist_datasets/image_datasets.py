@@ -1,9 +1,7 @@
 import torch
-
-from generalist.generalist_datasets.dataset_utils import GeneralistDataset
+from generalist.generalist_datasets.base import GeneralistDataset
+from generalist.generalist_tokenizers.input_types import ImageType, Sample, TextType, TextTypeRaw
 from torchvision import datasets, transforms
-
-from generalist.generalist_tokenizers.input_types import ImageType, Sample, TextType
 
 
 class ImageDatasetMixin:
@@ -12,7 +10,6 @@ class ImageDatasetMixin:
             [
                 transforms.Resize(320),
                 transforms.ToTensor(),
-                # transforms.Normalize((0.1307,), (0.3081,))
             ]
         )
         return transform
@@ -27,8 +24,14 @@ class MNISTDataset(ImageDatasetMixin, GeneralistDataset):
         self.out_channels = out_channels
 
         self.feature_extractor = kwargs.get("feature_extractor", None)
-        transform = kwargs.get("transform", self.default_transform())
+        transform = kwargs.get("transform", self.transform_helper())
+
         self.dataset = datasets.MNIST("../data", train=train, download=True, transform=transform)
+
+    def transform_helper(self):
+        transform = self.default_transform()
+        transform.transforms.append(transforms.Normalize((0.1307,), (0.3081,)))
+        return transform
 
     def __len__(self):
         return len(self.dataset)
@@ -46,11 +49,13 @@ class MNISTDataset(ImageDatasetMixin, GeneralistDataset):
 
         # return image, label
         image_ = ImageType(image)
+
         image_.resize(320)
 
         # sample.data = [image_, TextType("what number is this?")]
         sample.data = [image_]
-        sample.target = TextType(str(label))
+        sample.target = TextTypeRaw(str(label))
+
         # self.apply_tokenizer(*sample.data)
         # self.apply_tokenizer(sample.target)
 

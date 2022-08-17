@@ -10,7 +10,7 @@ from torch.utils.data import Dataset
 from torchvision.io import read_image
 from torchvision.transforms.functional import resize
 
-from generalist.generalist_datasets.dataset_utils import GeneralistDataset
+from generalist.generalist_datasets.base import GeneralistDataset
 
 
 @dataclass

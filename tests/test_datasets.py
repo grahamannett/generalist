@@ -1,6 +1,6 @@
 import unittest
 
-from generalist.generalist_datasets.dataset_utils import GeneralistDataset
+from generalist.generalist_datasets.base import GeneralistDataset
 
 
 class TestDatasets(unittest.TestCase):
