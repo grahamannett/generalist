@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from generalist.generalist_tokenizers.general_tokenizer import GeneralTokenizer
-from generalist.generalist_tokenizers.input_types import ImageType
+from generalist.data_types.input_types import ImageType
 
 from einops import rearrange
 

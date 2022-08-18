@@ -5,7 +5,8 @@ from typing import Any, Dict, List
 
 import torch
 from config import config
-from generalist.generalist_tokenizers.input_types import ImageType, Sample, TextType
+from generalist.data_types.input_types import ImageType, TextType
+from generalist.data_types.helper_types import Sample
 from torch.utils.data import Dataset
 from torchvision.io import read_image
 from torchvision.transforms.functional import resize

@@ -2,7 +2,8 @@ from torch.utils.data import Dataset
 
 from typing import Any, Sequence
 from generalist.generalist_tokenizers.general_tokenizer import GeneralTokenizer
-from generalist.generalist_tokenizers.input_types import InputType, Sample, SampleMetaData
+from generalist.data_types.input_types import InputType
+from generalist.data_types.helper_types import Sample, SampleMetaData
 
 from generalist.utils.device import get_device
 

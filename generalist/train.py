@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 from generalist.generalist_datasets import AokvqaDataset, GeneralistDataset, CocoDataset, MNISTDataset
 
 from generalist.generalist_tokenizers import ImageTokenizer, TextTokenizer
-from generalist.generalist_tokenizers.input_types import ImageType, TextTypeRaw
+from generalist.data_types.input_types import ImageType, TextTypeRaw
 
 from generalist.models.model import EmbeddingModel, GeneralistModel
 from generalist.models.output_model import GeneralClassificationOutput, GeneralOutput
@@ -73,7 +73,7 @@ def train(**kwargs):
     out = dataset[0]
 
     caption_preder = ImageCaptionPrediction(text_tokenizer.tokenizer)
-    # caption_preder.make_caption(model, out.data, out.target)
+    caption_preder.make_caption(model, out.data, out.target)
     # breakpoint()
     # dataset = AokvqaDataset()
     # dataset = SummarizationDataset()

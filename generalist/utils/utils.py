@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, List
 
 import torch
-from generalist.generalist_tokenizers.input_types import Sample
+from generalist.data_types.helper_types import Sample, Batch
 
 
 def get_hostname():
@@ -34,54 +34,6 @@ def _all_keys_match(batch):
 
 
 @dataclass
-class Batch:
-    samples: List[Sample] = None
-
-    def __post_init__(self):
-        # not sure which is quicker:
-        self.data = [s.data for s in self.samples]
-        self.target = [s.target for s in self.samples]
-
-    @classmethod
-    def collate_fn(cls, samples: List[Sample]) -> "Batch":
-        """collate_fn for torch.utils.data.DataLoader"""
-        batch = cls(samples)
-        return batch
-
-    def __len__(self):
-        return len(self.samples)
-
-    def __getitem__(self, key: int):
-        return self.samples[key]
-
-    def __iter__(self):
-        return iter(self.samples)
-
-
-class BatchAdv:
-    def __init__(self, samples: List[Sample] = None, device: str = None):
-        self.samples = samples
-
-        self.data = [s.data for s in self.samples]
-        self.target = [s.target for s in self.samples]
-
-        # self.fix()
-
-    def __len__(self):
-        return len(self.samples)
-
-    def __getitem__(self, key: int):
-        return self.samples[key]
-
-    def __iter__(self):
-        return iter(self.samples)
-
-    # def fix(self):
-    #     self.data = [[d_.to(self.device) for d_ in d] for d in self.data]
-    #     self.target = [d.to(self.device) for d in self.target]
-
-
-@dataclass
 class collate_func_transform:
     transform: Callable[[Any], Any] = None
     dtype: type | torch.dtype = None
@@ -99,7 +51,7 @@ class collate_func:
         self.return_target = return_target
 
     def __call__(self, samples: List[Sample]) -> Batch:
-        batch = BatchAdv(samples)
+        batch = Batch(samples)
         for i, sample in enumerate(batch.samples):
 
             for prop_name in ["data", "target"]:
@@ -119,7 +71,7 @@ class collate_func:
 
         return batch
 
-    def _return_tensor(self, flag: bool, obj: BatchAdv, prop: str):
+    def _return_tensor(self, flag: bool, obj: Batch, prop: str):
         print("prop", prop)
         match flag:
             case None:

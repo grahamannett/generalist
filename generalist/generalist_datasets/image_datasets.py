@@ -1,6 +1,7 @@
 import torch
 from generalist.generalist_datasets.base import GeneralistDataset
-from generalist.generalist_tokenizers.input_types import ImageType, Sample, TextType, TextTypeRaw
+from generalist.data_types.input_types import ImageType, TextType, TextTypeRaw
+from generalist.data_types.helper_types import Sample
 from torchvision import datasets, transforms
 from torchvision.io import read_image as _read_image
 

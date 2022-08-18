@@ -4,7 +4,8 @@ from generalist.generalist_datasets.dataset_utils import DatasetRegistry
 from torch.utils.data import Dataset
 from typing import Any
 
-from generalist.generalist_tokenizers.input_types import Sample, TextType
+from generalist.data_types.input_types import TextType
+from generalist.data_types.helper_types import Sample
 
 
 class BaseHFDataset(Dataset):

@@ -1,11 +1,14 @@
 import torch
 
+from generalist.models.model import GeneralistModel
+from generalist.data_types.input_types import ImageType
+
 
 class ImageCaptionPrediction:
     def __init__(self, tokenizer) -> None:
         self.tokenizer = tokenizer
 
-    def make_caption(self, model, tokenized_image, tokenized_caption):
+    def make_caption(self, model: GeneralistModel, tokenized_image: ImageType, tokenized_caption):
         logits = model([tokenized_image])
         generated_caption = logits.argmax(1)[:, : tokenized_caption.shape[-1]]
         normal_caption, generated_caption = self.tokenizer.batch_decode(
@@ -13,4 +16,4 @@ class ImageCaptionPrediction:
         )
         print(f"generated caption:\n==>{generated_caption}")
         print(f"actual caption:\n==>{normal_caption}")
-        breakpoint()
+        return {"normal": normal_caption, "generated": generated_caption}

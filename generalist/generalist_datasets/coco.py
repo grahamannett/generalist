@@ -8,7 +8,8 @@ import numpy as np
 
 from generalist.generalist_datasets.base import GeneralistDataset
 from generalist.generalist_datasets.image_datasets import ImageDatasetMixin
-from generalist.generalist_tokenizers.input_types import ImageType, Sample, TextTypeRaw
+from generalist.data_types.input_types import ImageType, TextTypeRaw
+from generalist.data_types.helper_types import Sample
 from torchvision import transforms
 
 

@@ -2,7 +2,7 @@ import unittest
 import torch
 from generalist.generalist_tokenizers.image_tokenizer import ImageTokenizer
 
-from generalist.generalist_tokenizers.input_types import ImageType
+from generalist.data_types.input_types import ImageType
 from generalist.generalist_embedding.image_embedding import ImageEmbeddingPath, ImagePath
 
 

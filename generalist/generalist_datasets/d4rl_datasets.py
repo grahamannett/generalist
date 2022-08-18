@@ -1,5 +1,5 @@
 from generalist.generalist_datasets.base import GeneralistDataset
-from generalist.generalist_tokenizers.input_types import Sample
+from generalist.data_types.input_types import Sample
 
 import torch
 

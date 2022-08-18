@@ -6,10 +6,8 @@ from typing import Any, Callable, Sequence
 from generalist.generalist_datasets.base import GeneralistDataset
 
 from generalist.utils.device import get_device
-from generalist.generalist_tokenizers.general_tokenizer import GeneralTokenizer
 
 from generalist.generalist_tokenizers.image_tokenizer import ImageTokenizer
-from generalist.generalist_tokenizers.input_types import InputType, Sample
 from generalist.generalist_tokenizers.prepare_data import PrepareData
 from generalist.generalist_tokenizers.text_path import TextTokenizer
 
