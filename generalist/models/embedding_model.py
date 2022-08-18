@@ -4,8 +4,8 @@ from typing import List, Sequence
 import torch
 import torch.nn as nn
 from generalist.generalist_embedding.image_embedding import ImageEmbeddingPath, ImagePath
-from generalist.generalist_embedding.general_embedding import GenearlizedTensor
-from generalist.data_types.input_types import DataHandlerPath
+from generalist.data_types.input_types import GenearlizedTensor
+from generalist.data_types.helper_types import DataHandlerPath
 from generalist.generalist_tokenizers.text_path import TextEmbeddingPath
 
 

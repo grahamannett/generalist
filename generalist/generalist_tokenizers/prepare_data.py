@@ -3,8 +3,9 @@ from typing import Any, Callable, List
 
 import torch
 import torch.nn as nn
+from generalist.data_types.input_types import InputType
+from generalist.data_types.helper_types import DataHandlerPath
 from generalist.generalist_tokenizers.image_tokenizer import ImageTokenizer
-from generalist.data_types.input_types import DataHandlerPath, InputType
 from generalist.generalist_tokenizers.text_path import TextTokenizer
 from generalist.models.model import EmbeddingModel, GeneralistModel
 

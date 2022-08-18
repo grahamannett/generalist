@@ -1,8 +1,12 @@
 from dataclasses import dataclass
 from typing import Any, List
-from generalist.data_types.input_types import InputType
 
 import torch
+import torch.nn as nn
+
+# commented until i fix circular import
+# from generalist.data_types.input_types import InputType
+from generalist.generalist_tokenizers.general_tokenizer import GeneralTokenizer
 
 
 @dataclass
@@ -12,7 +16,7 @@ class SampleMetaData:
 
 
 class Sample:
-    def __init__(self, data: List[InputType] = None, target: Any = None, metadata: SampleMetaData = None):
+    def __init__(self, data: List["InputType"] = None, target: Any = None, metadata: SampleMetaData = None):
         self.data = data
         self.target = target
         self.metadata = metadata
@@ -64,26 +68,14 @@ class Batch:
     #     self.target = [d.to(self.device) for d in self.target]
 
 
-# @dataclass
-# class Batch:
-#     samples: List[Sample] = None
+@dataclass
+class DataHandlerPath:
+    module: nn.Module | GeneralTokenizer
+    name: str = None  # the name to bind to the handler object
+    data_type: str = None  # the data type it handles
 
-#     def __post_init__(self):
-#         # not sure which is quicker:
-#         self.data = [s.data for s in self.samples]
-#         self.target = [s.target for s in self.samples]
-
-#     @classmethod
-#     def collate_fn(cls, samples: List[Sample]) -> "Batch":
-#         """collate_fn for torch.utils.data.DataLoader"""
-#         batch = cls(samples)
-#         return batch
-
-#     def __len__(self):
-#         return len(self.samples)
-
-#     def __getitem__(self, key: int):
-#         return self.samples[key]
-
-#     def __iter__(self):
-#         return iter(self.samples)
+    def __post_init__(self):
+        if self.name is None:
+            self.name = self.module.__class__.__name__
+        if self.data_type is None:
+            self.data_type = self.module.data_type
