@@ -40,7 +40,7 @@ def train(**kwargs):
         device
     )
 
-    model = model.to(device)
+    model.to(device)
 
     loss_fn = torch.nn.CrossEntropyLoss()
 
