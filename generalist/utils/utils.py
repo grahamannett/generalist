@@ -53,23 +53,17 @@ class collate_func:
     def __call__(self, samples: List[Sample]) -> Batch:
         batch = Batch(samples)
         for i, sample in enumerate(batch.samples):
-
-            for prop_name in ["data", "target"]:
-                inst = getattr(sample, prop_name)
-
-                # if isinstance(sample.data, list):
-                if isinstance(inst, list):
-                    new_val = [d.to(self.device) if isinstance(d, torch.Tensor) else d for d in inst]
-                    setattr(sample, prop_name, new_val)
-
-                else:
-                    new_val = inst.to(self.device) if isinstance(inst, torch.Tensor) else inst
-                    setattr(sample, prop_name, new_val)
-
-            # if isinstance(sample.data.data, torch.Tensor):
-            #     sample.data.data = sample.data.data.to(self.device)
+            sample.data = self.fix_prop(sample.data)
+            sample.target = self.fix_prop(sample.target)
 
         return batch
+
+    def fix_prop(self, prop):
+        if isinstance(prop, list):
+            new_val = [d.to(self.device) if isinstance(d, torch.Tensor) else d for d in prop]
+        else:
+            new_val = prop.to(self.device) if isinstance(prop, torch.Tensor) else prop
+        return new_val
 
     def _return_tensor(self, flag: bool, obj: Batch, prop: str):
         print("prop", prop)
