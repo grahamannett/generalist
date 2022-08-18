@@ -45,6 +45,7 @@ class collate_func:
         device: str = None,
         return_data: collate_func_transform = None,
         return_target: collate_func_transform = None,
+        **kwargs,
     ):
         self.device = device
         self.return_data = return_data
@@ -63,10 +64,10 @@ class collate_func:
             new_val = [d.to(self.device) if isinstance(d, torch.Tensor) else d for d in prop]
         else:
             new_val = prop.to(self.device) if isinstance(prop, torch.Tensor) else prop
+
         return new_val
 
     def _return_tensor(self, flag: bool, obj: Batch, prop: str):
-        print("prop", prop)
         match flag:
             case None:
                 pass

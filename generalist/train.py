@@ -114,7 +114,6 @@ def train(**kwargs):
         for batch_idx, batch in enumerate(train_dataloader):
 
             data, target = batch.data, batch.target
-
             logits = model(data)
 
             encoded_targets = [

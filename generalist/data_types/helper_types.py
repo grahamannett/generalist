@@ -42,11 +42,16 @@ def _new_tensor_helper(tensor_subclass):
 
 
 class Batch:
-    def __init__(self, samples: List[Sample] = None, device: str = None):
+    def __init__(self, samples: List[Sample] = None, **kwargs):
         self.samples = samples
 
-        self.data = [s.data for s in self.samples]
-        self.target = [s.target for s in self.samples]
+    @property
+    def data(self):
+        return [s.data for s in self.samples]
+
+    @property
+    def target(self):
+        return [s.target for s in self.samples]
 
     def __len__(self):
         return len(self.samples)

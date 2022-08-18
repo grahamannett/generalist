@@ -49,6 +49,7 @@ class Config:
 
     def _read_env_file(self, env_file: str = "info.toml"):
         params = toml.load(env_file)
+        # breakpoint()
         env = params["config"].get(get_hostname(), params["config"]["default"])
         return env
 
