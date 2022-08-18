@@ -46,10 +46,10 @@ def train(**kwargs):
 
     optimizer = torch.optim.AdamW(
         [
-            # {"params": embedding_model.parameters()},
-            # {"params": output_model.parameters()},
-            # {"params": model.transformer.parameters()},
-            {"params": model.parameters()},
+            {"params": embedding_model.parameters()},
+            {"params": output_model.parameters()},
+            {"params": model.transformer.parameters()},
+            # {"params": model.parameters()},
         ],
         lr=lr,
     )
@@ -172,6 +172,9 @@ def train(**kwargs):
                 running_loss=f"{running_loss:.3f}",
                 test=display_vals,
             )
+
+        caption_preder.make_caption(model, out.data, out.target)
+        break
 
     display.manage("epoch", display.END)
     print("done with training")
