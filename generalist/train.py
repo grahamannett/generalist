@@ -73,7 +73,7 @@ def train(**kwargs):
     out = dataset[0]
 
     caption_preder = ImageCaptionPrediction(text_tokenizer.tokenizer)
-    caption_preder.make_caption(model, out.data.to(device), out.target)
+    caption_preder.make_caption(model, out.data.to(device), out.target.to(device))
     # breakpoint()
     # dataset = AokvqaDataset()
     # dataset = SummarizationDataset()
