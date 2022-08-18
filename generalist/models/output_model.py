@@ -15,6 +15,7 @@ def reduce_mean(x: torch.Tensor, dim: int = 1, **kwargs) -> torch.Tensor:
 
 
 class GeneralOutput(nn.Module):
+    # output dim of gato is 33024 but depends on tokenizer
     def __init__(self, model_dim: int = 768, output_dim: int = 33024, bias: bool = False) -> None:
         super().__init__()
         # self.output_dim = output_dim

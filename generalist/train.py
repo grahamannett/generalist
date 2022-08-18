@@ -33,9 +33,12 @@ def train(**kwargs):
     display_flag = kwargs.get("display", True)
     model_dim = kwargs.get("model_dim", 768)
 
+    image_tokenizer = ImageTokenizer()
+    text_tokenizer = TextTokenizer()
+
     embedding_model = EmbeddingModel(model_dim=model_dim)
     # output_model = GeneralClassificationOutput(model_dim=model_dim, num_classes=10, reduce_type="cls")
-    output_model = GeneralOutput(model_dim=model_dim)
+    output_model = GeneralOutput(model_dim=model_dim, output_dim=text_tokenizer.tokenizer.vocab_size)
     model = GeneralistModel(embedding_model=embedding_model, output_model=output_model, d_model=model_dim).to(
         device
     )
@@ -55,9 +58,6 @@ def train(**kwargs):
     )
 
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1.0, gamma=0.95)
-
-    image_tokenizer = ImageTokenizer()
-    text_tokenizer = TextTokenizer()
 
     TextTypeRaw.tokenizer = text_tokenizer
     ImageType.tokenizer = image_tokenizer
@@ -132,8 +132,11 @@ def train(**kwargs):
             torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
             optimizer.step()
 
-            test_decoded = text_tokenizer.tokenizer.batch_decode(logits[:, 0].argmax(1))
-            test_actual = text_tokenizer.tokenizer.batch_decode(encoded_targets[:, 0])
+            try:
+                test_decoded = text_tokenizer.tokenizer.batch_decode(logits[:, 0].argmax(1))
+                test_actual = text_tokenizer.tokenizer.batch_decode(encoded_targets[:, 0])
+            except IndexError:
+                breakpoint()
 
             batch_correct = sum([1 if a == b else 0 for a, b in zip(test_decoded, test_actual)])
             batch_total = len(test_decoded)

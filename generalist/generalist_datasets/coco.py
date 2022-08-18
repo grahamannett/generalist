@@ -13,8 +13,16 @@ from generalist.data_types.helper_types import Sample
 from torchvision import transforms
 
 
+def fix_channels(image):
+    if image.shape[0] == 1:
+        image = image.repeat(3, 1, 1)
+    return image
+
+
 _train_transform = transforms.Compose(
     [
+        transforms.Lambda(fix_channels),
+        transforms.Resize((320, 320)),
         transforms.ColorJitter(brightness=[0.5, 1.3], contrast=[0.8, 1.5], saturation=[0.2, 1.5]),
         transforms.RandomHorizontalFlip(),
         # transforms.ToTensor(),
@@ -25,6 +33,8 @@ _train_transform = transforms.Compose(
 _val_transform = transforms.Compose(
     [
         # transforms.ToTensor(),
+        transforms.Lambda(fix_channels),
+        transforms.Resize((320, 320)),
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
     ]
 )
@@ -81,15 +91,15 @@ class CocoDataset(ImageDatasetMixin, GeneralistDataset):
     def __getitem__(self, idx: int, **kwargs) -> Sample:
         sample = super().__getitem__(idx, **kwargs)
         item = self._dataset[idx]
+        image = self.read_image(item["image_path"])
 
-        image = ImageType(self.read_image(item["image_path"]))
-        image.resize_image((320, 320))
-        image = image / 255.0
+        image = ImageType(image / 255.0)
+        # image.resize_image((320, 320))
         data = self.image_transform(image)
         target = TextTypeRaw(item["caption"]["caption"])
 
-        target = target.tokenize()
         data = data.tokenize()
+        target = target.tokenize()
         # target = target.tokenize(self.tokenizers["text"])
 
         sample.data, sample.target = data, target
