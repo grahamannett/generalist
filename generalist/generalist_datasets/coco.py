@@ -28,14 +28,14 @@ _val_transform = transforms.Compose(
     ]
 )
 
+_transforms = {
+    "train": _train_transform,
+    "val": _val_transform,
+}
+
 
 class CocoDataset(ImageDatasetMixin, GeneralistDataset):
-    _transforms = {
-        "train": _train_transform,
-        "val": _val_transform,
-    }
-
-    def __init__(self, coco_dir: str, split: str = "train") -> None:
+    def __init__(self, coco_dir: str = None, split: str = "train", **kwargs) -> None:
         assert split in ["train", "test", "val"]
 
         super().__init__()
@@ -50,7 +50,7 @@ class CocoDataset(ImageDatasetMixin, GeneralistDataset):
 
         self.captions_data = json.load(open(self.captions))
 
-        self.image_transform = CocoDataset._transforms[self.split]
+        self.image_transform = _transforms[self.split]
 
         # these other ones only have segmentation maps
         # self.instances_data = json.load(open(self.instances))
@@ -84,8 +84,14 @@ class CocoDataset(ImageDatasetMixin, GeneralistDataset):
         image = ImageType(self.read_image(item["image_path"]))
         image.resize_image((320, 320))
         image = image / 255.0
-        sample.data = self.image_transform(image)
-        sample.target = TextTypeRaw(item["caption"]["caption"])
+        data = self.image_transform(image)
+        target = TextTypeRaw(item["caption"]["caption"])
 
-        self.process_sample(sample)
+        target = target.tokenize()
+        data = data.tokenize()
+        # target = target.tokenize(self.tokenizers["text"])
+
+        sample.data, sample.target = data, target
+
+        # self.process_sample(sample)
         return sample

@@ -55,16 +55,10 @@ class MNISTDataset(ImageDatasetMixin, GeneralistDataset):
         image_ = ImageType(image)
 
         image_.resize_image(320)
+        image_ = image_.tokenize()
 
-        # sample.data = [image_, TextType("what number is this?")]
-        sample.data = [image_]
-        sample.target = TextTypeRaw(str(label))
+        target = TextTypeRaw(str(label))
+        target = target.tokenize()
 
-        # self.apply_tokenizer(*sample.data)
-        # self.apply_tokenizer(sample.target)
-
-        # sample.data = [image_]
-        # sample.data = image_
-        # sample.target = label
-        self.process_sample(sample)
+        sample.data, sample.target = image_, target
         return sample

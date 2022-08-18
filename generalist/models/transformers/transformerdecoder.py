@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from .layers import Block
+from generalist.models.transformers.layers import Block
 
 
 class TransformerDecoder(nn.Module):

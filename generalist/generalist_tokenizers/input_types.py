@@ -34,6 +34,20 @@ class InputType:
     _: KW_ONLY
     data_type = InputTypes.generic.name
 
+    tokenizer: GeneralTokenizer = None
+
+    def tokenize(self, tokenizer: GeneralTokenizer = None):
+        tokenizer = self.get_tokenizer(tokenizer)
+        return tokenizer(self.data)
+
+    def get_tokenizer(self, tokenizer: GeneralTokenizer = None):
+        if tokenizer is None:
+            if self.tokenizer is None:
+                raise Exception("tokenizer or InputTypes tokenizer must be set")
+            tokenizer = self.tokenizer
+
+        return tokenizer
+
 
 @dataclass
 class SampleMetaData:
@@ -81,8 +95,12 @@ class TextTypeRaw(InputType):
     data: Any
     data_type = InputTypes.text.name
 
-    def convert(self, tokenizer: GeneralTokenizer):
-        return TextType(tokenizer(self.data))
+    def tokenize(self, tokenizer: GeneralTokenizer = None):
+        tokenizer = super().get_tokenizer(tokenizer)
+        return tokenizer(self.data)
+
+    # def convert(self, tokenizer: GeneralTokenizer):
+    #     return TextType(tokenizer(self.data))
 
 
 class TextType(InputType, GenearlizedTensor):

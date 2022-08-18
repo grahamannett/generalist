@@ -3,13 +3,14 @@ import os
 import pytomlpp as toml
 import torch
 from generalist.utils.utils import get_hostname
+from generalist.utils.device import get_device
 
 from config.helper import ConfigInterface
 
 
 class Config:
     #
-    DEVICE = device = "cuda:1"
+    DEVICE = device = get_device()
     # DATASET RELATED
     BASE_DATADIR = os.environ.get("BASE_DATADIR", __file__.removesuffix("config/__init__.py") + "data")
 
@@ -38,7 +39,6 @@ class Config:
         for key, val in config_env.__dict__.items():
             if not key.endswith("__"):
                 setattr(self, key, val)
-                breakpoint()
 
     def _import_helper(self, config_name: str):
         try:

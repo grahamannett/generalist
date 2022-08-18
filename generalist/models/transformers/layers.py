@@ -70,7 +70,12 @@ class Block(nn.Module):
     """a Transformer block"""
 
     def __init__(
-        self, embed_dim: int, num_heads: int, resid_pdrop: float, attn_pdrop: float, block_size: int
+        self,
+        embed_dim: int,
+        num_heads: int,
+        resid_pdrop: float,
+        attn_pdrop: float,
+        block_size: int,
     ):
         super().__init__()
         self.ln_1 = nn.LayerNorm(embed_dim)

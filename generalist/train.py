@@ -7,9 +7,11 @@ from torch.utils.data import DataLoader
 from generalist.generalist_datasets import AokvqaDataset, GeneralistDataset, CocoDataset, MNISTDataset
 
 from generalist.generalist_tokenizers import ImageTokenizer, TextTokenizer
+from generalist.generalist_tokenizers.input_types import ImageType, TextTypeRaw
 
 from generalist.models.model import EmbeddingModel, GeneralistModel
 from generalist.models.output_model import GeneralClassificationOutput, GeneralOutput
+from generalist.predict import ImageCaptionPrediction
 
 from generalist.utils.cli import train_get_args
 from generalist.utils.display import GeneralistDisplay
@@ -57,6 +59,9 @@ def train(**kwargs):
     image_tokenizer = ImageTokenizer()
     text_tokenizer = TextTokenizer()
 
+    TextTypeRaw.tokenizer = text_tokenizer
+    ImageType.tokenizer = image_tokenizer
+
     tokenizers = [image_tokenizer, text_tokenizer]
 
     # can just call this with the base class for all datasets
@@ -64,14 +69,15 @@ def train(**kwargs):
     # or can call on a specific dataset
     MNISTDataset.use_tokenizers(tokenizers)
 
-    breakpoint()
-    dataset = CocoDataset(codo_dir=config.COCO_DIR)
+    dataset = CocoDataset(coco_dir=config.COCO_DIR)
     out = dataset[0]
+
+    caption_preder = ImageCaptionPrediction(text_tokenizer.tokenizer)
+    # caption_preder.make_caption(model, out.data, out.target)
+    # breakpoint()
     # dataset = AokvqaDataset()
     # dataset = SummarizationDataset()
     # dataset = LanguageModelingDataset()
-    proc_target = True
-    return_raw = False
 
     # dataset = MNISTDataset(
     #     train=True, out_channels=3, process_sample_target=proc_target, return_raw=return_raw
@@ -111,28 +117,17 @@ def train(**kwargs):
 
             logits = model(data)
 
-            logits_max_length = logits.shape[1]
-
-            # encoded_targets = torch.stack(target).squeeze(1).to(int).to(device)
             encoded_targets = [
-                torch.nn.functional.pad(
-                    t, (0, logits_max_length - t.shape[-1], 0, 0), mode="constant", value=0
-                )
+                torch.nn.functional.pad(t, (0, logits.shape[1] - t.shape[-1], 0, 0), mode="constant", value=0)
                 for t in target
             ]
             encoded_targets = torch.stack(encoded_targets)
 
             loss = loss_fn(logits.view(-1, logits.shape[-1]), encoded_targets.view(-1))
 
-            # encoded_targets = target.to(int).to(device)
-
-            # loss = loss_fn(logits[:, 0], encoded_targets[:, 0])
-            # loss = loss_fn(logits, encoded_targets)
-
             running_loss += loss.item()
 
             optimizer.zero_grad()
-            # accelerator.backward(loss)
             loss.backward()
 
             torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
