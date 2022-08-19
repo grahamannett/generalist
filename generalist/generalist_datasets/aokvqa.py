@@ -27,8 +27,8 @@ class AokvqaInstance:
     rationales: List[str]
 
     # OTHER
-    aokvka_dir: str = config.AOKVQA_DIR
-    coco_dir: str = config.COCO_DIR
+    aokvqa_dir: str = config.aokvqa_dir
+    coco_dir: str = config.coco_dir
 
     @property
     def image_path(self):
@@ -45,7 +45,9 @@ class AokvqaInstance:
 class AokvqaDataset(GeneralistDataset):
     shortname = "aokvqa"
 
-    def __init__(self, aokvqa_dir: str = config.AOKVQA_DIR, split: str = "train", version="v1p0", **kwargs):
+    def __init__(
+        self, aokvqa_dir: str = AokvqaInstance.aokvqa_dir, split: str = "train", version="v1p0", **kwargs
+    ):
         super().__init__(**kwargs)
         self.aokvqa_dir = aokvqa_dir
         self.split = split
@@ -55,7 +57,7 @@ class AokvqaDataset(GeneralistDataset):
         self.dataset = [AokvqaInstance(**instance) for instance in self.dataset]
 
     @staticmethod
-    def load_aokvqa(aokvqa_dir: str = config.AOKVQA_DIR, split: str = "train", version="v1p0"):
+    def load_aokvqa(aokvqa_dir: str = AokvqaInstance.aokvqa_dir, split: str = "train", version="v1p0"):
         assert split in ["train", "val", "test", "test_w_ans"]
         dataset = json.load(open(os.path.join(aokvqa_dir, f"aokvqa_{version}_{split}.json")))
         return dataset

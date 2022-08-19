@@ -21,14 +21,14 @@ class Config:
     DEFAULT_PRETRAINED_MODELS_DIR = "/home/graham/code/torchtask/pretrained_models"
 
     # merge with env
-    AOKVQA_DIR = os.environ.get("AOKVQA_DIR", DEFAULT_AOKVQA_DIR)
-    COCO_DIR = os.environ.get("COCO_DIR", DEFAULT_COCO_DIR)
-    LOG_DIR = os.environ.get("LOG_DIR", DEFAULT_LOG_DIR)
-    FEATURES_DIR = os.environ.get("LOG_DIR", DEFAULT_FEATURES_DIR)
-    PRETRAINED_MODELS_DIR = os.environ.get("PRETRAINED_MODELS_DIR", DEFAULT_PRETRAINED_MODELS_DIR)
+    aokvqa_dir = os.environ.get("AOKVQA_DIR", DEFAULT_AOKVQA_DIR)
+    coco_dir = os.environ.get("COCO_DIR", DEFAULT_COCO_DIR)
+    log_dir = os.environ.get("LOG_DIR", DEFAULT_LOG_DIR)
+    features_dir = os.environ.get("LOG_DIR", DEFAULT_FEATURES_DIR)
+    pretrained_models_dir = os.environ.get("PRETRAINED_MODELS_DIR", DEFAULT_PRETRAINED_MODELS_DIR)
 
     # MODEL RELATED
-    EMBEDDING_DIM = 768
+    embedding_dim = 768
 
     def __init__(self, config_name: str = "dev") -> None:
         config_name = os.environ.get("CONFIG_NAME", config_name)

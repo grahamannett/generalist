@@ -69,7 +69,7 @@ def train(**kwargs):
     # or can call on a specific dataset
     MNISTDataset.use_tokenizers(tokenizers)
 
-    dataset = CocoDataset(coco_dir=config.COCO_DIR)
+    dataset = CocoDataset(coco_dir=config.coco_dir)
     out = dataset[0]
 
     caption_preder = ImageCaptionPrediction(text_tokenizer.tokenizer)
