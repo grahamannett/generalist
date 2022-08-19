@@ -73,7 +73,10 @@ def train(**kwargs):
     out = dataset[0]
 
     caption_preder = ImageCaptionPrediction(text_tokenizer.tokenizer)
-    caption_preder.make_caption(model, out.data.to(device), out.target.to(device))
+    captions_info = {}
+    captions_out = caption_preder.make_caption(model, out.data.to(device), out.target.to(device))
+    captions_info[-1] = captions_out["normal"]
+    captions_info[0] = captions_out["generated"]
     # breakpoint()
     # dataset = AokvqaDataset()
     # dataset = SummarizationDataset()
@@ -175,8 +178,11 @@ def train(**kwargs):
                 test=display_vals,
             )
 
-        caption_preder.make_caption(model, out.data.to(device), out.target.to(device))
-        break
+        captions_out = caption_preder.make_caption(model, out.data.to(device), out.target.to(device))
+        captions_info[epoch + 1] = captions_out["generated"]
+
+    for k, v in captions_info.items():
+        print(f"Epoch {k}: {v}")
 
     display.manage("epoch", display.END)
     print("done with training")
