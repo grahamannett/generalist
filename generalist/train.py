@@ -175,7 +175,7 @@ def train(**kwargs):
                 test=display_vals,
             )
 
-        caption_preder.make_caption(model, out.data, out.target)
+        caption_preder.make_caption(model, out.data.to(device), out.target.to(device))
         break
 
     display.manage("epoch", display.END)
