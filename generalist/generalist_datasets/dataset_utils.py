@@ -9,7 +9,7 @@ from generalist.utils.device import get_device
 
 from generalist.generalist_tokenizers.image_tokenizer import ImageTokenizer
 from generalist.generalist_tokenizers.prepare_data import PrepareData
-from generalist.generalist_tokenizers.text_path import TextTokenizer
+from generalist.generalist_tokenizers.text_tokenizer import TextTokenizer
 
 
 class DataPaths:

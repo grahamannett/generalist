@@ -2,7 +2,7 @@ from typing import Tuple
 
 import torch
 import torch.nn as nn
-from generalist.data_types.input_types import ImageType, GenearlizedTensor
+from generalist.data_types.input_types import ImageType, GeneralizedTensor
 from generalist.generalist_tokenizers.image_tokenizer import normalize_image
 
 from einops import repeat
@@ -98,12 +98,12 @@ class ImageEmbeddingPath(nn.Module):
         self.positional_embeddings = LearnedPositionalEmbeddings(d_model=d_model)
         self.cls_token_emb = nn.Parameter(torch.randn(1, 1, d_model), requires_grad=True)
 
-    def forward(self, data: GenearlizedTensor):
+    def forward(self, data: GeneralizedTensor):
         embeddings = self.positional_embeddings(data)
 
         cls_tokens = repeat(self.cls_token_emb, "1 1 d -> b 1 d", b=len(embeddings))
         embeddings = torch.cat((cls_tokens, embeddings), dim=1)
-        embeddings = GenearlizedTensor(embeddings)
+        embeddings = GeneralizedTensor(embeddings)
 
         embeddings.set_data_type(self.data_type)
 
@@ -131,7 +131,7 @@ class ImagePath(nn.Module):
         # i dont know if we need this?  and it makes the dims wrong
         # cls_token_emb = self.cls_token_emb.expand(-1, x.shape[1], -1)
         # x = torch.cat([cls_token_emb, x])
-        return GenearlizedTensor(x).set_data_type(self.data_type)
+        return GeneralizedTensor(x).set_data_type(self.data_type)
 
 
 class ResNetEmbedding(nn.Module):
@@ -149,3 +149,39 @@ class ResNetEmbedding(nn.Module):
     def forward(self, x: torch.Tensor):
         x = self.block(x) + x
         return nn.functional.relu(x)
+
+
+class HeightWidthPositionEmbedding(nn.Module):
+    """
+    Absolute pos embedding, learned.  From https://github.com/saahiluppal/catr
+    """
+
+    def __init__(self, num_pos_feats=256):
+        super().__init__()
+        self.row_embed = nn.Embedding(50, num_pos_feats)
+        self.col_embed = nn.Embedding(50, num_pos_feats)
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        nn.init.uniform_(self.row_embed.weight)
+        nn.init.uniform_(self.col_embed.weight)
+
+    def forward(self, images: torch.Tensor) -> torch.Tensor:
+        h, w = images.shape[-2:]
+        i = torch.arange(w, device=images.device)
+        j = torch.arange(h, device=images.device)
+        x_emb = self.col_embed(i)
+        y_emb = self.row_embed(j)
+        pos = (
+            torch.cat(
+                [
+                    x_emb.unsqueeze(0).repeat(h, 1, 1),
+                    y_emb.unsqueeze(1).repeat(1, w, 1),
+                ],
+                dim=-1,
+            )
+            .permute(2, 0, 1)
+            .unsqueeze(0)
+            .repeat(images.shape[0], 1, 1, 1)
+        )
+        return pos

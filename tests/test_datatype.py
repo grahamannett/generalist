@@ -2,7 +2,7 @@ from collections import UserDict
 from typing import NamedTuple
 import unittest
 
-from generalist.generalist_tokenizers import text_path
+from generalist.generalist_tokenizers import text_tokenizer
 from config import device
 
 # class TestText(unitttest.TestCase):

@@ -1,7 +1,28 @@
 import torch
 from torch import nn
-from generalist.generalist_embedding.general_embedding import GenearlizedTensor
+from generalist.generalist_embedding.general_embedding import GeneralizedTensor
 from generalist.models.latents import LatentEmbedding
+
+
+class Transformer(nn.Module):
+    def __init__(self, **kwargs) -> None:
+        super().__init__()
+
+        d_model = kwargs.get("d_model", 512)
+        nhead = kwargs.get("nhead", 8)
+        num_encoder_layers = kwargs.get("num_encoder_layers", 4)
+        num_decoder_layers = kwargs.get("num_decoder_layers", 4)
+
+        self.transformer = nn.Transformer(
+            d_model=d_model,
+            nhead=nhead,
+            num_encoder_layers=num_encoder_layers,
+            num_decoder_layers=num_decoder_layers,
+        )
+
+    def forward(self, embedding: GeneralizedTensor, target: GeneralizedTensor):
+        out = self.transformer(embedding, target)
+        return out
 
 
 class TransformerDecoder(nn.Module):
@@ -24,7 +45,7 @@ class TransformerDecoder(nn.Module):
 
         self.model_max_length = kwargs.get("model_max_length", 2048)
 
-    def forward(self, embedding: GenearlizedTensor | torch.Tensor, latents: torch.Tensor = None, **kwargs):
+    def forward(self, embedding: GeneralizedTensor | torch.Tensor, latents: torch.Tensor = None, **kwargs):
 
         if latents is None:
             latents = embedding
@@ -41,5 +62,5 @@ if __name__ == "__main__":
     # latents = latent_embedding(1)
     latents = torch.randn(1, 50, 768)
     # b x t x d
-    x = GenearlizedTensor(torch.rand(1, 50, 768))
+    x = GeneralizedTensor(torch.rand(1, 50, 768))
     out = model(x, latents)

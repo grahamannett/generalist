@@ -39,9 +39,7 @@ def train(**kwargs):
     embedding_model = EmbeddingModel(model_dim=model_dim)
     # output_model = GeneralClassificationOutput(model_dim=model_dim, num_classes=10, reduce_type="cls")
     output_model = GeneralOutput(model_dim=model_dim, output_dim=text_tokenizer.tokenizer.vocab_size)
-    model = GeneralistModel(embedding_model=embedding_model, output_model=output_model, d_model=model_dim).to(
-        device
-    )
+    model = GeneralistModel(output_model=output_model, d_model=model_dim).to(device)
 
     model.to(device)
 
@@ -50,8 +48,8 @@ def train(**kwargs):
     optimizer = torch.optim.AdamW(
         [
             {"params": embedding_model.parameters()},
-            {"params": output_model.parameters()},
             {"params": model.transformer.parameters()},
+            {"params": output_model.parameters()},
             # {"params": model.parameters()},
         ],
         lr=lr,
@@ -69,33 +67,32 @@ def train(**kwargs):
     # or can call on a specific dataset
     MNISTDataset.use_tokenizers(tokenizers)
 
-    dataset = CocoDataset(coco_dir=config.coco_dir)
-    out = dataset[0]
+    # dataset = CocoDataset(coco_dir=config.coco_dir)
+    # out = dataset[0]
 
-    caption_preder = ImageCaptionPrediction(text_tokenizer.tokenizer)
-    captions_info = {}
-    captions_out = caption_preder.make_caption(model, out.data.to(device), out.target.to(device))
-    captions_info[-1] = captions_out["normal"]
-    captions_info[0] = captions_out["generated"]
+    # caption_preder = ImageCaptionPrediction(text_tokenizer.tokenizer)
+    # captions_info = {}
+    # breakpoint()
+    # out.data = out.data.to(device)
+    # out.target = out.target.to(device)
+    # captions_out = caption_preder.make_caption(embedding_model, model, out.data, out.target)
+    # captions_info[-1] = captions_out["normal"]
+    # captions_info[0] = captions_out["generated"]
     # breakpoint()
     # dataset = AokvqaDataset()
     # dataset = SummarizationDataset()
     # dataset = LanguageModelingDataset()
 
-    # dataset = MNISTDataset(
-    #     train=True, out_channels=3, process_sample_target=proc_target, return_raw=return_raw
-    # )
-    # out = dataset[0]
+    dataset = MNISTDataset(train=True, out_channels=3)
+
+    out = dataset[0]
+    breakpoint()
 
     # val_dataset = MNISTDataset(train=False, out_channels=3, return_raw=True)
-
     collate_fn = collate_func(device=device, return_target="pt")
 
     train_dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
     # val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
-
-    # out = next(iter(train_dataloader))
-    # out = model(out)
 
     display = GeneralistDisplay.make(display=display_flag)
     display.manage()
@@ -117,7 +114,10 @@ def train(**kwargs):
         for batch_idx, batch in enumerate(train_dataloader):
 
             data, target = batch.data, batch.target
-            logits = model(data)
+            breakpoint()
+
+            embedding = embedding_model(data)
+            logits = model(embedding)
 
             encoded_targets = [
                 torch.nn.functional.pad(t, (0, logits.shape[1] - t.shape[-1], 0, 0), mode="constant", value=0)

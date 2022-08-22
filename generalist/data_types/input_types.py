@@ -37,7 +37,7 @@ class InputType:
         return tokenizer
 
 
-class GenearlizedTensor(torch.Tensor):
+class GeneralizedTensor(torch.Tensor):
     data_type: str = None
     _custom_prop: List[str] = None
 
@@ -51,20 +51,20 @@ class TextTypeRaw(InputType):
     data: Any
     data_type = InputTypes.text.name
 
-    def tokenize(self, tokenizer: GeneralTokenizer = None):
+    def tokenize(self, tokenizer: GeneralTokenizer = None, **kwargs):
         tokenizer = super().get_tokenizer(tokenizer)
-        return tokenizer(self.data)
+        return tokenizer(self.data, **kwargs)
 
     # def convert(self, tokenizer: GeneralTokenizer):
     #     return TextType(tokenizer(self.data))
 
 
-class TextType(InputType, GenearlizedTensor):
+class TextType(InputType, GeneralizedTensor):
     data: torch.Tensor
     data_type = InputTypes.text.name
 
 
-class ImageType(InputType, GenearlizedTensor):
+class ImageType(InputType, GeneralizedTensor):
     data: torch.Tensor
     data_type = InputTypes.image.name
 

@@ -1,61 +1,12 @@
 from typing import Any
 
 import torch
+
+from generalist.data_types.input_types import GeneralizedTensor, TextTypeRaw, TextType
+from transformers import GPT2PreTrainedModel
+
 import torch.nn as nn
-
-from generalist.generalist_tokenizers.general_tokenizer import GeneralTokenizer
-from generalist.data_types.input_types import GenearlizedTensor, TextTypeRaw, TextType
-from transformers import GPT2Model, GPT2PreTrainedModel, XLNetTokenizer, BertTokenizer
-
 from generalist.utils.device import get_device
-
-
-class TextTokenizer(GeneralTokenizer):
-    """
-    Text is encoded via SentencePiece (Kudo and Richardson, 2018) with 32000 subwords into the integer range [0, 32000).
-    """
-
-    data_type = TextType.data_type
-
-    def __init__(
-        self,
-        padding: bool = True,
-        tokenizer_class=XLNetTokenizer,
-        pretrained_model_or_path: str = "xlnet-base-cased",
-        model_max_length: int = 1024,
-        padding_side: str = "right",
-        truncation: bool = True,
-        **kwargs
-    ) -> None:
-        super().__init__(**kwargs)
-
-        self.tokenizer = tokenizer_class.from_pretrained(
-            pretrained_model_or_path,
-            padding=padding,
-            model_max_length=model_max_length,
-            padding_side=padding_side,
-        )
-        self.return_tensors = "pt"
-        self.model_max_length = model_max_length
-        self.truncation = truncation
-
-    def __call__(self, sample: TextTypeRaw | str, **kwargs) -> torch.Tensor:
-        text = sample.data if isinstance(sample, TextTypeRaw) else sample
-        encoded = self.encode(text, **kwargs)
-
-        out = TextType(encoded["input_ids"])
-        out.set_data_type(self.data_type)
-        # superflous text data
-        out.attention_mask = encoded["attention_mask"]
-        out.token_type_ids = encoded["token_type_ids"]
-        return out
-
-    def encode(self, x: str, **kwargs) -> torch.Tensor:
-        encoded = self.tokenizer(x, return_tensors=self.return_tensors, truncation=self.truncation, **kwargs)
-        return encoded
-
-    def decode(self, *args, **kwargs):
-        return self.tokenizer.decode(*args, **kwargs)
 
 
 class TextEmbeddingPath(nn.Module):
@@ -103,7 +54,7 @@ class TextEmbedding(GPT2PreTrainedModel):
 
         past_length = 0
         position_ids = torch.arange(
-            past_length, input_shape[-1] + past_length, dtype=torch.long, device=device
+            past_length, input_shape[-1] + past_length, dtype=torch.long, device=tokens.device
         )
 
         position_ids = position_ids.unsqueeze(0).view(-1, input_shape[-1])

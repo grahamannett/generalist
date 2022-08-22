@@ -11,7 +11,7 @@ from transformers.models.perceiver.modeling_perceiver import (
     PerceiverForImageClassificationLearned,
 )
 
-from generalist.generalist_embedding.general_embedding import GenearlizedTensor
+from generalist.generalist_embedding.general_embedding import GeneralizedTensor
 from generalist.models.latents import LatentEmbedding
 
 
@@ -52,11 +52,11 @@ class ImagePath(nn.Module):
 
         self.embedding_path = input_preprocessor
 
-    def forward(self, data: GenearlizedTensor) -> GenearlizedTensor:
+    def forward(self, data: GeneralizedTensor) -> GeneralizedTensor:
         if data.data.ndim == 3:
             data.data = data.data.unsqueeze(0)
         embedding = self.embedding_path(data.data)[0]
-        embedding = GenearlizedTensor(embedding).set_data_type(self.data_type)
+        embedding = GeneralizedTensor(embedding).set_data_type(self.data_type)
         return embedding
 
 
@@ -76,7 +76,7 @@ class TransformerDecoder(nn.Module):
         self.embeddings = LatentEmbedding(num_latents, d_latents)
         self.model_max_length = kwargs.get("model_max_length", 2048)
 
-    def forward(self, embedding: GenearlizedTensor, latents: torch.Tensor = None):
+    def forward(self, embedding: GeneralizedTensor, latents: torch.Tensor = None):
         if latents is None:
             latents = self.embeddings(batch_size=embedding.shape[0])
 

@@ -12,16 +12,16 @@ from generalist.models.transformers.transformerdecoder import TransformerDecoder
 class GeneralistModel(nn.Module):
     def __init__(
         self,
-        embedding_model: EmbeddingModel,
         output_model: GeneralOutput,
         embed_dim: int = 768,
         token_idx: int = 0,
+        embedding_model: EmbeddingModel = None,
         **kwargs,
     ) -> None:
         super().__init__()
 
-        self.embedding_model = embedding_model
         self.output_model = output_model
+        self.embedding_model = embedding_model
 
         self.transformer = TransformerDecoder(
             n_layer=4, embed_dim=embed_dim, num_heads=8, attn_pdrop=0.1, resid_pdrop=0.1, block_size=1024
@@ -31,13 +31,9 @@ class GeneralistModel(nn.Module):
         self.token_idx = token_idx
 
     def forward(self, data: torch.Tensor) -> torch.Tensor:
-        embedding = self.embedding_model(data)
+        if self.embedding_model is not None:
+            data = self.embedding_model(data)
 
-        if isinstance(embedding, list):
-            if isinstance(embedding[0], list):
-                embedding = [torch.cat(emb, dim=1) for emb in embedding]
-            embedding = torch.cat(embedding, dim=0)
-
-        hidden_states = self.transformer(embedding)
-        out = self.output_model(hidden_states, decoder_query=embedding)
+        hidden_states = self.transformer(data)
+        out = self.output_model(hidden_states, decoder_query=data)
         return out

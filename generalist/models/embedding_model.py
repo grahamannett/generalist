@@ -3,10 +3,10 @@ from typing import List, Sequence
 
 import torch
 import torch.nn as nn
-from generalist.generalist_embedding.image_embedding import ImageEmbeddingPath, ImagePath
-from generalist.data_types.input_types import GenearlizedTensor
+from generalist.generalist_embedding.image_embedding import ImageEmbeddingPath
+from generalist.generalist_embedding.text_embedding import TextEmbeddingPath
+from generalist.data_types.input_types import GeneralizedTensor
 from generalist.data_types.helper_types import DataHandlerPath
-from generalist.generalist_tokenizers.text_path import TextEmbeddingPath
 
 
 def default_embedding_paths(model_dim: int = 768) -> List[DataHandlerPath]:
@@ -42,38 +42,28 @@ class EmbeddingModel(nn.Module):
 
         self.model_dim = model_dim
 
-    def forward(self, data: Sequence[GenearlizedTensor]) -> GenearlizedTensor:
+    def forward(self, data: Sequence[GeneralizedTensor]) -> GeneralizedTensor:
         # this handles a list of tokenized data.
         # it is a list since the data can be of differening tokenized shapes/sizes.
         # for instance if the input is text and image versus input of just text
-
-        return [self.handle_sample(d) for d in data]
-
-    def handle_sample(self, data: GenearlizedTensor | Sequence[GenearlizedTensor]) -> GenearlizedTensor:
-
-        if isinstance(data, list):
-            embedding = [self.data_type[d.data_type](d) for d in data]
-        else:
-            embedding = self.data_type[data.data_type](data)
-
-        return embedding
-
-    def _combine_embeddings(self, embeddings: Sequence[GenearlizedTensor]) -> GenearlizedTensor:
-
-        token_size = sum([e.embedding.shape[1] for e in embeddings])
-        max_dims = [self.model_dim - (token_size - e.embedding.shape[1]) for e in embeddings]
-        hidden_states = []
-
-        for idx, _emb in enumerate(embeddings):
-
-            if max_dims[idx] > 0:
-                hidden_states.append(_emb.embedding[:, : max_dims[idx]])
+        embeddings = []
+        for sample in data:
+            if isinstance(sample, list):
+                # this means that this sample has multiple data types
+                emb = torch.cat([self.data_type[d.data_type](d) for d in sample], dim=1)
             else:
-                hidden_states.append(_emb.embedding)
+                # each item in list is a data type
+                emb = self.data_type[sample.data_type](sample)
+            embeddings.append(emb)
 
-        embedded = torch.cat(hidden_states, dim=1)
+        embeddings = self.combine_embeddings(embeddings)
+        return embeddings
 
-        return GenearlizedTensor(embedded)
+    def combine_embeddings(self, embeddings: List[GeneralizedTensor]) -> torch.Tensor:
+        # NOTE: simple now but assumes all embeddings have same length when combined...
+        # might not be true later and needs to be fixed
+
+        return torch.cat(embeddings, dim=0)
 
     def setup_path(self, embedding_path: DataHandlerPath, **kwargs) -> None:
         setattr(self, embedding_path.name, embedding_path.module)

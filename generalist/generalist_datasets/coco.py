@@ -95,14 +95,18 @@ class CocoDataset(ImageDatasetMixin, GeneralistDataset):
 
         image = ImageType(image / 255.0)
         # image.resize_image((320, 320))
-        data = self.image_transform(image)
-        target = TextTypeRaw(item["caption"]["caption"])
+        image = self.image_transform(image)
+        image = image.tokenize()
 
-        data = data.tokenize()
-        target = target.tokenize()
+        caption = TextTypeRaw(item["caption"]["caption"])
+        caption_out = caption.tokenize()
+        breakpoint()
+
+        sample.data = [image, caption]
+        sample.target = None
         # target = target.tokenize(self.tokenizers["text"])
 
-        sample.data, sample.target = data, target
+        # sample.data, sample.target = data, target
 
         # self.process_sample(sample)
         return sample
