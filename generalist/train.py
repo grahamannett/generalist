@@ -86,10 +86,11 @@ def train(**kwargs):
     dataset = MNISTDataset(train=True, out_channels=3)
 
     out = dataset[0]
-    breakpoint()
+    # breakpoint()
 
     # val_dataset = MNISTDataset(train=False, out_channels=3, return_raw=True)
-    collate_fn = collate_func(device=device, return_target="pt")
+    # collate_fn = collate_func(device=device, return_tensors="pt")
+    collate_fn = collate_func(device=device)
 
     train_dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
     # val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
@@ -114,20 +115,24 @@ def train(**kwargs):
         for batch_idx, batch in enumerate(train_dataloader):
 
             data, target = batch.data, batch.target
-            breakpoint()
+            # breakpoint()
 
             embedding = embedding_model(data)
-            logits = model(embedding)
+            embedded_target = embedding_model(target)
+            encoded_target = torch.cat(target)
 
-            encoded_targets = [
-                torch.nn.functional.pad(t, (0, logits.shape[1] - t.shape[-1], 0, 0), mode="constant", value=0)
-                for t in target
-            ]
-            encoded_targets = torch.stack(encoded_targets)
+            logits = model(embedding, embedded_target)
 
-            loss = loss_fn(logits.view(-1, logits.shape[-1]), encoded_targets.view(-1))
+            # encoded_targets = [
+            #     torch.nn.functional.pad(t, (0, logits.shape[1] - t.shape[-1], 0, 0), mode="constant", value=0)
+            #     for t in target
+            # ]
+            # encoded_targets = torch.stack(encoded_targets)
+
+            loss = loss_fn(logits.view(-1, logits.shape[-1]), encoded_target.view(-1))
 
             running_loss += loss.item()
+            # breakpoint()
 
             optimizer.zero_grad()
             loss.backward()
@@ -136,8 +141,10 @@ def train(**kwargs):
             optimizer.step()
 
             try:
-                test_decoded = text_tokenizer.tokenizer.batch_decode(logits[:, 0].argmax(1))
-                test_actual = text_tokenizer.tokenizer.batch_decode(encoded_targets[:, 0])
+                test_decoded = text_tokenizer.tokenizer.batch_decode(logits.argmax(dim=-1))
+                test_actual = text_tokenizer.tokenizer.batch_decode(encoded_target)
+                # test_decoded = text_tokenizer.tokenizer.batch_decode(logits[:, 0].argmax(1))
+                # test_actual = text_tokenizer.tokenizer.batch_decode(encoded_target[:, 0])
             except IndexError:
                 breakpoint()
 
@@ -178,11 +185,11 @@ def train(**kwargs):
                 test=display_vals,
             )
 
-        captions_out = caption_preder.make_caption(model, out.data.to(device), out.target.to(device))
-        captions_info[epoch + 1] = captions_out["generated"]
+        # captions_out = caption_preder.make_caption(model, out.data.to(device), out.target.to(device))
+        # captions_info[epoch + 1] = captions_out["generated"]
 
-    for k, v in captions_info.items():
-        print(f"Epoch {k}: {v}")
+    # for k, v in captions_info.items():
+    #     print(f"Epoch {k}: {v}")
 
     display.manage("epoch", display.END)
     print("done with training")

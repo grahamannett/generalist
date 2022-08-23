@@ -45,14 +45,21 @@ class collate_func:
         device: str = None,
         return_data: collate_func_transform = None,
         return_target: collate_func_transform = None,
+        return_tensors: str = None,
         **kwargs,
     ):
         self.device = device
         self.return_data = return_data
         self.return_target = return_target
+        self.return_tensors = return_tensors
+        self.batch_kwargs = {}
+
+        if self.return_tensors:
+            self.batch_kwargs["return_tensors"] = self.return_tensors
 
     def __call__(self, samples: List[Sample]) -> Batch:
-        batch = Batch(samples)
+
+        batch = Batch(samples, **self.batch_kwargs)
         for i, sample in enumerate(batch.samples):
             sample.data = self.fix_prop(sample.data)
             sample.target = self.fix_prop(sample.target)

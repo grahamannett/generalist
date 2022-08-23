@@ -60,7 +60,7 @@ class MNISTDataset(ImageDatasetMixin, GeneralistDataset):
 
         target = TextTypeRaw(str(label))
         target_encoded = target.tokenize()
-        breakpoint()
+        # breakpoint()
 
         sample.data, sample.target = image_, target_encoded
         return sample

@@ -42,16 +42,23 @@ def _new_tensor_helper(tensor_subclass):
 
 
 class Batch:
-    def __init__(self, samples: List[Sample] = None, **kwargs):
+    def __init__(self, samples: List[Sample] = None, return_tensors: str = None, **kwargs):
         self.samples = samples
+        self.return_tensors = return_tensors
 
     @property
     def data(self):
-        return [s.data for s in self.samples]
+        out = [s.data for s in self.samples]
+        if self.return_tensors == "pt":
+            out = torch.cat(out)
+        return out
 
     @property
     def target(self):
-        return [s.target for s in self.samples]
+        out = [s.target for s in self.samples]
+        if self.return_tensors == "pt":
+            out = torch.cat(out)
+        return out
 
     def __len__(self):
         return len(self.samples)
@@ -60,6 +67,7 @@ class Batch:
         return self.samples[key]
 
     def __iter__(self):
+        breakpoint()
         return iter(self.samples)
 
     @classmethod

@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-from generalist.generalist_embedding.general_embedding import GeneralizedTensor
+from generalist.data_types.input_types import GeneralizedTensor
 from generalist.models.latents import LatentEmbedding
 
 
@@ -8,20 +8,26 @@ class Transformer(nn.Module):
     def __init__(self, **kwargs) -> None:
         super().__init__()
 
-        d_model = kwargs.get("d_model", 512)
-        nhead = kwargs.get("nhead", 8)
-        num_encoder_layers = kwargs.get("num_encoder_layers", 4)
-        num_decoder_layers = kwargs.get("num_decoder_layers", 4)
+        self.d_model = kwargs.get("d_model", 768)
+        self.nhead = kwargs.get("nhead", 8)
+        self.num_encoder_layers = kwargs.get("num_encoder_layers", 3)
+        self.num_decoder_layers = kwargs.get("num_decoder_layers", 3)
+
+        self.batch_first = kwargs.get("batch_first", True)
+        self.model_max_length = kwargs.get("model_max_length", 1048)
 
         self.transformer = nn.Transformer(
-            d_model=d_model,
-            nhead=nhead,
-            num_encoder_layers=num_encoder_layers,
-            num_decoder_layers=num_decoder_layers,
+            d_model=self.d_model,
+            nhead=self.nhead,
+            num_encoder_layers=self.num_encoder_layers,
+            num_decoder_layers=self.num_decoder_layers,
+            batch_first=self.batch_first,
         )
 
-    def forward(self, embedding: GeneralizedTensor, target: GeneralizedTensor):
-        out = self.transformer(embedding, target)
+    def forward(self, embedding: GeneralizedTensor, embedded_target: GeneralizedTensor, **kwargs):
+        # if isinstance(target, list):
+        #     target = torch.cat(target)
+        out = self.transformer(embedding, embedded_target)
         return out
 
 
