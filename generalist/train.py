@@ -41,6 +41,7 @@ def train(**kwargs):
     output_model = GeneralOutput(model_dim=model_dim, output_dim=text_tokenizer.tokenizer.vocab_size)
     model = GeneralistModel(output_model=output_model, d_model=model_dim).to(device)
 
+    embedding_model.to(device)
     model.to(device)
 
     loss_fn = torch.nn.CrossEntropyLoss()
@@ -115,7 +116,6 @@ def train(**kwargs):
         for batch_idx, batch in enumerate(train_dataloader):
 
             data, target = batch.data, batch.target
-            # breakpoint()
 
             embedding = embedding_model(data)
             embedded_target = embedding_model(target)
