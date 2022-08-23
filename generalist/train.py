@@ -79,7 +79,7 @@ def train(**kwargs):
     # captions_out = caption_preder.make_caption(embedding_model, model, out.data, out.target)
     # captions_info[-1] = captions_out["normal"]
     # captions_info[0] = captions_out["generated"]
-    # breakpoint()
+
     # dataset = AokvqaDataset()
     # dataset = SummarizationDataset()
     # dataset = LanguageModelingDataset()
@@ -153,6 +153,10 @@ def train(**kwargs):
 
             running_correct += batch_correct
             running_total += batch_total
+
+            # breakpoint()
+            if batch_idx % 50 == 0:
+                print(text_tokenizer.tokenizer.batch_decode(logits.argmax(dim=-1)[0:5, 0:5]))
 
             # test_decoded = logits.argmax(dim=1)
             # test_actual = encoded_targets
