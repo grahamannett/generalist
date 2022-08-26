@@ -34,12 +34,8 @@ class GeneralistModel(nn.Module):
         self.model_max_length = self.transformer.model_max_length
         self.token_idx = token_idx
 
-    def forward(self, embedded: torch.Tensor, embedded_target: torch.Tensor = None) -> torch.Tensor:
+    def forward(self, embedded: torch.Tensor, embedded_target: torch.Tensor = None, **kwargs) -> torch.Tensor:
         # breakpoint()
-        if embedded_target is not None:
-            hidden_states = self.transformer(embedded, embedded_target)
-        else:
-            hidden_states = self.transformer(embedded)
-        # hidden_states = self.transformer(data)
+        hidden_states = self.transformer(embedded=embedded, embedded_target=embedded_target)
         out = self.output_model(hidden_states, decoder_query=embedded_target)
         return out

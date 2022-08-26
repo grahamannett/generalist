@@ -55,8 +55,8 @@ class TextTypeRaw(InputType):
         tokenizer = super().get_tokenizer(tokenizer)
         return tokenizer(self.data, **kwargs)
 
-    # def convert(self, tokenizer: GeneralTokenizer):
-    #     return TextType(tokenizer(self.data))
+    def convert(self, tokenizer: GeneralTokenizer, **kwargs) -> "TextType":
+        return TextType(tokenizer(self.data, **kwargs))
 
 
 class TextType(InputType, GeneralizedTensor):

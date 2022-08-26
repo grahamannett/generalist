@@ -3,6 +3,8 @@ from torch import nn
 from generalist.data_types.input_types import GeneralizedTensor
 from generalist.models.latents import LatentEmbedding
 
+from typing import Optional
+
 
 class Transformer(nn.Module):
     def __init__(self, **kwargs) -> None:
@@ -24,11 +26,44 @@ class Transformer(nn.Module):
             batch_first=self.batch_first,
         )
 
-    def forward(self, embedding: GeneralizedTensor, embedded_target: GeneralizedTensor, **kwargs):
-        # if isinstance(target, list):
-        #     target = torch.cat(target)
-        out = self.transformer(embedding, embedded_target)
-        return out
+        self.encoder = self.transformer.encoder
+        self.decoder = self.transformer.decoder
+
+    def forward(
+        self,
+        embedded: torch.Tensor,
+        embedded_target: torch.Tensor,
+        src_mask: Optional[torch.Tensor] = None,
+        tgt_mask: Optional[torch.Tensor] = None,
+        memory_mask: Optional[torch.Tensor] = None,
+        src_key_padding_mask: Optional[torch.Tensor] = None,
+        tgt_key_padding_mask: Optional[torch.Tensor] = None,
+        memory_key_padding_mask: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+
+        src = embedded
+        tgt = embedded_target if embedded_target is not None else embedded
+
+        is_batched = src.dim() == 3
+        if not self.batch_first and src.size(1) != tgt.size(1) and is_batched:
+            raise RuntimeError("the batch number of src and tgt must be equal")
+        elif self.batch_first and src.size(0) != tgt.size(0) and is_batched:
+            raise RuntimeError("the batch number of src and tgt must be equal")
+
+        if src.size(-1) != self.d_model or tgt.size(-1) != self.d_model:
+            raise RuntimeError("the feature number of src and tgt must be equal to d_model")
+
+        memory = self.encoder(src, mask=src_mask, src_key_padding_mask=src_key_padding_mask)
+        output = self.decoder(
+            tgt,
+            memory,
+            tgt_mask=tgt_mask,
+            memory_mask=memory_mask,
+            tgt_key_padding_mask=tgt_key_padding_mask,
+            memory_key_padding_mask=memory_key_padding_mask,
+        )
+
+        return output
 
 
 class TransformerDecoder(nn.Module):

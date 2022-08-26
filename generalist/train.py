@@ -5,6 +5,7 @@ from rich import print
 from torch.utils.data import DataLoader
 
 from generalist.generalist_datasets import AokvqaDataset, GeneralistDataset, CocoDataset, MNISTDataset
+from generalist.generalist_datasets.base import ChainedGenearlistDataset
 
 from generalist.generalist_tokenizers import ImageTokenizer, TextTokenizer
 from generalist.data_types.input_types import ImageType, TextTypeRaw
@@ -68,12 +69,12 @@ def train(**kwargs):
     # or can call on a specific dataset
     MNISTDataset.use_tokenizers(tokenizers)
 
-    # dataset = CocoDataset(coco_dir=config.coco_dir)
+    coco_dataset = CocoDataset(coco_dir=config.coco_dir)
+    dataset = coco_dataset
+    # out = coco_dataset[1]
+    # breakpoint()
     # out = dataset[0]
 
-    # caption_preder = ImageCaptionPrediction(text_tokenizer.tokenizer)
-    # captions_info = {}
-    # breakpoint()
     # out.data = out.data.to(device)
     # out.target = out.target.to(device)
     # captions_out = caption_preder.make_caption(embedding_model, model, out.data, out.target)
@@ -84,9 +85,11 @@ def train(**kwargs):
     # dataset = SummarizationDataset()
     # dataset = LanguageModelingDataset()
 
-    dataset = MNISTDataset(train=True, out_channels=3)
+    # dataset = MNISTDataset(train=True, out_channels=3)
 
-    out = dataset[0]
+    # datasets = ChainedGenearlistDataset(datasets=[dataset])
+
+    # out = dataset[0]
     # breakpoint()
 
     # val_dataset = MNISTDataset(train=False, out_channels=3, return_raw=True)
@@ -177,9 +180,9 @@ def train(**kwargs):
                 "batch_idx": batch_idx,
             }
 
-            # if batch_idx % 50 == 0:
-            #     display_vals["test_decoded"] = test_decoded
-            #     display_vals["test_actual"] = test_actual
+            if batch_idx % 50 == 0:
+                display_vals["test_decoded"] = test_decoded[0][:75]
+                display_vals["test_actual"] = test_actual[0][:75]
 
             display.update(
                 "batch_progress",

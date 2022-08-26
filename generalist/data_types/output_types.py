@@ -5,6 +5,10 @@ import torch
 def get_output_types(targets):
     return set([type(target) for target in targets])
 
+def handler_image_caption(targets, logits):
+    # if isinstance(targets, list):
+    #     targets =
+
 
 class LossFuncMixin:
     loss_func: Callable
@@ -23,3 +27,14 @@ class SequenceOutput(LossFuncMixin, torch.Tensor):
 
 class ClassificationOutput(LossFuncMixin, torch.Tensor):
     data: torch.Tensor
+
+
+class CaptionHandler:
+    def __init__(self, targets):
+        self.targets = targets
+
+    def __call__(self, logits):
+        return
+
+    def get_loss(self, logits):
+        return logits

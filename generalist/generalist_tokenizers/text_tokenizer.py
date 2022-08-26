@@ -55,21 +55,21 @@ class TextTokenizer(GeneralTokenizer):
         out.token_type_ids = encoded["token_type_ids"]
         return out
 
-    def encode(self, x: str, **kwargs) -> torch.Tensor:
-
+    def encode(self, text: str, **kwargs) -> torch.Tensor:
         max_length = kwargs.pop("max_length", self.model_max_length)
         return_tensors = kwargs.pop("return_tensors", self.return_tensors)
         truncation = kwargs.pop("truncation", self.truncation)
         pad_to_max_length = kwargs.pop("pad_to_max_length", True)
 
         encoded = self.tokenizer(
-            x,
+            text,
             return_tensors=return_tensors,
             truncation=truncation,
             pad_to_max_length=pad_to_max_length,
             max_length=max_length,
             **kwargs,
         )
+
         return encoded
 
     def decode(self, *args, **kwargs):

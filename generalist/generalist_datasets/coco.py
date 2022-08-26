@@ -100,13 +100,9 @@ class CocoDataset(ImageDatasetMixin, GeneralistDataset):
 
         caption = TextTypeRaw(item["caption"]["caption"])
         caption_out = caption.tokenize()
-        breakpoint()
 
-        sample.data = [image, caption]
-        sample.target = None
-        # target = target.tokenize(self.tokenizers["text"])
-
-        # sample.data, sample.target = data, target
-
-        # self.process_sample(sample)
+        # sample.data = [image, caption]
+        # sample.target = None
+        sample.data = image
+        sample.target = caption_out
         return sample
