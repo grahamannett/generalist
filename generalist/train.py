@@ -159,7 +159,9 @@ def train(**kwargs):
 
             # breakpoint()
             if batch_idx % 50 == 0:
-                print(text_tokenizer.tokenizer.batch_decode(logits.argmax(dim=-1)[0:5, 0:5]))
+                decoded__ = text_tokenizer.tokenizer.batch_decode(logits.argmax(dim=-1)[0:5, 0:10])
+                actual__ = text_tokenizer.tokenizer.batch_decode(encoded_target[0:5, 0:10])
+                print(list(zip(decoded__, actual__)))
 
             # test_decoded = logits.argmax(dim=1)
             # test_actual = encoded_targets
@@ -180,9 +182,9 @@ def train(**kwargs):
                 "batch_idx": batch_idx,
             }
 
-            if batch_idx % 50 == 0:
-                display_vals["test_decoded"] = test_decoded[0][:75]
-                display_vals["test_actual"] = test_actual[0][:75]
+            # if batch_idx % 50 == 0:
+            #     display_vals["test_decoded"] = test_decoded[0][:75]
+            #     display_vals["test_actual"] = test_actual[0][:75]
 
             display.update(
                 "batch_progress",
