@@ -60,4 +60,4 @@ class Config:
 
 config = Config()
 # device = config.device
-device = "cuda:1" if torch.cuda.is_available() else "cpu"
+device = "cuda" if torch.cuda.is_available() else "cpu"
