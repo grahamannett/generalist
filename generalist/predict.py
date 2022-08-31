@@ -1,22 +1,51 @@
 import torch
 from typing import Optional
+from generalist.generalist_tokenizers.image_tokenizer import ImageTokenizer
+from generalist.generalist_tokenizers.text_tokenizer import TextTokenizer
+from generalist.models.embedding_model import EmbeddingModel
 from generalist.models.model import GeneralistModel
-from generalist.data_types.input_types import ImageType
+from generalist.data_types.input_types import ImageType, TextType
 
 from torch.nn import functional as F
 
 
 class ImageCaptionPrediction:
-    def __init__(self, tokenizer) -> None:
-        self.tokenizer = tokenizer
+    def __init__(self, image_tokenizer: ImageTokenizer, text_tokenizer: TextTokenizer) -> None:
+        self.image_tokenizer = image_tokenizer
+        self.text_tokenizer = text_tokenizer
 
-    def make_caption(self, model: GeneralistModel, tokenized_image: ImageType, tokenized_caption):
-        normal_caption = self.tokenizer.batch_decode(tokenized_caption)
-        logits = model([tokenized_image, tokenized_caption])
-        breakpoint()
-        generated_caption = self.logits_to_sentence(logits, sequence_length=tokenized_caption.shape[-1])
+    def make_caption(
+        self,
+        embedding_model: EmbeddingModel,
+        model: GeneralistModel,
+        tokenized_image: ImageType,
+        tokenized_caption: TextType,
+    ):
+
+        # breakpoint()
+        if tokenized_caption.ndim == 1:
+            tokenized_caption = tokenized_caption.unsqueeze(0)
+
+        target_list = [self.text_tokenizer.cls_token_id]
+
+        embedded_image = embedding_model([tokenized_image])
+
+        for i in range(tokenized_caption.shape[-1]):
+            tokenized_target = TextType(target_list).to(int)
+            embedded_target = embedding_model([tokenized_target])
+            logits = model(embedded_image, embedded_target)
+
+            token_pred = logits[0, -1].argmax(-1).item()
+            target_list.append(token_pred)
+
+            # print("pred looks like|=>", self.text_tokenizer.decode(target_list))
+
+        generated_caption = self.text_tokenizer.decode(target_list)
+        normal_caption = self.text_tokenizer.batch_decode(tokenized_caption)[0]
+
         print(f"generated caption:\n==>{generated_caption}")
         print(f"actual caption:\n==>{normal_caption}")
+
         return {"normal": normal_caption, "generated": generated_caption}
 
     def generate(self, logits: torch.Tensor, max_length: int):
@@ -24,11 +53,6 @@ class ImageCaptionPrediction:
         # https://github.com/karpathy/minGPT/blob/master/mingpt/model.py
         for _ in range(max_length):
             pass
-
-    def logits_to_sentence(self, logits: torch.Tensor, sequence_length: int) -> str:
-        generated_caption = logits.argmax(1)[:, :sequence_length]
-        generated_caption = self.tokenizer.batch_decode(generated_caption)
-        return generated_caption
 
 
 def top_k_top_p_filtering(

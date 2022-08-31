@@ -79,7 +79,11 @@ class TextTokenizer(GeneralTokenizer):
         return self.tokenizer.batch_decode(*args, **kwargs)
 
 
-def TextTokenizerAlt(tokenizer_class: PreTrainedTokenizer, pretrained_name_or_model: str):
+def TextTokenizerPretrained(tokenizer_class: PreTrainedTokenizer | str, pretrained_name_or_model: str):
+    if isinstance(tokenizer_class, str):
+        exec(f"from transformers import {tokenizer_class}")
+        tokenizer_class = locals().get(tokenizer_class, None)
+
     class DynamicClass(tokenizer_class):
         data_type = TextType.data_type
 
@@ -107,7 +111,9 @@ def TextTokenizerAlt(tokenizer_class: PreTrainedTokenizer, pretrained_name_or_mo
 
 
 if __name__ == "__main__":
-    test = TextTokenizerAlt(XLNetTokenizer, pretrained_name_or_model="xlnet-base-cased")
-    out = test("hekahsda how are you")
+    # test = TextTokenizerPretrained(XLNetTokenizer, pretrained_name_or_model="xlnet-base-cased")
+    test = TextTokenizerPretrained("XLNetTokenizer", pretrained_name_or_model="xlnet-base-cased")
+    out = test("hekahsda how are you??")
+    # text_tokenizer = TextTokenizerPretrained_._from_pretrained()
     breakpoint()
     # breakpoint()
