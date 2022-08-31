@@ -7,7 +7,12 @@ from torch.utils.data import DataLoader
 from generalist.generalist_datasets import AokvqaDataset, GeneralistDataset, CocoDataset, MNISTDataset
 from generalist.generalist_datasets.base import ChainedGenearlistDataset
 
-from generalist.generalist_tokenizers import ImageTokenizer, TextTokenizer
+from generalist.generalist_tokenizers import (
+    ImageTokenizer,
+    TextTokenizer,
+    TextTokenizerPretrained,
+    text_tokenizer,
+)
 from generalist.data_types.input_types import ImageType, TextTypeRaw
 
 from generalist.models.model import EmbeddingModel, GeneralistModel
@@ -35,11 +40,14 @@ def train(**kwargs):
     model_dim = kwargs.get("model_dim", 768)
 
     image_tokenizer = ImageTokenizer()
-    text_tokenizer = TextTokenizer()
+    # text_tokenizer = TextTokenizer()
+    # tokenizer = text_tokenizer.tokenizer
+
+    text_tokenizer = TextTokenizerPretrained("BertTokenizer", pretrained_name_or_model="bert-base-uncased")
 
     embedding_model = EmbeddingModel(model_dim=model_dim)
     # output_model = GeneralClassificationOutput(model_dim=model_dim, num_classes=10, reduce_type="cls")
-    output_model = GeneralOutput(model_dim=model_dim, output_dim=text_tokenizer.tokenizer.vocab_size)
+    output_model = GeneralOutput(model_dim=model_dim, output_dim=text_tokenizer.vocab_size)
     model = GeneralistModel(output_model=output_model, d_model=model_dim).to(device)
 
     embedding_model.to(device)
@@ -73,10 +81,17 @@ def train(**kwargs):
     dataset = coco_dataset
     # out = coco_dataset[1]
     # breakpoint()
-    # out = dataset[0]
+    out = dataset[0]
 
     # out.data = out.data.to(device)
     # out.target = out.target.to(device)
+    caption_preder = ImageCaptionPrediction(image_tokenizer=image_tokenizer, text_tokenizer=text_tokenizer)
+    caption_preder.make_caption(
+        embedding_model=embedding_model,
+        model=model,
+        tokenized_image=out.data,
+        tokenized_caption=out.target,
+    )
     # captions_out = caption_preder.make_caption(embedding_model, model, out.data, out.target)
     # captions_info[-1] = captions_out["normal"]
     # captions_info[0] = captions_out["generated"]
@@ -114,7 +129,6 @@ def train(**kwargs):
         )
 
         model.train()
-        image_tokenizer = ImageTokenizer()
 
         for batch_idx, batch in enumerate(train_dataloader):
 
@@ -122,8 +136,10 @@ def train(**kwargs):
 
             embedding = embedding_model(data)
             embedded_target = embedding_model(target)
+
             encoded_target = torch.cat(target)
 
+            breakpoint()
             logits = model(embedding, embedded_target)
 
             # encoded_targets = [
@@ -144,8 +160,8 @@ def train(**kwargs):
             optimizer.step()
 
             try:
-                test_decoded = text_tokenizer.tokenizer.batch_decode(logits.argmax(dim=-1))
-                test_actual = text_tokenizer.tokenizer.batch_decode(encoded_target)
+                test_decoded = text_tokenizer.batch_decode(logits.argmax(dim=-1))
+                test_actual = text_tokenizer.batch_decode(encoded_target)
                 # test_decoded = text_tokenizer.tokenizer.batch_decode(logits[:, 0].argmax(1))
                 # test_actual = text_tokenizer.tokenizer.batch_decode(encoded_target[:, 0])
             except IndexError:
@@ -159,8 +175,8 @@ def train(**kwargs):
 
             # breakpoint()
             if batch_idx % 50 == 0:
-                decoded__ = text_tokenizer.tokenizer.batch_decode(logits.argmax(dim=-1)[0:5, 0:10])
-                actual__ = text_tokenizer.tokenizer.batch_decode(encoded_target[0:5, 0:10])
+                decoded__ = text_tokenizer.batch_decode(logits.argmax(dim=-1)[0:5, 0:10])
+                actual__ = text_tokenizer.batch_decode(encoded_target[0:5, 0:10])
                 print(list(zip(decoded__, actual__)))
 
             # test_decoded = logits.argmax(dim=1)
