@@ -86,12 +86,17 @@ def train(**kwargs):
     # out.data = out.data.to(device)
     # out.target = out.target.to(device)
     caption_preder = ImageCaptionPrediction(image_tokenizer=image_tokenizer, text_tokenizer=text_tokenizer)
-    caption_preder.make_caption(
+
+    inital_caption = caption_preder.make_caption(
         embedding_model=embedding_model,
         model=model,
         tokenized_image=out.data,
         tokenized_caption=out.target,
     )
+
+    generated_captions = []
+    generated_captions.append(inital_caption)
+
     # captions_out = caption_preder.make_caption(embedding_model, model, out.data, out.target)
     # captions_info[-1] = captions_out["normal"]
     # captions_info[0] = captions_out["generated"]
@@ -139,7 +144,6 @@ def train(**kwargs):
 
             encoded_target = torch.cat(target)
 
-            breakpoint()
             logits = model(embedding, embedded_target)
 
             # encoded_targets = [
@@ -210,8 +214,21 @@ def train(**kwargs):
                 test=display_vals,
             )
 
+            break
+
+        latest_caption = caption_preder.make_caption(
+            embedding_model=embedding_model,
+            model=model,
+            tokenized_image=out.data,
+            tokenized_caption=out.target,
+        )
+        generated_captions.append(latest_caption)
+
         # captions_out = caption_preder.make_caption(model, out.data.to(device), out.target.to(device))
         # captions_info[epoch + 1] = captions_out["generated"]
+
+    captions_generated = text_tokenizer.batch_decode(generated_captions)
+    breakpoint()
 
     # for k, v in captions_info.items():
     #     print(f"Epoch {k}: {v}")

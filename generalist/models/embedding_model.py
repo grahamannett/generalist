@@ -42,7 +42,18 @@ class EmbeddingModel(nn.Module):
 
         self.model_dim = model_dim
 
-    def forward(self, data: Sequence[GeneralizedTensor]) -> GeneralizedTensor:
+    def forward(self, data: GeneralizedTensor | List[GeneralizedTensor]) -> GeneralizedTensor:
+
+        if isinstance(data, GeneralizedTensor):
+            return self.data_type[data.data_type](data)
+        elif isinstance(data, Sequence):
+            return self.forward_sequence(data)
+        # if data.data_type not in self.data_type:
+        #     raise ValueError(f"data_type {data.data_type} not in {self.data_type.keys()}")
+
+        # return self.data_type[data.data_type](data)
+
+    def forward_sequence(self, data: Sequence[GeneralizedTensor]) -> GeneralizedTensor:
         # this handles a list of tokenized data.
         # it is a list since the data can be of differening tokenized shapes/sizes.
         # for instance if the input is text and image versus input of just text

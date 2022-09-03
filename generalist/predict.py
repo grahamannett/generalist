@@ -1,3 +1,4 @@
+from subprocess import list2cmdline
 import torch
 from typing import Optional
 from generalist.generalist_tokenizers.image_tokenizer import ImageTokenizer
@@ -35,24 +36,33 @@ class ImageCaptionPrediction:
             embedded_target = embedding_model([tokenized_target])
             logits = model(embedded_image, embedded_target)
 
-            token_pred = logits[0, -1].argmax(-1).item()
+            token_pred = top_k_top_p_filtering(logits[:, -1, :], device=logits.device).argmax().item()
             target_list.append(token_pred)
 
-            # print("pred looks like|=>", self.text_tokenizer.decode(target_list))
+            if token_pred == self.text_tokenizer.sep_token_id:
+                break
 
         generated_caption = self.text_tokenizer.decode(target_list)
         normal_caption = self.text_tokenizer.batch_decode(tokenized_caption)[0]
 
-        print(f"generated caption:\n==>{generated_caption}")
-        print(f"actual caption:\n==>{normal_caption}")
+        # print(f"generated caption:\n==>{generated_caption}")
+        # print(f"actual caption:\n==>{normal_caption}")
 
-        return {"normal": normal_caption, "generated": generated_caption}
+        # return {"normal": normal_caption, "generated": generated_caption}
+        return target_list
 
     def generate(self, logits: torch.Tensor, max_length: int):
         # more similar to minGPT example
         # https://github.com/karpathy/minGPT/blob/master/mingpt/model.py
         for _ in range(max_length):
             pass
+
+
+def simple_next_token_pred(next_token_logits: torch.Tensor):
+    if logits.ndim == 3:
+        logits = logits[:, -1, :]
+    token_pred = logits.argmax(-1).item()
+    return token_pred
 
 
 def top_k_top_p_filtering(
