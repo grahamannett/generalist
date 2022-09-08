@@ -32,7 +32,7 @@ class ImageCaptionPrediction:
         embedded_image = embedding_model([tokenized_image])
 
         for i in range(tokenized_caption.shape[-1]):
-            tokenized_target = TextType(target_list).to(int)
+            tokenized_target = TextType(target_list).to(int).to(tokenized_image.device)
             embedded_target = embedding_model([tokenized_target])
             logits = model(embedded_image, embedded_target)
 
