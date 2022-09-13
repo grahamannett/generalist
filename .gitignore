@@ -218,3 +218,5 @@ submodules/
 baselines/examples/**
 baselines/tmp/**
 **/ignore/**
+
+outputs/

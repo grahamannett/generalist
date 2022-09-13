@@ -1,4 +1,3 @@
-from subprocess import list2cmdline
 import torch
 from typing import Optional
 from generalist.generalist_tokenizers.image_tokenizer import ImageTokenizer

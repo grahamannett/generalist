@@ -21,7 +21,10 @@ from generalist.predict import ImageCaptionPrediction
 
 from generalist.utils.cli import train_get_args
 from generalist.utils.display import GeneralistDisplay
-from generalist.utils.utils import collate_func
+from generalist.utils.utils import collate_func, get_hostname
+
+import hydra
+from omegaconf import DictConfig, OmegaConf
 
 
 def train_step(embedding_model, genearlist_model, dataloader):
@@ -32,17 +35,14 @@ def manage_live(group):
     pass
 
 
-def train(**kwargs):
-    lr = kwargs.get("lr", 5e-5)
-    n_epochs = kwargs.get("n_epochs", 1)
-    batch_size = kwargs.get("batch_size", 1)
-    display_flag = kwargs.get("display", True)
-    model_dim = kwargs.get("model_dim", 768)
+@hydra.main(config_path=f"../conf", config_name=get_hostname(), version_base=None)
+def train(cfg: DictConfig):
+    lr = cfg.learning_rate
+    batch_size = cfg.batch_size
+    display_flag = cfg.display
+    model_dim = cfg.get("model_dim", 768)
 
     image_tokenizer = ImageTokenizer()
-    # text_tokenizer = TextTokenizer()
-    # tokenizer = text_tokenizer.tokenizer
-
     text_tokenizer = TextTokenizerPretrained("BertTokenizer", pretrained_name_or_model="bert-base-uncased")
 
     embedding_model = EmbeddingModel(model_dim=model_dim)
@@ -58,9 +58,9 @@ def train(**kwargs):
     optimizer = torch.optim.AdamW(
         [
             {"params": embedding_model.parameters()},
-            {"params": model.transformer.parameters()},
-            {"params": output_model.parameters()},
-            # {"params": model.parameters()},
+            {"params": model.parameters()},
+            # {"params": model.transformer.parameters()},
+            # {"params": output_model.parameters()},
         ],
         lr=lr,
     )
@@ -78,6 +78,7 @@ def train(**kwargs):
     MNISTDataset.use_tokenizers(tokenizers)
 
     coco_dataset = CocoDataset(coco_dir=config.coco_dir)
+
     dataset = coco_dataset
     # out = coco_dataset[1]
     # breakpoint()
@@ -87,16 +88,19 @@ def train(**kwargs):
     # out.target = out.target.to(device)
     caption_preder = ImageCaptionPrediction(image_tokenizer=image_tokenizer, text_tokenizer=text_tokenizer)
 
+    tokenized_image = out.data.to(device)
+    tokenized_caption = out.target.to(device)
+    # exit()
+
     inital_caption = caption_preder.make_caption(
         embedding_model=embedding_model,
         model=model,
-        tokenized_image=out.data,
-        tokenized_caption=out.target,
+        tokenized_image=tokenized_image,
+        tokenized_caption=tokenized_caption,
     )
 
     generated_captions = []
     generated_captions.append(inital_caption)
-
     # captions_out = caption_preder.make_caption(embedding_model, model, out.data, out.target)
     # captions_info[-1] = captions_out["normal"]
     # captions_info[0] = captions_out["generated"]
@@ -121,7 +125,7 @@ def train(**kwargs):
 
     display = GeneralistDisplay.make(display=display_flag)
     display.manage()
-
+    exit()
     for epoch in range(n_epochs):
         # epoch_progress.update(epoch_task)
 
@@ -238,5 +242,5 @@ def train(**kwargs):
 
 
 if __name__ == "__main__":
-    args = train_get_args()
-    train(**vars(args))
+    # args = train_get_args()
+    train()

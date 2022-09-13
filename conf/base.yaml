@@ -1,0 +1,5 @@
+device: cpu
+display: False
+batch_size: 8
+learning_rate: 5e-5
+n_epochs: 1.0

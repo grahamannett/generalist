@@ -3,7 +3,7 @@ import argparse
 
 def train_get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--datasets", nargs="+", type=str, default=["xsum"])
+    # parser.add_argument("--datasets", nargs="+", type=str, default=["xsum"])
     parser.add_argument("--display", action=argparse.BooleanOptionalAction)
 
     # model/training parameters
