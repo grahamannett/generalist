@@ -7,7 +7,8 @@ import torch
 # from generalist.generalist_tokenizers.general_tokenizer import GeneralTokenizer
 from torch import nn
 from torchvision.transforms import functional as F
-from generalist.generalist_tokenizers.general_tokenizer import GeneralTokenizer
+
+# from generalist.generalist_tokenizers.general_tokenizer import GeneralTokenizer
 
 
 class InputTypes(str, Enum):
@@ -22,13 +23,13 @@ class InputType:
     _: KW_ONLY
     data_type = InputTypes.generic.name
 
-    tokenizer: GeneralTokenizer = None
+    tokenizer: "GeneralTokenizer" = None
 
-    def tokenize(self, tokenizer: GeneralTokenizer = None):
+    def tokenize(self, tokenizer: "GeneralTokenizer" = None):
         tokenizer = self.get_tokenizer(tokenizer)
         return tokenizer(self.data)
 
-    def get_tokenizer(self, tokenizer: GeneralTokenizer = None):
+    def get_tokenizer(self, tokenizer: "GeneralTokenizer" = None):
         if tokenizer is None:
             if self.tokenizer is None:
                 raise Exception("tokenizer or InputTypes tokenizer must be set")
@@ -51,11 +52,11 @@ class TextTypeRaw(InputType):
     data: Any
     data_type = InputTypes.text.name
 
-    def tokenize(self, tokenizer: GeneralTokenizer = None, **kwargs):
+    def tokenize(self, tokenizer: "GeneralTokenizer" = None, **kwargs):
         tokenizer = super().get_tokenizer(tokenizer)
         return tokenizer(self.data, **kwargs)
 
-    def convert(self, tokenizer: GeneralTokenizer, **kwargs) -> "TextType":
+    def convert(self, tokenizer: "GeneralTokenizer", **kwargs) -> "TextType":
         return TextType(tokenizer(self.data, **kwargs))
 
 

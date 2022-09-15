@@ -6,7 +6,8 @@ from generalist.data_types.input_types import GeneralizedTensor, TextTypeRaw, Te
 from transformers import GPT2PreTrainedModel
 
 import torch.nn as nn
-from generalist.utils.device import get_device
+
+# from generalist.utils.device import get_device
 
 
 class TextEmbeddingPath(nn.Module):
@@ -16,7 +17,8 @@ class TextEmbeddingPath(nn.Module):
         super().__init__()
 
         self.embedder = TextEmbedding.from_pretrained("gpt2")
-        self.device = get_device() if device is None else device
+        self.device = device
+        # self.device = get_device() if device is None else device
 
     def forward(self, data: Any) -> torch.Tensor:
         embedding = self.embedder(data)

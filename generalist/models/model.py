@@ -2,7 +2,6 @@ from typing import Any, Sequence
 
 import torch
 import torch.nn as nn
-from config import device
 
 from generalist.models.embedding_model import EmbeddingModel
 from generalist.models.output_model import GeneralOutput

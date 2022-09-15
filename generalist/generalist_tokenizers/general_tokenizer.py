@@ -3,7 +3,7 @@ class GeneralTokenizer:
     _instance = None
     _singleton = False
 
-    def __init__(self, device: str = "cpu", **kwargs):
+    def __init__(self, device: str, **kwargs):
         self.device = device
         self.check_instance()
 

@@ -49,7 +49,7 @@ class CocoDataset(ImageDatasetMixin, GeneralistDataset):
     def __init__(self, coco_dir: str = None, split: str = "train", **kwargs) -> None:
         assert split in ["train", "test", "val"]
 
-        super().__init__()
+        super().__init__(**kwargs)
         coco_dir = Path(coco_dir)
         self.coco_dir = coco_dir
         self.split = split

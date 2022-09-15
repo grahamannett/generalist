@@ -4,7 +4,8 @@ from dataclasses import dataclass
 from typing import Any, Dict, List
 
 import torch
-from config import config
+
+# from config import config
 from generalist.data_types.input_types import ImageType, TextType
 from generalist.data_types.helper_types import Sample
 from torch.utils.data import Dataset
@@ -27,8 +28,10 @@ class AokvqaInstance:
     rationales: List[str]
 
     # OTHER
-    aokvqa_dir: str = config.aokvqa_dir
-    coco_dir: str = config.coco_dir
+    # aokvqa_dir: str = config.aokvqa_dir
+    # coco_dir: str = config.coco_dir
+    aokvqa_dir: str = None
+    coco_dir: str = None
 
     @property
     def image_path(self):

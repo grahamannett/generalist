@@ -79,7 +79,9 @@ class TextTokenizer(GeneralTokenizer):
         return self.tokenizer.batch_decode(*args, **kwargs)
 
 
-def TextTokenizerPretrained(tokenizer_class: PreTrainedTokenizer | str, pretrained_name_or_model: str):
+def TextTokenizerPretrained(
+    tokenizer_class: PreTrainedTokenizer | str, pretrained_name_or_model: str, **kwargs
+):
     if isinstance(tokenizer_class, str):
         exec(f"from transformers import {tokenizer_class}")
         tokenizer_class = locals().get(tokenizer_class, None)
@@ -107,6 +109,8 @@ def TextTokenizerPretrained(tokenizer_class: PreTrainedTokenizer | str, pretrain
 
     DynamicClass.__name__ = f"TextTokenizer_{tokenizer_class.__name__}"
     instance = DynamicClass.from_pretrained(pretrained_name_or_model)
+    if "device" in kwargs:
+        instance.device = kwargs["device"]
     return instance
 
 

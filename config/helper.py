@@ -1,2 +1,2 @@
-class ConfigInterface:
-    pass
+# class ConfigInterface:
+#     pass

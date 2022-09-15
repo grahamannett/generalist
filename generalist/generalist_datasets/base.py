@@ -5,21 +5,21 @@ from generalist.generalist_tokenizers.general_tokenizer import GeneralTokenizer
 from generalist.data_types.input_types import InputType
 from generalist.data_types.helper_types import Sample, SampleMetaData
 
-from generalist.utils.device import get_device
+# from generalist.utils.device import get_device
 
 
 class GeneralistDataset(Dataset):
     shortname = None
     tokenizers = {}
 
-    def __init__(self, return_raw: bool = False, **kwargs) -> None:
+    def __init__(self, device: str, return_raw: bool = False, **kwargs) -> None:
         self._sample_metadata = kwargs.get("sample_metadata", True)
 
         self.return_raw = return_raw
         self.process_sample_data = kwargs.get("process_sample_data", True)
         self.process_sample_target = kwargs.get("process_sample_target", True)
 
-        self.device = kwargs.get("device", get_device())
+        self.device = device
 
     @classmethod
     def use_tokenizers(cls, tokenizers: Sequence[GeneralTokenizer], *args, **kwargs) -> None:

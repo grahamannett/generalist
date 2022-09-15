@@ -1,6 +1,4 @@
 import torch
-from accelerate import Accelerator
-from config import config, device
 from rich import print
 from torch.utils.data import DataLoader
 
@@ -37,13 +35,17 @@ def manage_live(group):
 
 @hydra.main(config_path=f"../conf", config_name=get_hostname(), version_base=None)
 def train(cfg: DictConfig):
-    lr = cfg.learning_rate
-    batch_size = cfg.batch_size
     display_flag = cfg.display
-    model_dim = cfg.get("model_dim", 768)
+    device = cfg.device
 
-    image_tokenizer = ImageTokenizer()
-    text_tokenizer = TextTokenizerPretrained("BertTokenizer", pretrained_name_or_model="bert-base-uncased")
+    lr = cfg.training.learning_rate
+    batch_size = cfg.training.batch_size
+    model_dim = cfg.model.model_dim
+
+    image_tokenizer = ImageTokenizer(device=device)
+    text_tokenizer = TextTokenizerPretrained(
+        "BertTokenizer", pretrained_name_or_model="bert-base-uncased", device=device
+    )
 
     embedding_model = EmbeddingModel(model_dim=model_dim)
     # output_model = GeneralClassificationOutput(model_dim=model_dim, num_classes=10, reduce_type="cls")
@@ -77,12 +79,11 @@ def train(cfg: DictConfig):
     # or can call on a specific dataset
     MNISTDataset.use_tokenizers(tokenizers)
 
-    coco_dataset = CocoDataset(coco_dir=config.coco_dir)
+    coco_dataset = CocoDataset(coco_dir=cfg.coco_dir, device=device)
 
     dataset = coco_dataset
-    # out = coco_dataset[1]
-    # breakpoint()
     out = dataset[0]
+    breakpoint()
 
     # out.data = out.data.to(device)
     # out.target = out.target.to(device)

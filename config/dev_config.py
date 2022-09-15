@@ -1,5 +1,5 @@
-from config.helper import ConfigInterface
+# from config.helper import ConfigInterface
 
 
-class Config(ConfigInterface):
-    DEVICE = device = "cpu"
+# class Config(ConfigInterface):
+#     DEVICE = device = "cpu"

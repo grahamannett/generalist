@@ -1,24 +1,25 @@
-from collections import UserDict
-from typing import NamedTuple
 import unittest
-
-from generalist.generalist_tokenizers import text_tokenizer
-from config import device
-
-# class TestText(unitttest.TestCase):
-#     device = device
-
+from collections import UserDict
 #     def setUp(self):
 #         self.path = text_path.TextEmbeddingPath(device=self.device)
 #         self.embedding = text_path.TextEmbedding(device=self.device)
 from dataclasses import dataclass
+from typing import NamedTuple
 
-from torch.utils.data import Dataset, DataLoader
+from config import device
+from generalist.generalist_tokenizers import text_tokenizer
+from torch.utils.data import DataLoader, Dataset
+
+# class TestText(unitttest.TestCase):
+#     device = device
+
+
 
 
 @dataclass
 class DataInstance:
     val: int = 0
+
 
 class ExDataset(Dataset):
     def __init__(self) -> None:
@@ -32,13 +33,16 @@ class ExDataset(Dataset):
     def __len__(self):
         return len(self.vals)
 
+
 dataset = ExDataset()
 
 val1 = dataset[0]
 print(val1)
 
+
 def _collate_fn(batch):
     return batch
+
 
 dataloader = DataLoader(dataset, batch_size=3, shuffle=True, collate_fn=_collate_fn)
 
