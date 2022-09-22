@@ -15,18 +15,13 @@ class GeneralistModel(nn.Module):
         output_model: GeneralOutput,
         embed_dim: int = 768,
         token_idx: int = 0,
-        embedding_model: EmbeddingModel = None,
         **kwargs,
     ) -> None:
         super().__init__()
         self.token_idx = token_idx
         self.embed_dim = embed_dim
 
-        if embedding_model is not None:
-            raise TypeError("Embedding model should be moved outside of Generalist Model")
-
         self.output_model = output_model
-        self.embedding_model = embedding_model
         self.transformer = Transformer()
 
         self.model_max_length = self.transformer.model_max_length
