@@ -1,2 +1,0 @@
-# class ConfigInterface:
-#     pass

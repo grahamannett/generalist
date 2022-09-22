@@ -42,7 +42,7 @@ def pad_targets(targets, logits):
     encoded_targets = torch.stack(encoded_targets)
 
 
-@hydra.main(config_path=f"../conf", config_name=get_hostname(), version_base=None)
+@hydra.main(config_path=f"../config", config_name=get_hostname(), version_base=None)
 def train(cfg: DictConfig):
     display_flag = cfg.display
     device = cfg.device
@@ -189,8 +189,6 @@ def train(cfg: DictConfig):
                 decoded__ = text_tokenizer.batch_decode(logits.argmax(dim=-1)[0:5, 0:10])
                 actual__ = text_tokenizer.batch_decode(encoded_target[0:5, 0:10])
                 print(list(zip(decoded__, actual__)))
-
-
 
             acc = f"{(running_correct / running_total):0.3f}"
 
