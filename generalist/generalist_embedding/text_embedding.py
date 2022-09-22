@@ -7,8 +7,6 @@ from transformers import GPT2PreTrainedModel
 
 import torch.nn as nn
 
-# from generalist.utils.device import get_device
-
 
 class TextEmbeddingPath(nn.Module):
     data_type = TextType.data_type
@@ -18,7 +16,6 @@ class TextEmbeddingPath(nn.Module):
 
         self.embedder = TextEmbedding.from_pretrained("gpt2")
         self.device = device
-        # self.device = get_device() if device is None else device
 
     def forward(self, data: Any) -> torch.Tensor:
         embedding = self.embedder(data)
@@ -85,10 +82,3 @@ class TextEmbedding(GPT2PreTrainedModel):
 
         out = hidden_states
         return out
-
-        # return GeneralEmbedding(
-        #     embedding=hidden_states,
-        #     attention_mask=attention_mask,
-        #     output_shape=output_shape,
-        #     input_shape=input_shape,
-        # )

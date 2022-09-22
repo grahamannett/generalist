@@ -124,10 +124,10 @@ class ImagePath(nn.Module):
         # self.cls_token_emb = nn.Parameter(torch.randn(1, 1, d_model), requires_grad=True)
 
     def forward(self, x: torch.Tensor):
-        # input_shape = x.shape
         x = self.patch_embeddings(x)
         x = normalize_image(x)
         x = self.positional_embeddings(x)
+
         # i dont know if we need this?  and it makes the dims wrong
         # cls_token_emb = self.cls_token_emb.expand(-1, x.shape[1], -1)
         # x = torch.cat([cls_token_emb, x])
