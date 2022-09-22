@@ -99,7 +99,9 @@ class CocoDataset(ImageDatasetMixin, GeneralistDataset):
         image = image.tokenize()
 
         caption = TextTypeRaw(item["caption"]["caption"])
-        caption_out = caption.tokenize()
+        caption_out = caption.tokenize(
+            return_tensors="pt", truncation=True, padding="max_length", max_length=128
+        )
 
         # sample.data = [image, caption]
         # sample.target = None

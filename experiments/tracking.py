@@ -1,3 +1,5 @@
 import wandb
 
-wandb.init(project="2022_neurips_workshop", entity="graham")
+
+def init_wandb():
+    wandb.init(project="2022_neurips_workshop", entity="graham")

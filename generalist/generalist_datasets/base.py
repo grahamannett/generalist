@@ -5,8 +5,6 @@ from generalist.generalist_tokenizers.general_tokenizer import GeneralTokenizer
 from generalist.data_types.input_types import InputType
 from generalist.data_types.helper_types import Sample, SampleMetaData
 
-# from generalist.utils.device import get_device
-
 
 class GeneralistDataset(Dataset):
     shortname = None

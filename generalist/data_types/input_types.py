@@ -3,8 +3,6 @@ from enum import Enum
 from typing import Any, List, TypeVar
 
 import torch
-
-# from generalist.generalist_tokenizers.general_tokenizer import GeneralTokenizer
 from torch import nn
 from torchvision.transforms import functional as F
 

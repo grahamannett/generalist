@@ -2,11 +2,12 @@ defaults:
   - base
   - _self_
 
-device: "cuda"
+device: cuda
 
-log_dir: "logs/"
+log_dir: logs/
 
-coco_dir: "/data/graham/datasets/coco/aokvqacoco/datasets/coco"
+# DATA RELATED
+coco_dir: /data/graham/datasets/coco/aokvqacoco/datasets/coco
 aokvqa_dir: /data/graham/datasets/coco/aokvqacoco
 features_dir: /home/graham/code/torchtask/submodules/aokvqa/features
 pretrained_models_dir: /home/graham/code/torchtask/pretrained_models

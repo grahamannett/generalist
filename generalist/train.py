@@ -33,13 +33,24 @@ def manage_live(group):
     pass
 
 
+def pad_targets(targets, logits):
+    # pad targets to match logits
+    encoded_targets = [
+        torch.nn.functional.pad(t, (0, logits.shape[1] - t.shape[-1], 0, 0), mode="constant", value=0)
+        for t in targets
+    ]
+    encoded_targets = torch.stack(encoded_targets)
+
+
 @hydra.main(config_path=f"../conf", config_name=get_hostname(), version_base=None)
 def train(cfg: DictConfig):
     display_flag = cfg.display
     device = cfg.device
 
-    lr = cfg.training.learning_rate
+    learning_rate = cfg.training.learning_rate
     batch_size = cfg.training.batch_size
+    n_epochs = cfg.training.n_epochs
+
     model_dim = cfg.model.model_dim
 
     image_tokenizer = ImageTokenizer(device=device)
@@ -64,7 +75,7 @@ def train(cfg: DictConfig):
             # {"params": model.transformer.parameters()},
             # {"params": output_model.parameters()},
         ],
-        lr=lr,
+        lr=learning_rate,
     )
 
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1.0, gamma=0.95)
@@ -83,7 +94,6 @@ def train(cfg: DictConfig):
 
     dataset = coco_dataset
     out = dataset[0]
-    breakpoint()
 
     # out.data = out.data.to(device)
     # out.target = out.target.to(device)
@@ -102,6 +112,7 @@ def train(cfg: DictConfig):
 
     generated_captions = []
     generated_captions.append(inital_caption)
+
     # captions_out = caption_preder.make_caption(embedding_model, model, out.data, out.target)
     # captions_info[-1] = captions_out["normal"]
     # captions_info[0] = captions_out["generated"]
@@ -126,7 +137,6 @@ def train(cfg: DictConfig):
 
     display = GeneralistDisplay.make(display=display_flag)
     display.manage()
-    exit()
     for epoch in range(n_epochs):
         # epoch_progress.update(epoch_task)
 
@@ -151,16 +161,9 @@ def train(cfg: DictConfig):
 
             logits = model(embedding, embedded_target)
 
-            # encoded_targets = [
-            #     torch.nn.functional.pad(t, (0, logits.shape[1] - t.shape[-1], 0, 0), mode="constant", value=0)
-            #     for t in target
-            # ]
-            # encoded_targets = torch.stack(encoded_targets)
-
             loss = loss_fn(logits.view(-1, logits.shape[-1]), encoded_target.view(-1))
 
             running_loss += loss.item()
-            # breakpoint()
 
             optimizer.zero_grad()
             loss.backward()
@@ -171,8 +174,7 @@ def train(cfg: DictConfig):
             try:
                 test_decoded = text_tokenizer.batch_decode(logits.argmax(dim=-1))
                 test_actual = text_tokenizer.batch_decode(encoded_target)
-                # test_decoded = text_tokenizer.tokenizer.batch_decode(logits[:, 0].argmax(1))
-                # test_actual = text_tokenizer.tokenizer.batch_decode(encoded_target[:, 0])
+
             except IndexError:
                 breakpoint()
 
@@ -188,16 +190,7 @@ def train(cfg: DictConfig):
                 actual__ = text_tokenizer.batch_decode(encoded_target[0:5, 0:10])
                 print(list(zip(decoded__, actual__)))
 
-            # test_decoded = logits.argmax(dim=1)
-            # test_actual = encoded_targets
-            # test_decoded = logits[:, 0].argmax(1)
-            # test_actual = encoded_targets[:, 0]
 
-            # batch_correct = test_decoded.eq(test_actual).sum().item()
-            # batch_total = len(test_actual)
-
-            # running_correct += batch_correct
-            # running_total += batch_total
 
             acc = f"{(running_correct / running_total):0.3f}"
 
@@ -219,13 +212,13 @@ def train(cfg: DictConfig):
                 test=display_vals,
             )
 
-            break
+            # break
 
         latest_caption = caption_preder.make_caption(
             embedding_model=embedding_model,
             model=model,
-            tokenized_image=out.data,
-            tokenized_caption=out.target,
+            tokenized_image=tokenized_image,
+            tokenized_caption=tokenized_caption,
         )
         generated_captions.append(latest_caption)
 
@@ -233,7 +226,6 @@ def train(cfg: DictConfig):
         # captions_info[epoch + 1] = captions_out["generated"]
 
     captions_generated = text_tokenizer.batch_decode(generated_captions)
-    breakpoint()
 
     # for k, v in captions_info.items():
     #     print(f"Epoch {k}: {v}")
