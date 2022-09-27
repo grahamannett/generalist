@@ -1,7 +1,7 @@
 import torch
 from typing import Optional
-from generalist.generalist_tokenizers.image_tokenizer import ImageTokenizer
-from generalist.generalist_tokenizers.text_tokenizer import TextTokenizer
+from generalist.generalist_tokenizers.image_tokenizers import ImageTokenizer
+from generalist.generalist_tokenizers.text_tokenizers import TextTokenizer
 from generalist.models.embedding_model import EmbeddingModel
 from generalist.models.model import GeneralistModel
 from generalist.data_types.input_types import ImageType, TextType
@@ -20,6 +20,7 @@ class ImageCaptionPrediction:
         model: GeneralistModel,
         tokenized_image: ImageType,
         tokenized_caption: TextType,
+        use_caption: bool = True,
     ):
 
         # breakpoint()
@@ -33,7 +34,7 @@ class ImageCaptionPrediction:
         for i in range(tokenized_caption.shape[-1]):
 
             tokenized_target = TextType(target_list).to(int).to(tokenized_image.device)
-            embedded_target = embedding_model([tokenized_target])
+            embedded_target = embedding_model([tokenized_target]) if use_caption else None
             logits = model(embedded_image, embedded_target)
 
             token_pred = top_k_top_p_filtering(logits[:, -1, :], device=logits.device).argmax().item()
@@ -45,10 +46,6 @@ class ImageCaptionPrediction:
         generated_caption = self.text_tokenizer.decode(target_list)
         normal_caption = self.text_tokenizer.batch_decode(tokenized_caption)[0]
 
-        # print(f"generated caption:\n==>{generated_caption}")
-        # print(f"actual caption:\n==>{normal_caption}")
-
-        # return {"normal": normal_caption, "generated": generated_caption}
         return target_list
 
     def generate(self, logits: torch.Tensor, max_length: int):

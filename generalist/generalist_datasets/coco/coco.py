@@ -19,23 +19,29 @@ def fix_channels(image):
     return image
 
 
+def normalize_image(image):
+    image = image / 255.0
+    return image
+
+
 _train_transform = transforms.Compose(
     [
         transforms.Lambda(fix_channels),
+        transforms.Lambda(normalize_image),
         transforms.Resize((320, 320)),
         transforms.ColorJitter(brightness=[0.5, 1.3], contrast=[0.8, 1.5], saturation=[0.2, 1.5]),
         transforms.RandomHorizontalFlip(),
         # transforms.ToTensor(),
-        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+        # transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
     ]
 )
 
 _val_transform = transforms.Compose(
     [
-        # transforms.ToTensor(),
+        transforms.Lambda(normalize_image),
         transforms.Lambda(fix_channels),
         transforms.Resize((320, 320)),
-        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+        # transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
     ]
 )
 
@@ -67,6 +73,7 @@ class CocoDataset(ImageDatasetMixin, GeneralistDataset):
         # self.instances_data = json.load(open(self.instances))
         # self.person_keypoints_data = json.load(open(self.person_keypoints))
         self.process()
+        self.tokenize_caption_kwargs = {"return_tensors": "pt", "truncation": True, "padding": "max_length", "max_length": 32}
 
     def process(self) -> None:
         self.image_annotation = {obj["image_id"]: obj for obj in self.captions_data["annotations"]}
@@ -96,15 +103,17 @@ class CocoDataset(ImageDatasetMixin, GeneralistDataset):
         image = ImageType(image / 255.0)
         # image.resize_image((320, 320))
         image = self.image_transform(image)
-        image = image.tokenize()
-
         caption = TextTypeRaw(item["caption"]["caption"])
-        caption_out = caption.tokenize(
-            return_tensors="pt", truncation=True, padding="max_length", max_length=128
-        )
 
-        # sample.data = [image, caption]
-        # sample.target = None
+        # image = image.tokenize(tokenizer=self.tokenizers["image"])
+        # caption_out = caption.tokenize(tokenizer=self.tokenizers["text"], **self.tokenize_caption_kwargs)
+
         sample.data = image
-        sample.target = caption_out
+        sample.target = caption
+
+        if not kwargs.get("raw_data", False):
+            sample.data = sample.data.tokenize(tokenizer=self.tokenizers["image"])
+        if not kwargs.get("raw_target", False):
+            sample.target = sample.target.tokenize(tokenizer=self.tokenizers["text"], **self.tokenize_caption_kwargs)
+
         return sample

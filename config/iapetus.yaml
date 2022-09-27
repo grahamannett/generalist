@@ -11,3 +11,5 @@ coco_dir: /data/graham/datasets/coco/aokvqacoco/datasets/coco
 aokvqa_dir: /data/graham/datasets/coco/aokvqacoco
 features_dir: /home/graham/code/torchtask/submodules/aokvqa/features
 pretrained_models_dir: /home/graham/code/torchtask/pretrained_models
+
+model_save_dir: /data/graham/generalist_runs/models

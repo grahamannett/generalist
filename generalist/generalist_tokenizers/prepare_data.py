@@ -5,8 +5,8 @@ import torch
 import torch.nn as nn
 from generalist.data_types.input_types import InputType
 from generalist.data_types.helper_types import DataHandlerPath
-from generalist.generalist_tokenizers.image_tokenizer import ImageTokenizer
-from generalist.generalist_tokenizers.text_tokenizer import TextTokenizer
+from generalist.generalist_tokenizers.image_tokenizers import ImageTokenizer
+from generalist.generalist_tokenizers.text_tokenizers import TextTokenizer
 from generalist.models.model import EmbeddingModel, GeneralistModel
 
 

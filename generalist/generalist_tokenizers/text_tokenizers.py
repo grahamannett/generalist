@@ -79,9 +79,13 @@ class TextTokenizer(GeneralTokenizer):
         return self.tokenizer.batch_decode(*args, **kwargs)
 
 
-def TextTokenizerPretrained(
-    tokenizer_class: PreTrainedTokenizer | str, pretrained_name_or_model: str, **kwargs
-):
+def TextTokenizerPretrained(tokenizer_class: PreTrainedTokenizer | str, pretrained_name_or_model: str, **kwargs):
+    """
+
+    issue with saving this object which i am saving because it is slightly easier to make eval work
+    use this like
+    text_tokenizer = TextTokenizerPretrained("BertTokenizer", pretrained_name_or_model="bert-base-uncased", device=device)
+    """
     if isinstance(tokenizer_class, str):
         exec(f"from transformers import {tokenizer_class}")
         tokenizer_class = locals().get(tokenizer_class, None)
@@ -112,6 +116,19 @@ def TextTokenizerPretrained(
     if "device" in kwargs:
         instance.device = kwargs["device"]
     return instance
+
+
+class TextTokenizerBert(BertTokenizer):
+    data_type = TextType.data_type
+
+    def __call__(self, *args, **kwargs):
+        if "return_tensors" not in kwargs:
+            kwargs["return_tensors"] = "pt"
+        encoded = super().__call__(*args, **kwargs)
+        out = TextType(encoded["input_ids"])
+        return out
+
+    # text_tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
 
 
 if __name__ == "__main__":

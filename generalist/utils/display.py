@@ -1,10 +1,11 @@
 from typing import Any, Callable
 
+import atexit
+
 from rich import print
 from rich.live import Live
 from rich.console import Group
 from rich.panel import Panel
-from rich.live import Live
 from rich.progress import (
     BarColumn,
     SpinnerColumn,
@@ -12,6 +13,9 @@ from rich.progress import (
     Progress,
     TextColumn,
 )
+from rich.text import Text
+from rich.layout import Layout
+
 
 from rich.console import Console
 
@@ -31,7 +35,7 @@ class GeneralistDisplay(object):
     RUN = "run"
     END = "end"
 
-    def __init__(self, display: bool):
+    def __init__(self, display: bool, **kwargs):
         self.console = Console()
 
         self._display = display
@@ -70,14 +74,35 @@ class GeneralistDisplayRich(GeneralistDisplay):
         super().__init__(display)
         self._status = "init" if display else False
 
+    def _stop(self):
+        self.live.stop()
+
+    def setup_layout(self):
+        self.layout.split(
+            Layout(name="header", size=3),
+            Layout(name="body", ratio=1),
+            Layout(name="footer", size=1),
+        )
+        self.layout["header"].update(Panel("Header"))
+        self.layout["body"].update(Panel("Body"))
+        self.layout["footer"].update(Panel("Footer"))
+
+        self.live = Live(self.layout, refresh_per_second=10)
+        self.live.start()
+
     def setup(self, n_epochs: int = None):
         self._status = "run"
+
+        self.layout = Layout(name="root")
 
         self.epoch_progress = Progress(
             TextColumn("[progress.description]{task.description}"),
             MofNCompleteColumn(),
-            BarColumn(),
+            SpinnerColumn("simpleDots"),
+            BarColumn(bar_width=None),
         )
+        epoch_panel = Panel(self.epoch_progress)
+
         self.batch_progress = Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
@@ -87,15 +112,20 @@ class GeneralistDisplayRich(GeneralistDisplay):
             ),
             transient=True,
         )
-
-        self.progress_group = Group(
-            Panel(self.epoch_progress),
-            Panel(Group(self.batch_progress)),
+        # batch_text =
+        batch_panel = Panel(
+            self.batch_progress,
         )
+
+        # self.text_group = generate_table()
+
+        self.progress_group = Group(epoch_panel)
 
         self.epoch_task = self.epoch_progress.add_task("[bold blue]Epoch", total=n_epochs)
         self.live = Live(self.progress_group)
         self.live.start(True)
+
+        atexit.register(self._stop)
         return self
 
     def manage(self):
@@ -115,18 +145,21 @@ class GeneralistDisplayRich(GeneralistDisplay):
         print(**kwargs)
 
     def stop(self):
-        self.live.stop()
+        # print("stopping!!")
+        # self.live.stop()
         self._status = "ended"
         return self
 
     def update(self, epoch_kwargs: dict = None, batch_kwargs: dict = None):
-                # batch_progress.update(
-            #     batch_task,
-            #     advance=1,
-            #     running_loss=running_loss,
-            # )
+        # batch_progress.update(
+        #     batch_task,
+        #     advance=1,
+        #     running_loss=running_loss,
+        # )
         if epoch_kwargs:
             self.epoch_progress.update(**epoch_kwargs)
+
+        # self.live.update(generate_table())
 
     def add_task(self, name: str, *args, **kwargs):
         obj = getattr(self, name)
@@ -138,3 +171,17 @@ class GeneralistDisplayRich(GeneralistDisplay):
         # )
         # obj = obj.add_task(**kwargs)
         setattr(self, name, obj)
+
+
+if __name__ == "__main__":
+    import time
+
+    display = GeneralistDisplayRich()
+    num_epochs = 3
+    display.setup(n_epochs=num_epochs)
+
+    for i in range(num_epochs):
+        display.update(epoch_kwargs={"task_id": display.epoch_task, "advance": 1})
+        time.sleep(1)
+
+    # display.stop()

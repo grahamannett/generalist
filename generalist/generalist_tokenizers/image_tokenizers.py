@@ -6,9 +6,7 @@ from generalist.data_types.input_types import ImageType
 from einops import rearrange
 
 
-def normalize_image(
-    x: torch.Tensor, patch_size: int = 16, lower_bound: float = -1.0, upper_bound: float = 1.0
-) -> torch.Tensor:
+def normalize_image(x: torch.Tensor, patch_size: int = 16, lower_bound: float = -1.0, upper_bound: float = 1.0) -> torch.Tensor:
     x = ((x - x.max()) / (x.max() - x.min())) * (upper_bound - lower_bound) + lower_bound
     x /= patch_size ** (1 / 2)
     return x
@@ -51,9 +49,7 @@ class ImageTokenizer(GeneralTokenizer):
 
     data_type = ImageType.data_type
 
-    def __init__(
-        self, p1: int = 16, p2: int = 16, upper_bound: int = 1, lower_bound: int = -1, **kwargs
-    ) -> None:
+    def __init__(self, p1: int = 16, p2: int = 16, upper_bound: int = 1, lower_bound: int = -1, **kwargs) -> None:
 
         # print(self._instance)
 
@@ -82,10 +78,7 @@ class ImageTokenizer(GeneralTokenizer):
             img = img.unsqueeze(0)
 
         if img.shape[-1] % self.p1 != 0:
-            raise ValueError(
-                "Image height and width must be divisible by patch size. "
-                f"Got {img.shape[-1]} and {self.p1}"
-            )
+            raise ValueError("Image height and width must be divisible by patch size. " f"Got {img.shape[-1]} and {self.p1}")
 
         img = rearrange(img, "b c (h p1) (w p2) -> b (h w) (p1 p2 c)", p1=self.p1, p2=self.p2)
         return img

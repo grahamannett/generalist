@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import NamedTuple
 
 from config import device
-from generalist.generalist_tokenizers import text_tokenizer
+from generalist.generalist_tokenizers import text_tokenizers
 from torch.utils.data import DataLoader, Dataset
 
 # class TestText(unitttest.TestCase):

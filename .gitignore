@@ -217,6 +217,9 @@ submodules/
 
 baselines/examples/**
 baselines/tmp/**
-**/ignore/**
+# **/ignore/**
 
 outputs/
+
+experiments/data/**
+tmp.py

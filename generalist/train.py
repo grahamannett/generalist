@@ -1,28 +1,25 @@
+import datetime
+import logging
+from pathlib import Path
+from random import sample
+
+import hydra
 import torch
+from omegaconf import DictConfig
 from rich import print
 from torch.utils.data import DataLoader
 
-from generalist.generalist_datasets import AokvqaDataset, GeneralistDataset, CocoDataset, MNISTDataset
-from generalist.generalist_datasets.base import ChainedGenearlistDataset
-
-from generalist.generalist_tokenizers import (
-    ImageTokenizer,
-    TextTokenizer,
-    TextTokenizerPretrained,
-    text_tokenizer,
-)
 from generalist.data_types.input_types import ImageType, TextTypeRaw
-
+from generalist.generalist_datasets import AokvqaDataset, CocoDataset, GeneralistDataset, MNISTDataset
+from generalist.generalist_datasets.base import ChainedGenearlistDataset
+from generalist.generalist_tokenizers import image_tokenizers, text_tokenizers
 from generalist.models.model import EmbeddingModel, GeneralistModel
 from generalist.models.output_model import GeneralClassificationOutput, GeneralOutput
 from generalist.predict import ImageCaptionPrediction
-
-from generalist.utils.cli import train_get_args
 from generalist.utils.display import GeneralistDisplay
-from generalist.utils.utils import collate_func, get_hostname
+from generalist.utils.utils import collate_func, get_hostname, save_checkpoint
 
-import hydra
-from omegaconf import DictConfig, OmegaConf
+log = logging.getLogger(__name__)
 
 
 def train_step(embedding_model, genearlist_model, dataloader):
@@ -35,15 +32,15 @@ def manage_live(group):
 
 def pad_targets(targets, logits):
     # pad targets to match logits
-    encoded_targets = [
-        torch.nn.functional.pad(t, (0, logits.shape[1] - t.shape[-1], 0, 0), mode="constant", value=0)
-        for t in targets
-    ]
+    encoded_targets = [torch.nn.functional.pad(t, (0, logits.shape[1] - t.shape[-1], 0, 0), mode="constant", value=0) for t in targets]
     encoded_targets = torch.stack(encoded_targets)
 
 
 @hydra.main(config_path=f"../config", config_name=get_hostname(), version_base=None)
 def train(cfg: DictConfig):
+
+    # print("Working directory : {}".format(os.getcwd()))
+    model_save_dir = Path(cfg.model_save_dir)
     display_flag = cfg.display
     device = cfg.device
 
@@ -53,10 +50,10 @@ def train(cfg: DictConfig):
 
     model_dim = cfg.model.model_dim
 
-    image_tokenizer = ImageTokenizer(device=device)
-    text_tokenizer = TextTokenizerPretrained(
-        "BertTokenizer", pretrained_name_or_model="bert-base-uncased", device=device
-    )
+    image_tokenizer = image_tokenizers.ImageTokenizer(device=device)
+    text_tokenizer = text_tokenizers.TextTokenizerBert.from_pretrained("bert-base-uncased")
+
+    # text_tokenizer = TextTokenizerPretrained("BertTokenizer", pretrained_name_or_model="bert-base-uncased", device=device)
 
     embedding_model = EmbeddingModel(model_dim=model_dim)
     # output_model = GeneralClassificationOutput(model_dim=model_dim, num_classes=10, reduce_type="cls")
@@ -135,7 +132,7 @@ def train(cfg: DictConfig):
     train_dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
     # val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 
-    display = GeneralistDisplay.make(display=display_flag)
+    display = GeneralistDisplay.make(display=display_flag, logger=log)
     display.manage()
     for epoch in range(n_epochs):
         # epoch_progress.update(epoch_task)
@@ -144,9 +141,7 @@ def train(cfg: DictConfig):
         running_correct = 0
         running_total = 0
         display.update("epoch_progress", epoch)
-        display.add_task(
-            "batch_progress", "[green]Batch", total=len(train_dataloader), running_loss=running_loss
-        )
+        display.add_task("batch_progress", "[green]Batch", total=len(train_dataloader), running_loss=running_loss)
 
         model.train()
 
@@ -209,29 +204,32 @@ def train(cfg: DictConfig):
                 running_loss=f"{running_loss:.3f}",
                 test=display_vals,
             )
-
             # break
 
-        latest_caption = caption_preder.make_caption(
-            embedding_model=embedding_model,
-            model=model,
-            tokenized_image=tokenized_image,
-            tokenized_caption=tokenized_caption,
+        # save_checkpoint(model_save_dir, model, embedding_model, optimizer, epoch)
+        save_checkpoint(
+            model_save_dir,
+            obj={
+                "model": model,
+                "embedding_model": embedding_model,
+                "optimizer": optimizer,
+                "epoch": epoch,
+                "tokenizers": {
+                    "image_tokenizer": image_tokenizer,
+                    "text_tokenizer": text_tokenizer,
+                },
+            },
+            filename="latest.pt",
         )
+
+        latest_caption = caption_preder.make_caption(embedding_model, model, tokenized_image, tokenized_caption, use_caption=False)
         generated_captions.append(latest_caption)
 
-        # captions_out = caption_preder.make_caption(model, out.data.to(device), out.target.to(device))
-        # captions_info[epoch + 1] = captions_out["generated"]
-
     captions_generated = text_tokenizer.batch_decode(generated_captions)
-
-    # for k, v in captions_info.items():
-    #     print(f"Epoch {k}: {v}")
 
     display.manage("epoch", display.END)
     print("done with training")
 
 
 if __name__ == "__main__":
-    # args = train_get_args()
     train()

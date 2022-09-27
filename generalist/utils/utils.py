@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 from typing import Any, Callable, List
 
+from pathlib import Path
 import torch
 from generalist.data_types.helper_types import Sample, Batch
+import datetime
 
 
 def get_hostname():
@@ -31,6 +33,28 @@ def _all_keys_match(batch):
         if _keys != list(_batch.__annotations__.keys()):
             all_match = False
     return all_match, _keys
+
+
+def save_checkpoint(
+    model_save_dir: Path,
+    obj: Any,
+    filename: str = None,
+):
+    """helper function to checkpoint an object.  inteded for use with saving embedding_model/model
+
+    Args:
+        model_save_dir (Path): directory to save checkpoint
+        obj (Any): object containing
+        filename (str, optional): _description_. Defaults to None.
+    """
+
+    if filename is None:
+        filename = datetime.datetime.now().strftime("%Y_%m_%d_%H%M%S") + ".pt"
+
+    torch.save(
+        obj,
+        model_save_dir / f"{filename}",
+    )
 
 
 @dataclass
