@@ -10,7 +10,7 @@ class Transformer(nn.Module):
     def __init__(self, **kwargs) -> None:
         super().__init__()
 
-        self.d_model = kwargs.get("d_model", 768)
+        self.model_dim = kwargs.get("model_dim", 768)
         self.nhead = kwargs.get("nhead", 8)
         self.num_encoder_layers = kwargs.get("num_encoder_layers", 3)
         self.num_decoder_layers = kwargs.get("num_decoder_layers", 3)
@@ -19,7 +19,7 @@ class Transformer(nn.Module):
         self.model_max_length = kwargs.get("model_max_length", 1048)
 
         self.transformer = nn.Transformer(
-            d_model=self.d_model,
+            d_model=self.model_dim,
             nhead=self.nhead,
             num_encoder_layers=self.num_encoder_layers,
             num_decoder_layers=self.num_decoder_layers,
@@ -50,8 +50,8 @@ class Transformer(nn.Module):
         elif self.batch_first and src.size(0) != tgt.size(0) and is_batched:
             raise RuntimeError("the batch number of src and tgt must be equal")
 
-        if src.size(-1) != self.d_model or tgt.size(-1) != self.d_model:
-            raise RuntimeError("the feature number of src and tgt must be equal to d_model")
+        if src.size(-1) != self.model_dim or tgt.size(-1) != self.model_dim:
+            raise RuntimeError("the feature number of src and tgt must be equal to model_dim")
 
         memory = self.encoder(src, mask=src_mask, src_key_padding_mask=src_key_padding_mask)
         output = self.decoder(
@@ -69,14 +69,14 @@ class Transformer(nn.Module):
 class TransformerDecoder(nn.Module):
     def __init__(self, **kwargs):
         super().__init__()
-        d_model = kwargs.get("d_model", 512)
+        model_dim = kwargs.get("model_dim", 512)
         nhead = kwargs.get("nhead", 8)
         num_layers = kwargs.get("num_layers", 4)
         batch_first = kwargs.get("batch_first", True)
         dim_feedforward = kwargs.get("dim_feedforward", 2048)
 
         decoder_layer = nn.TransformerDecoderLayer(
-            d_model=d_model,
+            d_model=model_dim,
             nhead=nhead,
             dim_feedforward=dim_feedforward,
             batch_first=batch_first,

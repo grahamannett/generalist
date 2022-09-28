@@ -21,6 +21,7 @@ class ImageCaptionPrediction:
         tokenized_image: ImageType,
         tokenized_caption: TextType,
         use_caption: bool = True,
+        **kwargs,
     ):
 
         # breakpoint()

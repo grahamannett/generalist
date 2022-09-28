@@ -3,7 +3,7 @@ from typing import List, Sequence
 
 import torch
 import torch.nn as nn
-from generalist.generalist_embedding.image_embedding import ImageEmbeddingPath
+from generalist.generalist_embedding.image_embedding import ImageEmbeddingPath, TorchvisionPretrained, ImagePath, ImagePathConv
 from generalist.generalist_embedding.text_embedding import TextEmbeddingPath
 from generalist.data_types.input_types import GeneralizedTensor
 from generalist.data_types.helper_types import DataHandlerPath
@@ -12,10 +12,15 @@ from generalist.data_types.helper_types import DataHandlerPath
 def default_embedding_paths(model_dim: int = 768) -> List[DataHandlerPath]:
     return [
         DataHandlerPath(
-            module=ImageEmbeddingPath(d_model=model_dim),
+            module=ImagePathConv(model_dim=model_dim),
             name="image_path",
-            data_type=ImageEmbeddingPath.data_type,
+            data_type=ImagePathConv.data_type,
         ),
+        # DataHandlerPath(
+        #     module=ImagePath(model_dim=model_dim),
+        #     name="image_path",
+        #     data_type=ImagePath.data_type,
+        # ),
         DataHandlerPath(
             module=TextEmbeddingPath(model_dim=model_dim),
             name="text_path",

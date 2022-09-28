@@ -58,7 +58,7 @@ def train(cfg: DictConfig):
     embedding_model = EmbeddingModel(model_dim=model_dim)
     # output_model = GeneralClassificationOutput(model_dim=model_dim, num_classes=10, reduce_type="cls")
     output_model = GeneralOutput(model_dim=model_dim, output_dim=text_tokenizer.vocab_size)
-    model = GeneralistModel(output_model=output_model, d_model=model_dim).to(device)
+    model = GeneralistModel(output_model=output_model, model_dim=model_dim).to(device)
 
     embedding_model.to(device)
     model.to(device)
@@ -100,15 +100,16 @@ def train(cfg: DictConfig):
     tokenized_caption = out.target.to(device)
     # exit()
 
-    inital_caption = caption_preder.make_caption(
-        embedding_model=embedding_model,
-        model=model,
-        tokenized_image=tokenized_image,
-        tokenized_caption=tokenized_caption,
-    )
+    # inital_caption = caption_preder.make_caption(
+    #     embedding_model=embedding_model,
+    #     model=model,
+    #     tokenized_image=tokenized_image,
+    #     tokenized_caption=tokenized_caption,
+    # )
+    initial_caption = []
 
     generated_captions = []
-    generated_captions.append(inital_caption)
+    generated_captions.append(initial_caption)
 
     # captions_out = caption_preder.make_caption(embedding_model, model, out.data, out.target)
     # captions_info[-1] = captions_out["normal"]
@@ -150,13 +151,21 @@ def train(cfg: DictConfig):
             data, target = batch.data, batch.target
 
             embedding = embedding_model(data)
-            embedded_target = embedding_model(target)
-
             encoded_target = torch.cat(target)
 
-            logits = model(embedding, embedded_target)
+            target_attention_mask = torch.zeros(encoded_target.shape, device=device)
+            target_attention_mask[encoded_target != 0] = 1
 
-            loss = loss_fn(logits.view(-1, logits.shape[-1]), encoded_target.view(-1))
+            if batch_idx % 2 == 0:
+                embedded_target = None
+            else:
+                embedded_target = embedding_model(target)
+
+            logits = model(embedding, embedded_target=embedded_target, target_attention_mask=target_attention_mask)
+            # breakpoint()
+
+            # loss = loss_fn(logits.view(-1, logits.shape[-1]), encoded_target[:, 1:].view(-1))
+            loss = loss_fn(logits.permute(0, 2, 1), encoded_target)
 
             running_loss += loss.item()
 
@@ -180,7 +189,7 @@ def train(cfg: DictConfig):
             running_total += batch_total
 
             # breakpoint()
-            if batch_idx % 50 == 0:
+            if batch_idx % 25 == 0:
                 decoded__ = text_tokenizer.batch_decode(logits.argmax(dim=-1)[0:5, 0:10])
                 actual__ = text_tokenizer.batch_decode(encoded_target[0:5, 0:10])
                 print(list(zip(decoded__, actual__)))

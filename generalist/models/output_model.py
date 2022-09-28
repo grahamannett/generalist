@@ -18,12 +18,11 @@ class GeneralOutput(nn.Module):
     # output dim of gato is 33024 but depends on tokenizer
     def __init__(self, model_dim: int = 768, output_dim: int = 33024, bias: bool = False) -> None:
         super().__init__()
-        # self.output_dim = output_dim
-
-        self.output = nn.Sequential(nn.LayerNorm(model_dim), nn.Linear(model_dim, output_dim, bias=False))
+        self.layer_norm = nn.LayerNorm(model_dim)
+        self.linear_out = nn.Linear(in_features=model_dim, out_features=output_dim, bias=bias)
 
     def forward(self, hidden_states: torch.Tensor, **kwargs) -> torch.Tensor:
-        return self.output(hidden_states)
+        return self.linear_out(self.layer_norm(hidden_states))
 
 
 class GeneralClassificationOutput(GeneralOutput):
@@ -33,17 +32,11 @@ class GeneralClassificationOutput(GeneralOutput):
         None: identity,
     }
 
-    def __init__(
-        self, model_dim: int, num_classes: int = 10, reduce_type: str = "mean", bias: bool = False
-    ) -> None:
+    def __init__(self, model_dim: int, num_classes: int = 10, reduce_type: str = "mean", bias: bool = False) -> None:
         super().__init__(model_dim=model_dim, output_dim=num_classes, bias=bias)
 
         self.num_classes = num_classes
         self.reduce_type = reduce_type
-
-        # self.reduce = nn.ModuleDict({
-        #     "mean": reduce_mean
-        # })
 
         if reduce_type not in self.reduce_dict:
             raise ValueError(f"reduce_type {reduce_type} not in {self.reduce_dict}")

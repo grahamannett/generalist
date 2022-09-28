@@ -9,7 +9,7 @@ from generalist.generalist_embedding.image_embedding import ImageEmbeddingPath, 
 class TestImages(unittest.TestCase):
     def setUp(self):
         self.image_tokenizer = ImageTokenizer()
-        self.image_embedder = ImageEmbeddingPath(d_model=768)
+        self.image_embedder = ImageEmbeddingPath(model_dim=768)
 
     def test_tokenizer(self):
         # 3x224x224

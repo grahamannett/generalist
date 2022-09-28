@@ -1,3 +1,4 @@
+from typing import Any
 import torch
 
 
@@ -48,12 +49,12 @@ class TextTokenizer(GeneralTokenizer):
         text = sample.data if isinstance(sample, TextTypeRaw) else sample
         encoded = self.encode(text, **kwargs)
 
-        out = TextType(encoded["input_ids"])
-        out.set_data_type(self.data_type)
+        input_ids = TextType(encoded["input_ids"])
+        input_ids.set_data_type(self.data_type)
         # superflous text data
-        out.attention_mask = encoded["attention_mask"]
-        out.token_type_ids = encoded["token_type_ids"]
-        return out
+        input_ids.attention_mask = encoded["attention_mask"]
+        input_ids.token_type_ids = encoded["token_type_ids"]
+        return input_ids
 
     def encode(self, text: str, **kwargs) -> torch.Tensor:
         max_length = kwargs.pop("max_length", self.model_max_length)
@@ -95,13 +96,16 @@ def TextTokenizerPretrained(tokenizer_class: PreTrainedTokenizer | str, pretrain
 
         def __call__(self, *args, **kwargs):
             # do this otherwise have to worry about tensor type
+            if _original := kwargs.pop("original", False):
+                return super().__call__(*args, **kwargs)
+
             if "return_tensors" not in kwargs:
                 kwargs["return_tensors"] = "pt"
 
             encoded = super().__call__(*args, **kwargs)
-            out = TextType(encoded["input_ids"])
-            # out.set_data_type(self.data_type)
-            return out
+            input_ids = TextType(encoded["input_ids"])
+            # input_ids.set_data_type(self.data_type)
+            return input_ids
 
         def __repr__(self) -> str:
             return (
@@ -122,13 +126,19 @@ class TextTokenizerBert(BertTokenizer):
     data_type = TextType.data_type
 
     def __call__(self, *args, **kwargs):
+        if _original := kwargs.pop("original", False):
+            return super().__call__(*args, **kwargs)
+
         if "return_tensors" not in kwargs:
             kwargs["return_tensors"] = "pt"
-        encoded = super().__call__(*args, **kwargs)
-        out = TextType(encoded["input_ids"])
-        return out
 
-    # text_tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+        encoded = super().__call__(*args, **kwargs)
+        tokenized_text = TextType(encoded["input_ids"])
+
+        if "return_attention_mask" in kwargs:
+            tokenized_text.attention_mask = encoded["attention_mask"]
+
+        return tokenized_text
 
 
 if __name__ == "__main__":

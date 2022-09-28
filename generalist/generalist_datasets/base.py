@@ -27,7 +27,8 @@ class GeneralistDataset(Dataset):
             tokenizers.extend(args)
         cls.tokenizers = {tok.data_type: tok for tok in tokenizers}
 
-    def __getitem__(self, idx: int, metadata: SampleMetaData = None, **kwargs) -> Sample:
+    def __getitem__(self, idx: int, **kwargs) -> Sample:
+        metadata: SampleMetaData = kwargs.get("metadata", None)
         if self._sample_metadata:
             metadata = SampleMetaData(idx=idx, dataset_name=self.shortname)
 
@@ -71,9 +72,7 @@ class GeneralistDataset(Dataset):
 
 
 class ChainedGenearlistDataset(Dataset):
-    def __init__(
-        self, datasets: Sequence[GeneralistDataset], sample_weights: Sequence[float], **kwargs
-    ) -> None:
+    def __init__(self, datasets: Sequence[GeneralistDataset], sample_weights: Sequence[float], **kwargs) -> None:
         super().__init__(**kwargs)
         self._datasets = datasets
         self.sample_weights = sample_weights

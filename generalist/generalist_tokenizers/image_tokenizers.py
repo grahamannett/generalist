@@ -49,7 +49,7 @@ class ImageTokenizer(GeneralTokenizer):
 
     data_type = ImageType.data_type
 
-    def __init__(self, p1: int = 16, p2: int = 16, upper_bound: int = 1, lower_bound: int = -1, **kwargs) -> None:
+    def __init__(self, p1: int = 16, p2: int = 16, upper_bound: int = 1, lower_bound: int = -1, to_patches: bool = True, **kwargs) -> None:
 
         # print(self._instance)
 
@@ -62,18 +62,19 @@ class ImageTokenizer(GeneralTokenizer):
 
         self.lower_bound = lower_bound
         self.upper_bound = upper_bound
+        self.to_patches = to_patches
 
     def __call__(self, img: torch.Tensor | ImageType):
         img = img.data if isinstance(img, ImageType) else img
 
-        img = self.to_patches(img)
+        # img = self.patches(img)
         img = normalize_image(img, self.patch_size, self.lower_bound, self.upper_bound)
 
         out = ImageType(img)
         out.set_data_type(self.data_type)
         return out
 
-    def to_patches(self, img: torch.Tensor):
+    def patches(self, img: torch.Tensor):
         if img.ndim == 3:
             img = img.unsqueeze(0)
 
