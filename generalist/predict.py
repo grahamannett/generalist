@@ -89,3 +89,140 @@ def top_k_top_p_filtering(
     final_p[row_idx, largest_p_idx] = renormalized_p.to(final_p.dtype)
 
     return final_p
+
+
+# from x_transformers
+from math import ceil
+import torch
+from torch import nn
+import torch.nn.functional as F
+
+
+def exists(val):
+    return val is not None
+
+
+# nucleus
+
+
+def top_p(logits, thres=0.9):
+    sorted_logits, sorted_indices = torch.sort(logits, descending=True)
+    cum_probs = torch.cumsum(F.softmax(sorted_logits, dim=-1), dim=-1)
+
+    sorted_indices_to_remove = cum_probs > (1 - thres)
+    sorted_indices_to_remove[:, 1:] = sorted_indices_to_remove[:, :-1].clone()
+    sorted_indices_to_remove[:, 0] = 0
+
+    sorted_logits[sorted_indices_to_remove] = float("-inf")
+    return sorted_logits.scatter(1, sorted_indices, sorted_logits)
+
+
+# topk
+
+
+def top_k(logits, thres=0.9):
+    k = ceil((1 - thres) * logits.shape[-1])
+    val, ind = torch.topk(logits, k)
+    probs = torch.full_like(logits, float("-inf"))
+    probs.scatter_(1, ind, val)
+    return probs
+
+
+# top_a
+
+
+def top_a(logits, min_p_pow=2.0, min_p_ratio=0.02):
+    probs = F.softmax(logits, dim=-1)
+    limit = torch.pow(torch.max(probs), min_p_pow) * min_p_ratio
+    logits[probs < limit] = -float("Inf")
+    logits[probs >= limit] = 1
+    return logits
+
+
+@torch.no_grad()
+def generate(
+    encoder,
+    decoder,
+    text_tokenizer,
+    image,
+    start_tokens,
+    seq_len,
+    eos_token=None,
+    temperature=1.0,
+    filter_logits_fn=top_k,
+    filter_thres=0.9,
+    min_p_pow=2.0,
+    min_p_ratio=0.02,
+    max_seq_len=16,
+    ignore_index=-100,
+    pad_value=0,
+    **kwargs,
+):
+    device = start_tokens.device
+    was_training = encoder.training
+    num_dims = len(start_tokens.shape)
+
+    # breakpoint()
+    # if num_dims == 1:
+    #     start_tokens = start_tokens[None, :]
+
+    if start_tokens.ndim == 1:
+        start_tokens = start_tokens.unsqueeze(0)
+    b, t = start_tokens.shape
+
+    # self.net.eval()
+    encoder.eval()
+    decoder.eval()
+    out = start_tokens
+    mask = kwargs.pop("mask", None)
+
+    encoded = encoder(image, return_embeddings=True)
+
+    for _ in range(seq_len):
+        x = out[:, -max_seq_len:]
+
+        # logits = self.net(x, mask=mask, **kwargs)[:, -1, :]
+        logits = decoder(x, context=encoded)
+        last = logits[:, -1]
+
+        filtered_logits = filter_logits_fn(last, thres=filter_thres)
+        probs = F.softmax(filtered_logits / temperature, dim=-1)
+
+        sample = torch.multinomial(probs, num_samples=1)
+
+        #     # if filter_logits_fn in {top_k, top_p}:
+        #     #     filtered_logits = filter_logits_fn(logits, thres=filter_thres)
+        #     #     probs = F.softmax(filtered_logits / temperature, dim=-1)
+
+        #     # elif filter_logits_fn is top_a:
+        #     #     filtered_logits = filter_logits_fn(logits, min_p_pow=min_p_pow, min_p_ratio=min_p_ratio)
+        #     #     probs = F.softmax(filtered_logits / temperature, dim=-1)
+
+        #     breakpoint()
+
+        #     sample = torch.multinomial(probs, 1)
+
+        out = torch.cat((out, sample), dim=-1)
+
+        if exists(eos_token) and (sample == eos_token).any():
+            break
+
+        # mask = F.pad(mask, (0, 1), value=True)
+
+    #     if exists(eos_token):
+    #         is_eos_tokens = out == eos_token
+
+    #         if is_eos_tokens.any(dim=-1).all():
+    #             # mask out everything after the eos tokens
+    #             shifted_is_eos_tokens = F.pad(is_eos_tokens, (1, -1))
+    #             mask = shifted_is_eos_tokens.float().cumsum(dim=-1) >= 1
+    #             out = out.masked_fill(mask, pad_value)
+    #             break
+
+    # out = out[:, t:]
+
+    # if num_dims == 1:
+    #     out = out.squeeze(0)
+
+    # self.net.train(was_training)
+    return out

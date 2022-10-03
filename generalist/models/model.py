@@ -10,6 +10,15 @@ from generalist.models.transformers.from_torch import Transformer
 from generalist.models.latents import LatentEmbedding
 
 
+def generate_square_subsequent_mask(sz):
+    r"""Generate a square mask for the sequence. The masked positions are filled with float('-inf').
+    Unmasked positions are filled with float(0.0).
+    """
+    mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
+    mask = mask.float().masked_fill(mask == 0, float("-inf")).masked_fill(mask == 1, float(0.0))
+    return mask
+
+
 class GeneralistModel(nn.Module):
     def __init__(
         self,
@@ -43,6 +52,7 @@ class GeneralistModel(nn.Module):
 
         # hidden_states = self.transformer(embedded=embedded, embedded_target=embedded_target)
         # embedded = torch.rand_like(embedded)
+        breakpoint()
         hidden_states = self.transformer(src=embedded, tgt=embedded_target, tgt_key_padding_mask=target_attention_mask)
         out = self.output_model(hidden_states, decoder_query=embedded_target)
         return out

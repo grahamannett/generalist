@@ -60,6 +60,18 @@ def train(cfg: DictConfig):
     output_model = GeneralOutput(model_dim=model_dim, output_dim=text_tokenizer.vocab_size)
     model = GeneralistModel(output_model=output_model, model_dim=model_dim).to(device)
 
+    from x_transformers import ViTransformerWrapper, TransformerWrapper, Encoder, Decoder
+    from generalist.predict import generate
+
+    encoder = ViTransformerWrapper(image_size=320, patch_size=16, attn_layers=Encoder(dim=768, depth=6, heads=8))
+    decoder = TransformerWrapper(
+        num_tokens=text_tokenizer.vocab_size, max_seq_len=32, attn_layers=Decoder(dim=768, depth=6, heads=8, cross_attend=True)
+    )
+
+    start_tokens = torch.Tensor([text_tokenizer.cls_token_id]).to(device).to(int)
+    decoder.to(device)
+    encoder.to(device)
+
     embedding_model.to(device)
     model.to(device)
 
@@ -69,8 +81,8 @@ def train(cfg: DictConfig):
         [
             {"params": embedding_model.parameters()},
             {"params": model.parameters()},
-            # {"params": model.transformer.parameters()},
-            # {"params": output_model.parameters()},
+            {"params": encoder.parameters()},
+            {"params": decoder.parameters()},
         ],
         lr=learning_rate,
     )
@@ -161,10 +173,29 @@ def train(cfg: DictConfig):
             else:
                 embedded_target = embedding_model(target)
 
-            logits = model(embedding, embedded_target=embedded_target, target_attention_mask=target_attention_mask)
-            # breakpoint()
+            # FROM X_TRANSFORMERS
+            # imgs = torch.stack(data)
+            # encoded_target = torch.Tensor(encoded_target)
+            # encoded = encoder(imgs, return_embeddings=True)
+            # logits = decoder(encoded_target, context=encoded)
+            # loss = loss_fn(
+            #     logits.transpose(1, 2),
+            #     encoded_target,
+            # )
 
-            # loss = loss_fn(logits.view(-1, logits.shape[-1]), encoded_target[:, 1:].view(-1))
+            # breakpoint()
+            # optimizer.zero_grad()
+            # loss.backward()
+            # optimizer.step()
+            # running_loss += loss.item()
+
+            # pred_
+
+            #
+            logits = model(embedding, embedded_target=embedded_target, target_attention_mask=target_attention_mask)
+            breakpoint()
+
+            loss = loss_fn(logits.view(-1, logits.shape[-1]), encoded_target[:, 1:].view(-1))
             loss = loss_fn(logits.permute(0, 2, 1), encoded_target)
 
             running_loss += loss.item()
@@ -194,6 +225,8 @@ def train(cfg: DictConfig):
                 actual__ = text_tokenizer.batch_decode(encoded_target[0:5, 0:10])
                 print(list(zip(decoded__, actual__)))
 
+                # breakpoint()
+
             acc = f"{(running_correct / running_total):0.3f}"
 
             display_vals = {
@@ -214,6 +247,23 @@ def train(cfg: DictConfig):
                 test=display_vals,
             )
             # break
+            # if batch_idx >= 3:
+            #     break
+
+        generated_caption_tok = generate(
+            encoder,
+            decoder,
+            text_tokenizer,
+            imgs[0].unsqueeze(0),
+            start_tokens=start_tokens,
+            seq_len=16,
+            eos_token=text_tokenizer.sep_token_id,
+        )
+
+        generated_caption = text_tokenizer.batch_decode(generated_caption_tok)[0]
+        print(start_tokens)
+        print(f"{generated_caption}")
+        print("==> ==> DONE <== <==")
 
         # save_checkpoint(model_save_dir, model, embedding_model, optimizer, epoch)
         save_checkpoint(
