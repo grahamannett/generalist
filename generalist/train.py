@@ -193,9 +193,8 @@ def train(cfg: DictConfig):
 
             #
             logits = model(embedding, embedded_target=embedded_target, target_attention_mask=target_attention_mask)
-            breakpoint()
 
-            loss = loss_fn(logits.view(-1, logits.shape[-1]), encoded_target[:, 1:].view(-1))
+            # loss = loss_fn(logits.view(-1, logits.shape[-1]), encoded_target[:, 1:].view(-1))
             loss = loss_fn(logits.permute(0, 2, 1), encoded_target)
 
             running_loss += loss.item()
@@ -250,20 +249,20 @@ def train(cfg: DictConfig):
             # if batch_idx >= 3:
             #     break
 
-        generated_caption_tok = generate(
-            encoder,
-            decoder,
-            text_tokenizer,
-            imgs[0].unsqueeze(0),
-            start_tokens=start_tokens,
-            seq_len=16,
-            eos_token=text_tokenizer.sep_token_id,
-        )
+        # generated_caption_tok = generate(
+        #     encoder,
+        #     decoder,
+        #     text_tokenizer,
+        #     imgs[0].unsqueeze(0),
+        #     start_tokens=start_tokens,
+        #     seq_len=16,
+        #     eos_token=text_tokenizer.sep_token_id,
+        # )
 
-        generated_caption = text_tokenizer.batch_decode(generated_caption_tok)[0]
-        print(start_tokens)
-        print(f"{generated_caption}")
-        print("==> ==> DONE <== <==")
+        # generated_caption = text_tokenizer.batch_decode(generated_caption_tok)[0]
+        # print(start_tokens)
+        # print(f"{generated_caption}")
+        # print("==> ==> DONE <== <==")
 
         # save_checkpoint(model_save_dir, model, embedding_model, optimizer, epoch)
         save_checkpoint(

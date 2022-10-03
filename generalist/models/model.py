@@ -52,7 +52,10 @@ class GeneralistModel(nn.Module):
 
         # hidden_states = self.transformer(embedded=embedded, embedded_target=embedded_target)
         # embedded = torch.rand_like(embedded)
-        breakpoint()
-        hidden_states = self.transformer(src=embedded, tgt=embedded_target, tgt_key_padding_mask=target_attention_mask)
+
+        tgt_mask = (
+            (torch.triu(torch.ones(embedded_target.shape[1], embedded_target.shape[1])) == 1).transpose(0, 1).to(embedded_target.device)
+        )
+        hidden_states = self.transformer(src=embedded, tgt=embedded_target, tgt_key_padding_mask=target_attention_mask, tgt_mask=tgt_mask)
         out = self.output_model(hidden_states, decoder_query=embedded_target)
         return out
