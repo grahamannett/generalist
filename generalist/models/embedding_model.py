@@ -1,9 +1,11 @@
 from dataclasses import dataclass
-from typing import List, Sequence
+from typing import List, Sequence, Dict
 
 import torch
 import torch.nn as nn
-from generalist.generalist_embedding.image_embedding import ImageEmbeddingPath, TorchvisionPretrained, ImagePath, ImagePathConv
+from generalist.generalist_embedding import image_embedding
+
+# from generalist.generalist_embedding.image_embedding import ImageEmbeddingPath, TorchvisionPretrained, ImagePath, ImagePathConv
 from generalist.generalist_embedding.text_embedding import TextEmbeddingPath
 from generalist.data_types.input_types import GeneralizedTensor
 from generalist.data_types.helper_types import DataHandlerPath
@@ -12,9 +14,10 @@ from generalist.data_types.helper_types import DataHandlerPath
 def default_embedding_paths(model_dim: int = 768) -> List[DataHandlerPath]:
     return [
         DataHandlerPath(
-            module=ImagePathConv(model_dim=model_dim),
+            module=image_embedding.ImagePathConv(model_dim=model_dim),
+            # module=image_embedding.ImageBackbone(model_dim=model_dim),
             name="image_path",
-            data_type=ImagePathConv.data_type,
+            data_type=image_embedding.data_type,
         ),
         # DataHandlerPath(
         #     module=ImagePath(model_dim=model_dim),
@@ -47,16 +50,17 @@ class EmbeddingModel(nn.Module):
 
         self.model_dim = model_dim
 
-    def forward(self, data: GeneralizedTensor | List[GeneralizedTensor]) -> GeneralizedTensor:
+    def embed_data(self, data: torch.Tensor, data_type: str) -> torch.Tensor:
+        return self.data_type[data_type](data)
 
+    def forward(self, data: Dict[str, GeneralizedTensor]) -> Dict[str, GeneralizedTensor]:
+        return {k: self.data_type[k](v) for k, v in data.items()}
+
+    def forward(self, data: GeneralizedTensor | List[GeneralizedTensor]) -> GeneralizedTensor:
         if isinstance(data, GeneralizedTensor):
             return self.data_type[data.data_type](data)
         elif isinstance(data, Sequence):
             return self.forward_sequence(data)
-        # if data.data_type not in self.data_type:
-        #     raise ValueError(f"data_type {data.data_type} not in {self.data_type.keys()}")
-
-        # return self.data_type[data.data_type](data)
 
     def forward_sequence(self, data: Sequence[GeneralizedTensor]) -> GeneralizedTensor:
         # this handles a list of tokenized data.
@@ -66,6 +70,7 @@ class EmbeddingModel(nn.Module):
         for sample in data:
             if isinstance(sample, list):
                 # this means that this sample has multiple data types
+
                 emb = torch.cat([self.data_type[d.data_type](d) for d in sample], dim=1)
             else:
                 # each item in list is a data type

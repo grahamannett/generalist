@@ -81,6 +81,11 @@ class collate_func:
         if self.return_tensors:
             self.batch_kwargs["return_tensors"] = self.return_tensors
 
+    # def __call__(self, samples: List[Sample]):
+    #     out = {}
+    #     data_idxs = {}
+    #     for i, sample in enumerate(samples):
+
     def __call__(self, samples: List[Sample]) -> Batch:
 
         batch = Batch(samples, **self.batch_kwargs)
@@ -88,8 +93,8 @@ class collate_func:
             sample.data = self.fix_prop(sample.data)
             sample.target = self.fix_prop(sample.target)
 
-            if hasattr(sample, "target_attention_mask"):
-                sample.target_attention_mask = self.fix_prop(sample.target_attention_mask)
+            if hasattr(sample, "tgt_attention_mask"):
+                sample.tgt_attention_mask = self.fix_prop(sample.tgt_attention_mask)
 
         return batch
 
@@ -99,6 +104,12 @@ class collate_func:
         else:
             new_val = prop.to(self.device) if isinstance(prop, torch.Tensor) else prop
         return new_val
+
+    def _fix_prop_list(self, prop):
+        return [d.to(self.device) if isinstance(d, torch.Tensor) else d for d in prop]
+
+    def _fix_prop_single(self, prop):
+        return prop.to(self.device) if isinstance(prop, torch.Tensor) else prop
 
     def _return_tensor(self, flag: bool, obj: Batch, prop: str):
         match flag:

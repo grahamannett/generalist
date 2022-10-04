@@ -32,7 +32,7 @@ class Transformer(nn.Module):
     def forward(
         self,
         embedded: torch.Tensor,
-        embedded_target: torch.Tensor,
+        embedded_tgt: torch.Tensor,
         src_mask: Optional[torch.Tensor] = None,
         tgt_mask: Optional[torch.Tensor] = None,
         memory_mask: Optional[torch.Tensor] = None,
@@ -42,7 +42,7 @@ class Transformer(nn.Module):
     ) -> torch.Tensor:
 
         src = embedded
-        tgt = embedded_target if embedded_target is not None else embedded
+        tgt = embedded_tgt if embedded_tgt is not None else embedded
 
         is_batched = src.dim() == 3
         if not self.batch_first and src.size(1) != tgt.size(1) and is_batched:

@@ -5,8 +5,17 @@ defaults:
 device: cpu
 display: False
 
+context_length: 128
+
 model:
   model_dim: 768
+  latent_seq_len: 32
+  encoder_nhead: 4
+  decoder_nhead: 4
+  encoder_num_layers: 4
+  decoder_num_layers: 4
+  enable_nested_tensor: True
+
 training:
   batch_size: 8
   learning_rate: 5e-5

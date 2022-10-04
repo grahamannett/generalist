@@ -19,7 +19,10 @@ class TextEmbeddingPath(nn.Module):
 
     def forward(self, data: Any) -> torch.Tensor:
         embedding = self.embedder(data)
-        return embedding.set_data_type(self.data_type)
+        if isinstance(embedding, TextType):
+            embedding = embedding.set_data_type(self.data_type)
+
+        return embedding
 
 
 class TextEmbedding(GPT2PreTrainedModel):

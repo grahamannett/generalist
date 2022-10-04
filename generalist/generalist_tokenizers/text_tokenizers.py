@@ -140,6 +140,9 @@ class TextTokenizerBert(BertTokenizer):
 
         return tokenized_text
 
+    def _encode(self, *args, **kwargs):
+        return super().__call__(*args, **kwargs)
+
 
 if __name__ == "__main__":
     # test = TextTokenizerPretrained(XLNetTokenizer, pretrained_name_or_model="xlnet-base-cased")

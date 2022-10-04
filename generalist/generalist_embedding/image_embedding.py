@@ -7,10 +7,13 @@ import torchvision
 from torchvision.models._utils import IntermediateLayerGetter
 
 from generalist.data_types.input_types import ImageType, GeneralizedTensor
+from generalist.generalist_embedding.resnet_embedding import build_backbone
 from generalist.generalist_tokenizers.image_tokenizers import normalize_image
 from generalist.generalist_embedding.image_positional_embeddings import LearnedPositionalEmbeddings, PositionEmbeddingSine
 
 from einops import repeat
+
+data_type = ImageType.data_type
 
 
 def calculate_dims(img_size: torch.Size | torch.Tensor, patch_size: int) -> Tuple[int, int]:
@@ -90,6 +93,21 @@ class ImageEmbeddingPath(nn.Module):
         embeddings.set_data_type(self.data_type)
 
         return embeddings
+
+
+class ImageBackbone(nn.Module):
+    data_type = ImageType.data_type
+
+    def __init__(self, model_dim: int = 768, patch_size: int = 16, in_channels: int = 3) -> None:
+        super().__init__()
+        self.backbone = build_backbone(hidden_dim=model_dim)
+
+    def forward(self, image: torch.Tensor, mask: torch.Tensor = None):
+        if mask is None:
+            mask = torch.ones_like(image)
+
+        out, pos = self.backbone(image, mask)
+        return out
 
 
 class ImagePathConv(nn.Module):

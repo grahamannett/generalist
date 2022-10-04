@@ -30,6 +30,21 @@ def manage_live(group):
     pass
 
 
+# def get_dataset():
+#     dataset = AokvqaDataset()
+#     dataset = SummarizationDataset()
+#     dataset = LanguageModelingDataset()
+#     dataset = MNISTDataset(train=True, out_channels=3)
+#     datasets = None
+
+#     if datasets == None:
+#         raise NotImplementedError("TODO")
+
+#     return dataset
+
+# datasets = ChainedGenearlistDataset(datasets=[dataset])
+
+
 def pad_targets(targets, logits):
     # pad targets to match logits
     encoded_targets = [torch.nn.functional.pad(t, (0, logits.shape[1] - t.shape[-1], 0, 0), mode="constant", value=0) for t in targets]
@@ -43,6 +58,7 @@ def train(cfg: DictConfig):
     model_save_dir = Path(cfg.model_save_dir)
     display_flag = cfg.display
     device = cfg.device
+    context_length = cfg.context_length
 
     learning_rate = cfg.training.learning_rate
     batch_size = cfg.training.batch_size
@@ -58,19 +74,9 @@ def train(cfg: DictConfig):
     embedding_model = EmbeddingModel(model_dim=model_dim)
     # output_model = GeneralClassificationOutput(model_dim=model_dim, num_classes=10, reduce_type="cls")
     output_model = GeneralOutput(model_dim=model_dim, output_dim=text_tokenizer.vocab_size)
-    model = GeneralistModel(output_model=output_model, model_dim=model_dim).to(device)
-
-    from x_transformers import ViTransformerWrapper, TransformerWrapper, Encoder, Decoder
-    from generalist.predict import generate
-
-    encoder = ViTransformerWrapper(image_size=320, patch_size=16, attn_layers=Encoder(dim=768, depth=6, heads=8))
-    decoder = TransformerWrapper(
-        num_tokens=text_tokenizer.vocab_size, max_seq_len=32, attn_layers=Decoder(dim=768, depth=6, heads=8, cross_attend=True)
-    )
+    model = GeneralistModel(output_model=output_model, **cfg.model).to(device)
 
     start_tokens = torch.Tensor([text_tokenizer.cls_token_id]).to(device).to(int)
-    decoder.to(device)
-    encoder.to(device)
 
     embedding_model.to(device)
     model.to(device)
@@ -81,8 +87,6 @@ def train(cfg: DictConfig):
         [
             {"params": embedding_model.parameters()},
             {"params": model.parameters()},
-            {"params": encoder.parameters()},
-            {"params": decoder.parameters()},
         ],
         lr=learning_rate,
     )
@@ -103,37 +107,34 @@ def train(cfg: DictConfig):
 
     dataset = coco_dataset
     out = dataset[0]
+    _tmp_text_tokenizer_kwargs = {**dataset.text_tokenizer_kwargs, "max_length": -1}
+    out_data = out.data
+    out_target_true = out.target.data
+    out_target = dataset.tokenizers.text(out.target.data, **_tmp_text_tokenizer_kwargs)
+    _max_length = out_target["input_ids"].shape[-1]
 
     # out.data = out.data.to(device)
     # out.target = out.target.to(device)
-    caption_preder = ImageCaptionPrediction(image_tokenizer=image_tokenizer, text_tokenizer=text_tokenizer)
+    caption_preder = ImageCaptionPrediction(
+        image_tokenizer=image_tokenizer, text_tokenizer=text_tokenizer, embedding_model=embedding_model, model=model, device=device
+    )
 
-    tokenized_image = out.data.to(device)
-    tokenized_caption = out.target.to(device)
-    # exit()
+    tokenized_image = out_data.to(device)
+    tokenized_caption = out_target.to(device)
 
-    # inital_caption = caption_preder.make_caption(
-    #     embedding_model=embedding_model,
-    #     model=model,
-    #     tokenized_image=tokenized_image,
-    #     tokenized_caption=tokenized_caption,
-    # )
-    initial_caption = []
+
+    initial_caption = caption_preder.make_caption(
+        tokenized_image=tokenized_image,
+        max_length=_max_length,
+    )
 
     generated_captions = []
     generated_captions.append(initial_caption)
+    # breakpoint()
 
     # captions_out = caption_preder.make_caption(embedding_model, model, out.data, out.target)
     # captions_info[-1] = captions_out["normal"]
     # captions_info[0] = captions_out["generated"]
-
-    # dataset = AokvqaDataset()
-    # dataset = SummarizationDataset()
-    # dataset = LanguageModelingDataset()
-
-    # dataset = MNISTDataset(train=True, out_channels=3)
-
-    # datasets = ChainedGenearlistDataset(datasets=[dataset])
 
     # out = dataset[0]
     # breakpoint()
@@ -163,39 +164,42 @@ def train(cfg: DictConfig):
             data, target = batch.data, batch.target
 
             embedding = embedding_model(data)
-            encoded_target = torch.cat(target)
+            # encoded_target = torch.cat(target)
 
-            target_attention_mask = torch.zeros(encoded_target.shape, device=device)
-            target_attention_mask[encoded_target != 0] = 1
+            # tgt_attention_mask = torch.zeros(encoded_target.shape, device=device).to(bool)
+            # tgt_attention_mask[encoded_target != 0] = 1
+            # tgt_attention_mask = ~tgt_attention_mask
 
-            if batch_idx % 2 == 0:
-                embedded_target = None
-            else:
-                embedded_target = embedding_model(target)
-
-            # FROM X_TRANSFORMERS
-            # imgs = torch.stack(data)
-            # encoded_target = torch.Tensor(encoded_target)
-            # encoded = encoder(imgs, return_embeddings=True)
-            # logits = decoder(encoded_target, context=encoded)
-            # loss = loss_fn(
-            #     logits.transpose(1, 2),
-            #     encoded_target,
-            # )
-
-            # breakpoint()
-            # optimizer.zero_grad()
-            # loss.backward()
-            # optimizer.step()
-            # running_loss += loss.item()
-
-            # pred_
+            # embedded_tgt = embedding_model(encoded_target)
+            # if batch_idx % 2 == 0:
+            #     embedded_tgt = None
+            # else:
+            #     embedded_tgt = embedding_model(target)
 
             #
-            logits = model(embedding, embedded_target=embedded_target, target_attention_mask=target_attention_mask)
 
-            # loss = loss_fn(logits.view(-1, logits.shape[-1]), encoded_target[:, 1:].view(-1))
-            loss = loss_fn(logits.permute(0, 2, 1), encoded_target)
+            # task_target = [TextTypeRaw("Describe the image") for _ in range(batch_size)]
+
+            task_target_arr = [
+                text_tokenizer._encode(
+                    f"Describe the image. {t.data}",
+                    return_tensors="pt",
+                    truncation=True,
+                    padding="max_length",
+                    max_length=32,
+                    return_attention_mask=True,
+                )
+                for t in target
+            ]
+            task_input_ids = torch.cat([task_target["input_ids"] for task_target in task_target_arr], dim=0).to(device)
+            task_input_attention_mask = torch.cat([task_target["attention_mask"] for task_target in task_target_arr], dim=0).to(device)
+            task_input_token_types = torch.cat([task_target["token_type_ids"] for task_target in task_target_arr], dim=0).to(device)
+
+            embedded_tgt = embedding_model.embed_data(task_input_ids, data_type="text")
+
+            logits = model(embedding, embedded_tgt=embedded_tgt, task_input_attention_mask=task_input_attention_mask)
+
+            loss = loss_fn(logits[:, :-1].permute(0, 2, 1), task_input_ids[:, 1:])
 
             running_loss += loss.item()
 
@@ -207,7 +211,8 @@ def train(cfg: DictConfig):
 
             try:
                 test_decoded = text_tokenizer.batch_decode(logits.argmax(dim=-1))
-                test_actual = text_tokenizer.batch_decode(encoded_target)
+                # test_actual = text_tokenizer.batch_decode(encoded_target)
+                test_actual = [t.data for t in target]
 
             except IndexError:
                 breakpoint()
@@ -219,12 +224,25 @@ def train(cfg: DictConfig):
             running_total += batch_total
 
             # breakpoint()
-            if batch_idx % 25 == 0:
+            if batch_idx % 50 == 0:
                 decoded__ = text_tokenizer.batch_decode(logits.argmax(dim=-1)[0:5, 0:10])
-                actual__ = text_tokenizer.batch_decode(encoded_target[0:5, 0:10])
+                # actual__ = text_tokenizer.batch_decode(encoded_target[0:5, 0:10])
+                # actual__ = [t.data for t in target]
+                actual__ = [t.data for t in target]
                 print(list(zip(decoded__, actual__)))
 
                 # breakpoint()
+
+            if batch_idx % 250 == 0:
+                latest_caption = caption_preder.make_caption(
+                    tokenized_image=tokenized_image,
+                    max_length=context_length,
+                )
+
+                print(f"latest caption:{text_tokenizer.decode(latest_caption)}")
+                print(f"true caption: {out_target_true}")
+
+                generated_captions.append(latest_caption)
 
             acc = f"{(running_correct / running_total):0.3f}"
 
@@ -245,24 +263,6 @@ def train(cfg: DictConfig):
                 running_loss=f"{running_loss:.3f}",
                 test=display_vals,
             )
-            # break
-            # if batch_idx >= 3:
-            #     break
-
-        # generated_caption_tok = generate(
-        #     encoder,
-        #     decoder,
-        #     text_tokenizer,
-        #     imgs[0].unsqueeze(0),
-        #     start_tokens=start_tokens,
-        #     seq_len=16,
-        #     eos_token=text_tokenizer.sep_token_id,
-        # )
-
-        # generated_caption = text_tokenizer.batch_decode(generated_caption_tok)[0]
-        # print(start_tokens)
-        # print(f"{generated_caption}")
-        # print("==> ==> DONE <== <==")
 
         # save_checkpoint(model_save_dir, model, embedding_model, optimizer, epoch)
         save_checkpoint(
@@ -280,10 +280,12 @@ def train(cfg: DictConfig):
             filename="latest.pt",
         )
 
-        latest_caption = caption_preder.make_caption(embedding_model, model, tokenized_image, tokenized_caption, use_caption=False)
+        latest_caption = caption_preder.make_caption(tokenized_image=tokenized_image, max_length=context_length)
         generated_captions.append(latest_caption)
 
     captions_generated = text_tokenizer.batch_decode(generated_captions)
+    print("--- --- --- captions_generated --- --- ---")
+    print(captions_generated)
 
     display.manage("epoch", display.END)
     print("done with training")

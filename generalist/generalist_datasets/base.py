@@ -6,9 +6,24 @@ from generalist.data_types.input_types import InputType
 from generalist.data_types.helper_types import Sample, SampleMetaData
 
 
+class TokenizersHandler:
+    _tokenizers: dict[str, Any] = {}
+
+    def __setitem__(self, key, val):
+        self._tokenizers[key] = val
+        setattr(self, key, val)
+
+    def __getitem__(self, key):
+        return self._tokenizers[key]
+
+    def __repr__(self):
+        _tokenizers_str = "\n".join([f"\t{key}:\n\t\t{val}" for key, val in self._tokenizers.items()])
+        return f"{self.__class__.__name__}\n{_tokenizers_str}"
+
+
 class GeneralistDataset(Dataset):
     shortname = None
-    tokenizers = {}
+    tokenizers = TokenizersHandler()
 
     def __init__(self, device: str, return_raw: bool = False, **kwargs) -> None:
         self._sample_metadata = kwargs.get("sample_metadata", True)
@@ -25,7 +40,11 @@ class GeneralistDataset(Dataset):
             tokenizers = [GeneralTokenizer]
         if args:
             tokenizers.extend(args)
-        cls.tokenizers = {tok.data_type: tok for tok in tokenizers}
+
+        for tokenizer in tokenizers:
+            cls.tokenizers[tokenizer.data_type] = tokenizer
+
+        # cls.tokenizers = {tok.data_type: tok for tok in tokenizers}
 
     def __getitem__(self, idx: int, **kwargs) -> Sample:
         metadata: SampleMetaData = kwargs.get("metadata", None)
@@ -68,6 +87,7 @@ class GeneralistDataset(Dataset):
                 raise ValueError(f"{value} is not a list or InputType")
 
     def _from_tokenizer(self, prop: InputType):
+        breakpoint()
         return self.tokenizers[prop.data_type](prop).to(self.device).set_data_type(prop.data_type)
 
 

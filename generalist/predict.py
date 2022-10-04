@@ -10,43 +10,72 @@ from torch.nn import functional as F
 
 
 class ImageCaptionPrediction:
-    def __init__(self, image_tokenizer: ImageTokenizer, text_tokenizer: TextTokenizer) -> None:
+    def __init__(
+        self,
+        image_tokenizer: ImageTokenizer,
+        text_tokenizer: TextTokenizer,
+        embedding_model: EmbeddingModel,
+        model: GeneralistModel,
+        device: str = None,
+    ) -> None:
         self.image_tokenizer = image_tokenizer
         self.text_tokenizer = text_tokenizer
+        self.embedding_model = embedding_model
+        self.model = model
+        self.device: str = device
 
     def make_caption(
         self,
-        embedding_model: EmbeddingModel,
-        model: GeneralistModel,
+        # embedding_model: EmbeddingModel,
+        # model: GeneralistModel,
         tokenized_image: ImageType,
-        tokenized_caption: TextType,
+        max_length: int = 32,
+        # tokenized_caption: TextType,
         use_caption: bool = True,
         **kwargs,
     ):
 
-        # breakpoint()
-        if tokenized_caption.ndim == 1:
-            tokenized_caption = tokenized_caption.unsqueeze(0)
+        # target_list = [self.text_tokenizer.cls_token_id]
+        embedded_image = self.embedding_model([tokenized_image])
 
-        target_list = [self.text_tokenizer.cls_token_id]
+        target_list_top_k_p = [self.text_tokenizer.cls_token_id]
+        target_list_top_p = [self.text_tokenizer.cls_token_id]
+        target_list_top_k = [self.text_tokenizer.cls_token_id]
+        target_list_top_a = [self.text_tokenizer.cls_token_id]
 
-        embedded_image = embedding_model([tokenized_image])
+        target_list = target_list_top_k_p
 
-        for i in range(tokenized_caption.shape[-1]):
+        for i in range(max_length):
 
             tokenized_target = TextType(target_list).to(int).to(tokenized_image.device)
-            embedded_target = embedding_model([tokenized_target]) if use_caption else None
-            logits = model(embedded_image, embedded_target)
+            # embedded_tgt = embedding_model([tokenized_target]) if use_caption else None
+            embedded_tgt = self.embedding_model(tokenized_target)
+            logits = self.model(embedded_image, embedded_tgt)
 
-            token_pred = top_k_top_p_filtering(logits[:, -1, :], device=logits.device).argmax().item()
-            target_list.append(token_pred)
+            # token_pred = top_k_top_p_filtering(logits[:, -1, :], device=logits.device).argmax().item()
+
+            token_pred_top_k_p = top_k_top_p_filtering(logits[:, -1, :], device=logits.device).argmax().item()
+            token_pred_top_a = top_a(logits[:, -1]).argmax().item()
+            token_pred_top_k = top_k(logits[:, -1]).argmax().item()
+            token_pred_top_p = top_p(logits[:, -1]).argmax().item()
+
+            token_pred = token_pred_top_k_p
+
+            # token_pred = top_a(logits)
+            # target_list.append(token_pred)
+
+            target_list_top_k_p.append(token_pred_top_k_p)
+            target_list_top_p.append(token_pred_top_p)
+            target_list_top_k.append(token_pred_top_k)
+            target_list_top_a.append(token_pred_top_a)
+
+            # breakpoint()
 
             if token_pred == self.text_tokenizer.sep_token_id:
                 break
 
-        generated_caption = self.text_tokenizer.decode(target_list)
-        normal_caption = self.text_tokenizer.batch_decode(tokenized_caption)[0]
-
+        # generated_caption = self.text_tokenizer.decode(target_list)
+        # normal_caption = self.text_tokenizer.batch_decode(tokenized_caption)[0]
         return target_list
 
     def generate(self, logits: torch.Tensor, max_length: int):
