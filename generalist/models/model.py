@@ -42,18 +42,16 @@ class GeneralistModel(nn.Module):
         decoder_num_layers: int = 4,
         enable_nested_tensor: bool = True,
         token_idx: int = 0,
+        model_max_length: int = 512,
         **kwargs,
     ) -> None:
         super().__init__()
         self.token_idx = token_idx
+        self.model_max_length = model_max_length
         self.model_dim = model_dim
 
         self.output_model = output_model
         self.use_encoder = use_encoder
-
-        # self.transformer = nn.Transformer(d_model=self.model_dim, nhead=4, num_encoder_layers=4, num_decoder_layers=4, batch_first=True)
-        # self.transformer_encoder = self.transformer.encoder
-        # self.transformer_decoder = self.transformer.decoder
 
         encoder_layer = nn.TransformerEncoderLayer(d_model=self.model_dim, nhead=encoder_nhead, batch_first=True)
         decoder_layer = nn.TransformerDecoderLayer(d_model=self.model_dim, nhead=decoder_nhead, batch_first=True)
@@ -67,15 +65,9 @@ class GeneralistModel(nn.Module):
 
         self.transformer_decoder = nn.TransformerDecoder(decoder_layer=decoder_layer, num_layers=decoder_num_layers)
 
-        # self.transformer.model_max_length = 512
-        # self.model_max_length = self.transformer.model_max_length
-        self.model_max_length = 512
-
         # FIXME: from my experiments this doesnt seem to work. but it works in perceiver paper
         self.latent_seq_len = latent_seq_len
         # self.latents = LatentEmbedding(self.latent_seq_len, self.model_dim)
-
-        # self.identiy = nn.Identity()
 
     def get_memory(self):
         if self.use_encoder:

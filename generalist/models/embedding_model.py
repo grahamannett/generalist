@@ -15,15 +15,9 @@ def default_embedding_paths(model_dim: int = 768) -> List[DataHandlerPath]:
     return [
         DataHandlerPath(
             module=image_embedding.ImagePathConv(model_dim=model_dim),
-            # module=image_embedding.ImageBackbone(model_dim=model_dim),
             name="image_path",
             data_type=image_embedding.data_type,
         ),
-        # DataHandlerPath(
-        #     module=ImagePath(model_dim=model_dim),
-        #     name="image_path",
-        #     data_type=ImagePath.data_type,
-        # ),
         DataHandlerPath(
             module=TextEmbeddingPath(model_dim=model_dim),
             name="text_path",

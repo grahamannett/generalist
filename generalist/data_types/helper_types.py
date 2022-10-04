@@ -1,11 +1,11 @@
 from dataclasses import dataclass
-from typing import Any, List
+from typing import Any, Dict, List
 
 import torch
 import torch.nn as nn
 
 # commented until i fix circular import
-# from generalist.data_types.input_types import InputType
+from generalist.data_types.input_types import InputType
 from generalist.generalist_tokenizers.general_tokenizer import GeneralTokenizer
 
 
@@ -22,19 +22,21 @@ class SampleMetaData:
         return f"{self.__class__.__name__}({self.__dict__})"
 
 
-
-
 class Sample:
-    def __init__(self, data: List["InputType"] = None, target: Any = None, metadata: SampleMetaData = None):
+    def __init__(self, data: List[InputType] = None, target: Any = None, masks: Dict[str, Any] = {}, metadata: SampleMetaData = None):
         self.data = data
         self.target = target
         self.metadata = metadata
+        self.masks = masks
 
     def __iter__(self):
         yield self.data, self.target
 
     def __repr__(self) -> str:
         string = f"Sample(data={self.data}, target={self.target}"
+        if self.masks:
+            string += f", masks={self.masks}"
+
         if self.metadata is not None:
             string += f", metadata={self.metadata}"
         string += ")"
