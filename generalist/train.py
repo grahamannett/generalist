@@ -56,7 +56,7 @@ def train(cfg: DictConfig):
 
     # print("Working directory : {}".format(os.getcwd()))
     model_save_dir = Path(cfg.model_save_dir)
-    display_flag = cfg.display
+    display_flag = cfg.display.display_flag
     device = cfg.device
     context_length = cfg.context_length
 
@@ -106,12 +106,15 @@ def train(cfg: DictConfig):
     coco_dataset = CocoDataset(coco_dir=cfg.coco_dir, device=device)
 
     dataset = coco_dataset
-    out = dataset[0]
+
+    # eval example
+    out = dataset[1]
     _tmp_text_tokenizer_kwargs = {**dataset.text_tokenizer_kwargs, "max_length": -1}
     out_data = out.data
     out_target_true = out.target.data
-    out_target = dataset.tokenizers.text(out.target.data, **_tmp_text_tokenizer_kwargs)
-    _max_length = out_target["input_ids"].shape[-1]
+    out_target_tokens = dataset.tokenizers.text(out.target.data, **_tmp_text_tokenizer_kwargs)
+
+    _max_length = out_target_tokens.shape[-1]
 
     # out.data = out.data.to(device)
     # out.target = out.target.to(device)
@@ -120,27 +123,16 @@ def train(cfg: DictConfig):
     )
 
     tokenized_image = out_data.to(device)
-    tokenized_caption = out_target.to(device)
-
-
-    initial_caption = caption_preder.make_caption(
-        tokenized_image=tokenized_image,
-        max_length=_max_length,
-    )
-
+    tokenized_caption = out_target_tokens.to(device)
     generated_captions = []
-    generated_captions.append(initial_caption)
-    # breakpoint()
 
-    # captions_out = caption_preder.make_caption(embedding_model, model, out.data, out.target)
-    # captions_info[-1] = captions_out["normal"]
-    # captions_info[0] = captions_out["generated"]
+    if cfg.display.initial_caption:
+        initial_caption = caption_preder.make_caption(
+            tokenized_image=tokenized_image,
+            max_length=_max_length,
+        )
+        generated_captions.append(initial_caption)
 
-    # out = dataset[0]
-    # breakpoint()
-
-    # val_dataset = MNISTDataset(train=False, out_channels=3, return_raw=True)
-    # collate_fn = collate_func(device=device, return_tensors="pt")
     collate_fn = collate_func(device=device)
 
     train_dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
@@ -182,7 +174,7 @@ def train(cfg: DictConfig):
 
             task_target_arr = [
                 text_tokenizer._encode(
-                    f"Describe the image. {t.data}",
+                    f"Caption: {t.data}",
                     return_tensors="pt",
                     truncation=True,
                     padding="max_length",
@@ -195,9 +187,14 @@ def train(cfg: DictConfig):
             task_input_attention_mask = torch.cat([task_target["attention_mask"] for task_target in task_target_arr], dim=0).to(device)
             task_input_token_types = torch.cat([task_target["token_type_ids"] for task_target in task_target_arr], dim=0).to(device)
 
+            task_input_attention_mask = ~task_input_attention_mask.to(bool)
+
             embedded_tgt = embedding_model.embed_data(task_input_ids, data_type="text")
 
-            logits = model(embedding, embedded_tgt=embedded_tgt, task_input_attention_mask=task_input_attention_mask)
+            tgt_mask = model.get_tgt_mask(embedded_tgt=embedded_tgt)
+
+            logits = model(embedding, embedded_tgt=embedded_tgt, tgt_key_padding_mask=task_input_attention_mask, tgt_mask=tgt_mask)
+            # logits = model(embedding, embedded_tgt=embedded_tgt)
 
             loss = loss_fn(logits[:, :-1].permute(0, 2, 1), task_input_ids[:, 1:])
 

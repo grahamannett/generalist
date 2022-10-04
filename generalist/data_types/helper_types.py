@@ -9,10 +9,19 @@ import torch.nn as nn
 from generalist.generalist_tokenizers.general_tokenizer import GeneralTokenizer
 
 
-@dataclass
+# @dataclass
 class SampleMetaData:
     idx: Any = None
     dataset_name: Any = None
+
+    def __init__(self, **kwargs):
+        for key, val in kwargs.items():
+            setattr(self, key, val)
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({self.__dict__})"
+
+
 
 
 class Sample:

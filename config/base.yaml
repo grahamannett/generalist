@@ -3,7 +3,7 @@ defaults:
   - override hydra/hydra_logging: colorlog
 
 device: cpu
-display: False
+# display: False
 
 context_length: 128
 
@@ -15,6 +15,7 @@ model:
   encoder_num_layers: 4
   decoder_num_layers: 4
   enable_nested_tensor: True
+  use_encoder: True
 
 training:
   batch_size: 8
@@ -23,8 +24,7 @@ training:
 
 tracking:
   project: "2022_neurips_workshop"
-# handlers:
-#   console:
-#     class: rich.logging.RichHandler
-# formatter: simple
-# stream: ext://sys.stdout
+
+display:
+  display_flag: False # rich display
+  initial_caption: True

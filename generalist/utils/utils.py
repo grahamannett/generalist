@@ -93,8 +93,8 @@ class collate_func:
             sample.data = self.fix_prop(sample.data)
             sample.target = self.fix_prop(sample.target)
 
-            if hasattr(sample, "tgt_attention_mask"):
-                sample.tgt_attention_mask = self.fix_prop(sample.tgt_attention_mask)
+            # if hasattr(sample, "tgt_attention_mask"):
+            #     sample.tgt_attention_mask = self.fix_prop(sample.tgt_attention_mask)
 
         return batch
 

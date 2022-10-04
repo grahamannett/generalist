@@ -1,6 +1,7 @@
 import json
 import random
 from pathlib import Path
+from typing import Any, Dict
 
 import numpy as np
 import torch
@@ -51,6 +52,8 @@ _transforms = {
 
 
 class CocoDataset(ImageDatasetMixin, GeneralistDataset):
+    shortname = "coco"
+
     def __init__(self, coco_dir: str = None, split: str = "train", **kwargs) -> None:
         assert split in ["train", "test", "val"]
 
@@ -109,11 +112,11 @@ class CocoDataset(ImageDatasetMixin, GeneralistDataset):
     def __len__(self):
         return len(self._dataset)
 
-    # def __getcaption__(self, idx: int, **kwargs) -> TextTypeRaw:
-
     def __getitem__(self, idx: int, **kwargs) -> Sample:
         sample = super().__getitem__(idx, **kwargs)
         item = self._dataset[idx]
+        self.make_metadata(sample, item)
+
         image = self.read_image(item["image_path"])
 
         image = self.image_transform(ImageType(image))
@@ -129,13 +132,18 @@ class CocoDataset(ImageDatasetMixin, GeneralistDataset):
         sample.target = caption
 
         if not kwargs.get("raw_data", False):
-            image_ = self.tokenizers["image"](sample.data)
-            # image__ = sample.data.tokenize(tokenizer=self.tokenizers["image"])
-            sample.data = image_
-            # sample.data = sample.data.tokenize(tokenizer=self.tokenizers["image"])
+            sample.data = self.tokenizers.image(sample.data)
+
+        # if not kwargs.get("raw_target", False):
+        #     target = self.tokenizers.text.encode
+
+        # sample.data = sample.data.tokenize(tokenizer=self.tokenizers["image"])
         # if not kwargs.get("raw_target", False):
 
         # sample.target = sample.target.tokenize(tokenizer=self.tokenizers["text"], **self.text_tokenizer_kwargs)
         # sample.tgt_attention_mask = sample.target.attention_mask
 
         return sample
+
+    def make_metadata(self, sample: Sample, item: Dict[Any, Any]) -> dict:
+        sample.metadata.item_path = item["image_path"]

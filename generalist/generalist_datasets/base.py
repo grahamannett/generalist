@@ -26,7 +26,7 @@ class GeneralistDataset(Dataset):
     tokenizers = TokenizersHandler()
 
     def __init__(self, device: str, return_raw: bool = False, **kwargs) -> None:
-        self._sample_metadata = kwargs.get("sample_metadata", True)
+        self._include_metadata = kwargs.get("include_metadata", True)
 
         self.return_raw = return_raw
         self.process_sample_data = kwargs.get("process_sample_data", True)
@@ -48,47 +48,13 @@ class GeneralistDataset(Dataset):
 
     def __getitem__(self, idx: int, **kwargs) -> Sample:
         metadata: SampleMetaData = kwargs.get("metadata", None)
-        if self._sample_metadata:
+        if self._include_metadata:
             metadata = SampleMetaData(idx=idx, dataset_name=self.shortname)
 
         return Sample(metadata=metadata)
 
-    def _return_tuple(self):
-        pass
-
-    def path(self, data_type: str) -> Any:
-        match data_type:
-            case self.paths.image_path.data_type:
-                return data_type
-            case self.paths.text_path.data_type:
-                return data_type
-
-    def process_sample(self, sample: Sample, return_raw: bool = None) -> Sample:
-        if self.return_raw or return_raw:
-            return sample
-
-        if self.process_sample_data:
-            self.process_sample_property(sample, "data")
-        if self.process_sample_target:
-            self.process_sample_property(sample, "target")
-
-        return sample
-
-    def process_sample_property(self, sample: Sample, name: str) -> Sample:
-        value = getattr(sample, name)
-
-        match value:
-            case list():
-                new_data = [self._from_tokenizer(p) for p in value]
-                setattr(sample, value, new_data)
-            case InputType():
-                setattr(sample, name, self._from_tokenizer(value))
-            case _:
-                raise ValueError(f"{value} is not a list or InputType")
-
-    def _from_tokenizer(self, prop: InputType):
-        breakpoint()
-        return self.tokenizers[prop.data_type](prop).to(self.device).set_data_type(prop.data_type)
+    def make_metadata(self, *args, **kwargs):
+        raise NotImplementedError("Implement this on subclass")
 
 
 class ChainedGenearlistDataset(Dataset):
