@@ -40,8 +40,6 @@ class PrepareData:
         return self.path[data.data_type](data)
 
     def prepare_targets(self, targets, logits_max_length=None, padding="max_length", truncation=True):
-        # if logits:
-        #     logits_max_length = max((l.shape[1] for l in logits))
 
         data = [t.data for t in targets]
         encoded_targets = self.tokenizer(
@@ -54,9 +52,7 @@ class PrepareData:
         encoded_targets = encoded_targets["input_ids"]
         return encoded_targets
 
-    def handle_targets(
-        self, logits: torch.Tensor, labels: torch.Tensor, loss_fn: Callable, shift_labels: bool = False
-    ):
+    def handle_targets(self, logits: torch.Tensor, labels: torch.Tensor, loss_fn: Callable, shift_labels: bool = False):
         # Shift so that tokens < n predict n'th token
         if shift_labels:
             logits = logits[..., :-1, :].contiguous()
