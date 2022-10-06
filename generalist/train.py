@@ -1,7 +1,5 @@
-import datetime
 import logging
 from pathlib import Path
-from random import sample
 
 import hydra
 import torch
@@ -12,12 +10,13 @@ from torch.utils.data import DataLoader
 from generalist.data_types.input_types import ImageType, TextTypeRaw
 from generalist.generalist_datasets import AokvqaDataset, CocoDataset, GeneralistDataset, MNISTDataset
 from generalist.generalist_datasets.base import ChainedGenearlistDataset
+from generalist.generalist_datasets.coco.eval import CocoEval
 from generalist.generalist_tokenizers import image_tokenizers, text_tokenizers
 from generalist.models.model import EmbeddingModel, GeneralistModel
 from generalist.models.output_model import GeneralClassificationOutput, GeneralOutput
 from generalist.predict import ImageCaptionPrediction
 from generalist.utils.display import GeneralistDisplay
-from generalist.utils.utils import collate_func, get_hostname, save_checkpoint
+from generalist.utils.utils import collate_func_helper, get_hostname, save_checkpoint
 
 log = logging.getLogger(__name__)
 
@@ -104,17 +103,16 @@ def train(cfg: DictConfig):
     MNISTDataset.use_tokenizers(tokenizers)
 
     coco_dataset = CocoDataset(coco_dir=cfg.coco_dir, device=device)
+    coco_val_dataset = CocoDataset(coco_dir=cfg.coco_dir, device=device, split="val")
 
     dataset = coco_dataset
 
     # eval example
     out = dataset[1]
-    _tmp_text_tokenizer_kwargs = {**dataset.text_tokenizer_kwargs, "max_length": -1}
     out_data = out.data
-    out_target_true = out.target.data
-    out_target_tokens = dataset.tokenizers.text(out.target.data, **_tmp_text_tokenizer_kwargs)
-
-    _max_length = out_target_tokens.shape[-1]
+    out_target_tokens = out.target
+    _max_length = torch.where(out.target == 0)[1][0].item()
+    out_target_true = text_tokenizer.decode(out_target_tokens[0, :_max_length])
 
     # out.data = out.data.to(device)
     # out.target = out.target.to(device)
@@ -122,18 +120,23 @@ def train(cfg: DictConfig):
         image_tokenizer=image_tokenizer, text_tokenizer=text_tokenizer, embedding_model=embedding_model, model=model, device=device
     )
 
-    tokenized_image = out_data.to(device)
-    tokenized_caption = out_target_tokens.to(device)
+    # eval_coco = CocoEval(coco_val_dataset, caption_preder)
+    # eval_coco.make_captions_baseline()
+    # eval_coco.make_captions_prediction()
+    # breakpoint()
+
+    out_data = out_data.to(device)
+    # tokenized_caption = out_target_tokens.to(device)
     generated_captions = []
 
     if cfg.display.initial_caption:
         initial_caption = caption_preder.make_caption(
-            tokenized_image=tokenized_image,
+            image=out_data,
             max_length=_max_length,
         )
         generated_captions.append(initial_caption)
 
-    collate_fn = collate_func(device=device)
+    collate_fn = collate_func_helper(device=device)
 
     train_dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
     # val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
@@ -154,49 +157,21 @@ def train(cfg: DictConfig):
         for batch_idx, batch in enumerate(train_dataloader):
 
             data, target = batch.data, batch.target
+            task_input_attention_mask = torch.cat([t["target"] for t in batch.masks])
 
             embedding = embedding_model(data)
-            # encoded_target = torch.cat(target)
-
-            # tgt_attention_mask = torch.zeros(encoded_target.shape, device=device).to(bool)
-            # tgt_attention_mask[encoded_target != 0] = 1
-            # tgt_attention_mask = ~tgt_attention_mask
-
-            # embedded_tgt = embedding_model(encoded_target)
-            # if batch_idx % 2 == 0:
-            #     embedded_tgt = None
-            # else:
-            #     embedded_tgt = embedding_model(target)
-
-            #
-
-            # task_target = [TextTypeRaw("Describe the image") for _ in range(batch_size)]
-
-            task_target_arr = [
-                text_tokenizer._encode(
-                    f"Caption: {t.data}",
-                    return_tensors="pt",
-                    truncation=True,
-                    padding="max_length",
-                    max_length=32,
-                    return_attention_mask=True,
-                )
-                for t in target
-            ]
-            task_input_ids = torch.cat([task_target["input_ids"] for task_target in task_target_arr], dim=0).to(device)
-            task_input_attention_mask = torch.cat([task_target["attention_mask"] for task_target in task_target_arr], dim=0).to(device)
-            task_input_token_types = torch.cat([task_target["token_type_ids"] for task_target in task_target_arr], dim=0).to(device)
 
             task_input_attention_mask = ~task_input_attention_mask.to(bool)
 
-            embedded_tgt = embedding_model.embed_data(task_input_ids, data_type="text")
+            # embedded_tgt = embedding_model.embed_data(task_input_ids, data_type="text")
 
+            # emb = [embedding_model.embed_data(t_, data_type="text") for t_ in target]
+            embedded_tgt = embedding_model(target)
             tgt_mask = model.get_tgt_mask(embedded_tgt=embedded_tgt)
 
             logits = model(embedding, embedded_tgt=embedded_tgt, tgt_key_padding_mask=task_input_attention_mask, tgt_mask=tgt_mask)
-            # logits = model(embedding, embedded_tgt=embedded_tgt)
 
-            loss = loss_fn(logits[:, :-1].permute(0, 2, 1), task_input_ids[:, 1:])
+            loss = loss_fn(logits[:, :-1].permute(0, 2, 1), torch.cat(target)[:, 1:])
 
             running_loss += loss.item()
 
@@ -222,17 +197,15 @@ def train(cfg: DictConfig):
 
             # breakpoint()
             if batch_idx % 50 == 0:
-                decoded__ = text_tokenizer.batch_decode(logits.argmax(dim=-1)[0:5, 0:10])
-                # actual__ = text_tokenizer.batch_decode(encoded_target[0:5, 0:10])
-                # actual__ = [t.data for t in target]
-                actual__ = [t.data for t in target]
+                decoded__ = text_tokenizer.batch_decode(logits.argmax(dim=-1)[:5, :10])
+                actual__ = text_tokenizer.batch_decode(torch.cat(target)[:5, :10])
                 print(list(zip(decoded__, actual__)))
 
                 # breakpoint()
 
             if batch_idx % 250 == 0:
                 latest_caption = caption_preder.make_caption(
-                    tokenized_image=tokenized_image,
+                    image=out_data,
                     max_length=context_length,
                 )
 
@@ -248,10 +221,6 @@ def train(cfg: DictConfig):
                 "batch_acc": batch_correct / batch_total,
                 "batch_idx": batch_idx,
             }
-
-            # if batch_idx % 50 == 0:
-            #     display_vals["test_decoded"] = test_decoded[0][:75]
-            #     display_vals["test_actual"] = test_actual[0][:75]
 
             display.update(
                 "batch_progress",
@@ -277,7 +246,7 @@ def train(cfg: DictConfig):
             filename="latest.pt",
         )
 
-        latest_caption = caption_preder.make_caption(tokenized_image=tokenized_image, max_length=context_length)
+        latest_caption = caption_preder.make_caption(image=out_data, max_length=context_length)
         generated_captions.append(latest_caption)
 
     captions_generated = text_tokenizer.batch_decode(generated_captions)

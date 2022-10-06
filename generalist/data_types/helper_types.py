@@ -57,19 +57,31 @@ class Batch:
         self.samples = samples
         self.return_tensors = return_tensors
 
-    @property
-    def data(self):
-        out = [s.data for s in self.samples]
+    def attr_get(self, key: str):
+        out = [getattr(s, key) for s in self.samples]
         if self.return_tensors == "pt":
             out = torch.cat(out)
         return out
 
     @property
+    def data(self):
+        return self.attr_get("data")
+        # out = [s.data for s in self.samples]
+        # if self.return_tensors == "pt":
+        #     out = torch.cat(out)
+        # return out
+
+    @property
     def target(self):
-        out = [s.target for s in self.samples]
-        if self.return_tensors == "pt":
-            out = torch.cat(out)
-        return out
+        return self.attr_get("target")
+
+    @property
+    def masks(self):
+        return self.attr_get("masks")
+        # out = [s.target for s in self.samples]
+        # if self.return_tensors == "pt":
+        #     out = torch.cat(out)
+        # return out
 
     def __len__(self):
         return len(self.samples)

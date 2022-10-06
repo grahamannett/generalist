@@ -1,6 +1,9 @@
 defaults:
+  - /hydra/callbacks/callback
   - override hydra/job_logging: colorlog
   - override hydra/hydra_logging: colorlog
+
+
 
 device: cpu
 # display: False
@@ -28,3 +31,7 @@ tracking:
 display:
   display_flag: False # rich display
   initial_caption: True
+
+# evalcommand: _helphelp
+# eval:
+#   command: eval

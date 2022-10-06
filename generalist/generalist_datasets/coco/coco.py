@@ -6,10 +6,12 @@ from typing import Any, Dict
 import numpy as np
 import torch
 from generalist.data_types.helper_types import Sample
-from generalist.data_types.input_types import ImageType, TextTypeRaw
+from generalist.data_types.input_types import ImageType, TextTypeRaw, TextType
 from generalist.generalist_datasets.base import GeneralistDataset
 from generalist.generalist_datasets.image_datasets import ImageDatasetMixin
 from torchvision import transforms
+
+from generalist.generalist_datasets.tasks_utils import TaskInterface
 
 
 def fix_channels(image):
@@ -22,6 +24,8 @@ def fix_channels(image):
 # def normalize_image(image):
 #     image = image / 255.0
 #     return image
+
+_splits_available = ["train", "val", "test"]
 
 
 _train_transform = transforms.Compose(
@@ -51,11 +55,15 @@ _transforms = {
 }
 
 
+
+
+
 class CocoDataset(ImageDatasetMixin, GeneralistDataset):
     shortname = "coco"
 
     def __init__(self, coco_dir: str = None, split: str = "train", **kwargs) -> None:
         assert split in ["train", "test", "val"]
+        assert split != "test", "COCO test split is not available since it doesnt have captions/keypoints"
 
         super().__init__(**kwargs)
         self.split = split
@@ -68,7 +76,7 @@ class CocoDataset(ImageDatasetMixin, GeneralistDataset):
         self.person_keypoints_path = self.coco_dir / "annotations" / f"person_keypoints_{split}2017.json"
 
         self.captions_data = json.load(open(self.captions_path))
-        self.process_captions()
+        self._process_captions()
         # these other ones only have segmentation maps
         # self.instances_data = json.load(open(self.instances))
         # self.person_keypoints_data = json.load(open(self.person_keypoints))
@@ -80,7 +88,10 @@ class CocoDataset(ImageDatasetMixin, GeneralistDataset):
             "return_attention_mask": True,
         }
 
-    def process_captions(self) -> None:
+        # tasks available
+        self.tasks = TaskInterface()
+
+    def _process_captions(self) -> None:
         self._image_info = {}
         self.image_annotation = {}
 
@@ -114,16 +125,16 @@ class CocoDataset(ImageDatasetMixin, GeneralistDataset):
 
     def __getitem__(self, idx: int, **kwargs) -> Sample:
         sample = super().__getitem__(idx, **kwargs)
+
         item = self._dataset[idx]
-        self.make_metadata(sample, item)
+        self.extra_metadata(sample, item)
 
         image = self.read_image(item["image_path"])
-
         image = self.image_transform(ImageType(image))
         # pick from one of the captions
         _caption = random.choice(item["caption"])
         caption = TextTypeRaw(_caption["caption"])
-        instruction = TextTypeRaw(f"Describe this image.")
+        # instruction = TextTypeRaw(f"Describe this image.")
 
         # image = image.tokenize(tokenizer=self.tokenizers["image"])
         # caption_out = caption.tokenize(tokenizer=self.tokenizers["text"], **self.text_tokenizer_kwargs)
@@ -131,19 +142,21 @@ class CocoDataset(ImageDatasetMixin, GeneralistDataset):
         sample.data = image
         sample.target = caption
 
+        text_tokenizer_kwargs = {**self.text_tokenizer_kwargs, **kwargs.get("text_tokenizer_kwargs", {})}
+
         if not kwargs.get("raw_data", False):
-            sample.data = self.tokenizers.image(sample.data)
+            data = self.tokenizers.image(sample.data)
+            sample.data = data
 
-        # if not kwargs.get("raw_target", False):
-        #     target = self.tokenizers.text.encode
+        if not kwargs.get("raw_target", False):
+            _caption = f"{self.tasks.caption(caption.data)}"
 
-        # sample.data = sample.data.tokenize(tokenizer=self.tokenizers["image"])
-        # if not kwargs.get("raw_target", False):
-
-        # sample.target = sample.target.tokenize(tokenizer=self.tokenizers["text"], **self.text_tokenizer_kwargs)
-        # sample.tgt_attention_mask = sample.target.attention_mask
+            target = self.tokenizers.text.encode_plus(_caption, **text_tokenizer_kwargs)
+            sample.target = TextType(target["input_ids"])
+            sample.masks["target"] = target["attention_mask"]
 
         return sample
 
-    def make_metadata(self, sample: Sample, item: Dict[Any, Any]) -> dict:
+    def extra_metadata(self, sample: Sample, item: Dict[Any, Any]) -> dict:
         sample.metadata.item_path = item["image_path"]
+        sample.metadata.image_id = item["image_id"]

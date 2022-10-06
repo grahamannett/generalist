@@ -9,7 +9,8 @@ from torchvision.transforms import functional as F
 # from generalist.generalist_tokenizers.general_tokenizer import GeneralTokenizer
 
 
-class InputTypes(str, Enum):
+# class InputTypes(str, Enum):
+class InputTypes:
     generic = "generic"
     image = "image"  # PIL or similar
     text = "text"  # str/text
@@ -19,7 +20,7 @@ class InputTypes(str, Enum):
 class InputType:
     data: Any
     _: KW_ONLY
-    data_type = InputTypes.generic.name
+    data_type = InputTypes.generic
 
     tokenizer: "GeneralTokenizer" = None
 
@@ -48,7 +49,7 @@ class GeneralizedTensor(torch.Tensor):
 @dataclass
 class TextTypeRaw(InputType):
     data: Any
-    data_type = InputTypes.text.name
+    data_type = InputTypes.text
 
     def tokenize(self, tokenizer: "GeneralTokenizer" = None, **kwargs):
         tokenizer = super().get_tokenizer(tokenizer)
@@ -60,12 +61,12 @@ class TextTypeRaw(InputType):
 
 class TextType(InputType, GeneralizedTensor):
     data: torch.Tensor
-    data_type = InputTypes.text.name
+    data_type = InputTypes.text
 
 
 class ImageType(InputType, GeneralizedTensor):
     data: torch.Tensor
-    data_type = InputTypes.image.name
+    data_type = InputTypes.image
 
     def resize_image(self, size: List[int], **kwargs) -> "ImageType":
         self.data = F.resize(self.data, size=size, **kwargs)

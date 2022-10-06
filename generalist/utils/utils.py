@@ -63,7 +63,7 @@ class collate_func_transform:
     dtype: type | torch.dtype = None
 
 
-class collate_func:
+class collate_func_helper:
     def __init__(
         self,
         device: str = None,
@@ -81,20 +81,14 @@ class collate_func:
         if self.return_tensors:
             self.batch_kwargs["return_tensors"] = self.return_tensors
 
-    # def __call__(self, samples: List[Sample]):
-    #     out = {}
-    #     data_idxs = {}
-    #     for i, sample in enumerate(samples):
-
     def __call__(self, samples: List[Sample]) -> Batch:
 
+        # TODO: this might need to be a part of the dataset
         batch = Batch(samples, **self.batch_kwargs)
         for i, sample in enumerate(batch.samples):
             sample.data = self.fix_prop(sample.data)
             sample.target = self.fix_prop(sample.target)
-
-            # if hasattr(sample, "tgt_attention_mask"):
-            #     sample.tgt_attention_mask = self.fix_prop(sample.tgt_attention_mask)
+            sample.masks = {k: self.fix_prop(v) for k, v in sample.masks.items()}
 
         return batch
 
@@ -123,6 +117,6 @@ class collate_func:
                 raise ValueError(f"{flag} is not a valid return_data flag")
 
 
-def sample_collate_fn(samples: List[Sample]) -> Batch:
-    batch = Batch.collate_fn(samples)
-    return batch
+# def sample_collate_fn(samples: List[Sample]) -> Batch:
+#     batch = Batch.collate_fn(samples)
+#     return batch

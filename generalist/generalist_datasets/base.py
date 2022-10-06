@@ -53,7 +53,7 @@ class GeneralistDataset(Dataset):
 
         return Sample(metadata=metadata)
 
-    def make_metadata(self, *args, **kwargs):
+    def extra_metadata(self, *args, **kwargs):
         raise NotImplementedError("Implement this on subclass")
 
 
