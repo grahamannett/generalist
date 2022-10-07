@@ -1,6 +1,7 @@
 from dataclasses import KW_ONLY, dataclass
 from enum import Enum
 from typing import Any, List, TypeVar
+from typing_extensions import Self
 
 import torch
 from torch import nn
@@ -22,19 +23,19 @@ class InputType:
     _: KW_ONLY
     data_type = InputTypes.generic
 
-    tokenizer: "GeneralTokenizer" = None
+    # tokenizer: "GeneralTokenizer" = None
 
-    def tokenize(self, tokenizer: "GeneralTokenizer" = None):
-        tokenizer = self.get_tokenizer(tokenizer)
-        return tokenizer(self.data)
+    # def tokenize(self, tokenizer: "GeneralTokenizer" = None):
+    #     tokenizer = self.get_tokenizer(tokenizer)
+    #     return tokenizer(self.data)
 
-    def get_tokenizer(self, tokenizer: "GeneralTokenizer" = None):
-        if tokenizer is None:
-            if self.tokenizer is None:
-                raise Exception("tokenizer or InputTypes tokenizer must be set")
-            tokenizer = self.tokenizer
+    # def get_tokenizer(self, tokenizer: "GeneralTokenizer" = None):
+    #     if tokenizer is None:
+    #         if self.tokenizer is None:
+    #             raise Exception("tokenizer or InputTypes tokenizer must be set")
+    #         tokenizer = self.tokenizer
 
-        return tokenizer
+    #     return tokenizer
 
 
 class GeneralizedTensor(torch.Tensor):
@@ -46,44 +47,42 @@ class GeneralizedTensor(torch.Tensor):
         return self
 
 
-@dataclass
-class TextTypeRaw(InputType):
+class TextType(InputType):
     data: Any
     data_type = InputTypes.text
 
-    def tokenize(self, tokenizer: "GeneralTokenizer" = None, **kwargs):
-        tokenizer = super().get_tokenizer(tokenizer)
-        return tokenizer(self.data, **kwargs)
+    def __init__(self, data: Any, *args, **kwargs):
+        self.data = data
 
-    def convert(self, tokenizer: "GeneralTokenizer", **kwargs) -> "TextType":
-        return TextType(tokenizer(self.data, **kwargs))
+    # TODO: make this a __new__ method
+    @classmethod
+    def from_data(cls, *args, **kwargs):
+        cls = TextTypeTensor if isinstance(args[0], torch.Tensor) else cls
+        return cls(*args, **kwargs)
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.data})"
 
 
-class TextType(InputType, GeneralizedTensor):
+class TextTypeTensor(InputType, GeneralizedTensor):
     data: torch.Tensor
     data_type = InputTypes.text
 
 
-class ImageType(InputType, GeneralizedTensor):
+class ImageType(InputType):
+    data: Any
+    data_type = InputTypes.image
+
+    @classmethod
+    def from_data(cls, *args, **kwargs):
+        cls = ImageTypeTensor if isinstance(args[0], torch.Tensor) else cls
+        return cls(*args, **kwargs)
+
+
+class ImageTypeTensor(InputType, GeneralizedTensor):
     data: torch.Tensor
     data_type = InputTypes.image
 
     def resize_image(self, size: List[int], **kwargs) -> "ImageType":
         self.data = F.resize(self.data, size=size, **kwargs)
         return self
-
-
-@dataclass
-class RLType(InputType):
-    observation: Any
-    action: Any
-    reward: Any
-
-
-if __name__ == "__main__":
-    x = TextType("this is a string")
-    x2 = TextType(torch.Tensor([1, 2, 3]))
-    x3 = ImageType(torch.rand(3, 224, 224))
-    assert type(x) == TextType
-    assert type(x2) == TextType
-    breakpoint()
