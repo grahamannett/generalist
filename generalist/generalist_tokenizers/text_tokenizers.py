@@ -3,7 +3,7 @@ import torch
 
 
 from generalist.generalist_tokenizers.general_tokenizer import GeneralTokenizer
-from generalist.data_types.input_types import GeneralizedTensor, TextTypeRaw, TextType
+from generalist.data_types.input_types import GeneralizedTensor, TextType
 from transformers import GPT2Model, GPT2PreTrainedModel, XLNetTokenizer, BertTokenizer, PreTrainedTokenizer
 
 
@@ -45,8 +45,8 @@ class TextTokenizer(GeneralTokenizer):
         # self.return_attention_mask = (True,)
         # self.return_token_type_ids = (False,)
 
-    def __call__(self, sample: TextTypeRaw | str, **kwargs) -> torch.Tensor:
-        text = sample.data if isinstance(sample, TextTypeRaw) else sample
+    def __call__(self, sample: TextType | str, **kwargs) -> torch.Tensor:
+        text = sample.data if isinstance(sample, TextType) else sample
         encoded = self.encode(text, **kwargs)
 
         input_ids = TextType(encoded["input_ids"])

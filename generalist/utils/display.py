@@ -156,10 +156,25 @@ class EpochProgress:
         self.progress.advance(0)
 
 
+class BatchProgress:
+    def __init__(self, n_batches: int):
+        self.progress = Progress(
+            TextColumn("[progress.description]{task.description}"),
+            MofNCompleteColumn(),
+            SpinnerColumn("simpleDots"),
+            BarColumn(bar_width=None),
+        )
+
+        self.progress.add_task("[bold blue]Batch", total=n_batches)
+        self._panel = Panel(self.progress)
+
+
 class GeneralistDisplayRich(GeneralistDisplay):
     def __init__(self, display: bool = True):
         super().__init__(display)
         self._status = "init" if display else False
+
+    # def update(self, **kwargs):
 
     def _stop(self):
         self.live.stop()
@@ -173,7 +188,6 @@ class GeneralistDisplayRich(GeneralistDisplay):
     def debug_run(self):
         self.sample_info.update = print
 
-
     def setup_layout(self, n_epochs: int, **kwargs):
         self.layout = Layout(name="root")
 
@@ -181,6 +195,7 @@ class GeneralistDisplayRich(GeneralistDisplay):
             Layout(name="main", ratio=2),
             Layout(name="sample_info"),
         )
+
 
         # self.layout["main"].update(self.setup_epoch_progress(n_epochs=n_epochs))
         self.epoch_progress = EpochProgress(n_epochs=n_epochs)

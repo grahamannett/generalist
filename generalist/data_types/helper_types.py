@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Dict, List
+from typing import Any, Callable, Dict, List
 
 import torch
 import torch.nn as nn
@@ -21,16 +21,29 @@ class SampleMetaData:
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.__dict__})"
 
+    @classmethod
+    def make(cls, idx: int | slice, **kwargs):
+        if isinstance(idx, slice):
+            raise NotImplementedError("metadata for slices not implemented")
+        metadata = cls(idx=idx, **kwargs)
+        return metadata
+
 
 class Sample:
     def __init__(self, data: List[InputType] = None, target: Any = None, masks: Dict[str, Any] = {}, metadata: SampleMetaData = None):
         self.data = data
         self.target = target
+        # self._data = data
+        # self._target = target
         self.metadata = metadata
         self.masks = masks
 
+    def __call__(self, **kwargs):
+        for key, val in kwargs.items():
+            setattr(self, key, val)
+
     def __iter__(self):
-        yield self.data, self.target
+        yield self._data, self._target
 
     def __repr__(self) -> str:
         string = f"Sample(data={self.data}, target={self.target}"
@@ -42,14 +55,28 @@ class Sample:
         string += ")"
         return string
 
+    @classmethod
+    def new(cls, **kwargs):
+        return cls(**kwargs)
 
-def _new_tensor_helper(tensor_subclass):
-    def __new__(cls, *args):
-        if isinstance(args[0], torch.Tensor):
-            return tensor_subclass(args[0])
-        return super(cls).__new__(cls)
 
-    return __new__
+class SampleBuilder:
+    metadata: SampleMetaData = SampleMetaData()
+    # sample_cls: Sample = Sample
+    preprocessing: List[Callable] = []
+
+    def __call__(self, *args, **kwargs):
+        key: str
+        val: Dict[str, Any]
+
+        sample = Sample(*args, **kwargs)
+        for func in self.preprocessing:
+            func(sample)
+
+        return sample
+
+    def use_preprocessing(self, func: Callable):
+        self.preprocessing.append(func)
 
 
 class Batch:
@@ -66,22 +93,22 @@ class Batch:
     @property
     def data(self):
         return self.attr_get("data")
-        # out = [s.data for s in self.samples]
-        # if self.return_tensors == "pt":
-        #     out = torch.cat(out)
-        # return out
 
     @property
     def target(self):
         return self.attr_get("target")
 
-    @property
-    def masks(self):
-        return self.attr_get("masks")
-        # out = [s.target for s in self.samples]
-        # if self.return_tensors == "pt":
-        #     out = torch.cat(out)
-        # return out
+    # TODO: refacotr this so it is similar to attr_get
+    def get_masks(self, key: str):
+        out = [s.masks[key] for s in self.samples]
+        if self.return_tensors == "pt":
+            out = torch.cat(out)
+
+        return out
+
+    # @property
+    # def masks(self):
+    #     return self.attr_get("masks")
 
     def __len__(self):
         return len(self.samples)
@@ -98,10 +125,6 @@ class Batch:
         """collate_fn for torch.utils.data.DataLoader"""
         batch = cls(samples)
         return batch
-
-    # def fix(self):
-    #     self.data = [[d_.to(self.device) for d_ in d] for d in self.data]
-    #     self.target = [d.to(self.device) for d in self.target]
 
 
 @dataclass

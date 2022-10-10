@@ -63,10 +63,9 @@ class LanguageModelingDataset(GeneralistDataset):
         dataset_path: str = "wikitext",
         dataset_name: str = "wikitext-103-raw-v1",
         split: str = "train",
-        return_raw: bool = True,
         **kwargs
     ) -> None:
-        super().__init__(return_raw, **kwargs)
+        super().__init__(**kwargs)
 
         self._dataset_path = dataset_path
         self._dataset_name = dataset_name

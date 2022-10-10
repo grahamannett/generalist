@@ -1,5 +1,5 @@
 from generalist.data_types.helper_types import Sample
-from generalist.data_types.input_types import ImageType, TextType, TextTypeRaw
+from generalist.data_types.input_types import ImageType, TextType
 from generalist.generalist_datasets.image_datasets import ImageDatasetMixin
 from generalist.generalist_datasets.base import GeneralistDataset
 
@@ -45,7 +45,7 @@ class MNISTDataset(ImageDatasetMixin, GeneralistDataset):
         image_.resize_image(320)
         image_ = image_.tokenize()
 
-        target = TextTypeRaw(str(label))
+        target
         target_encoded = target.tokenize()
         # breakpoint()
 

@@ -1,0 +1,3 @@
+coco:
+  panoptic:
+    url: http://images.cocodataset.org/annotations/panoptic_annotations_trainval2017.zip

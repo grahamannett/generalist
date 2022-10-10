@@ -2,7 +2,7 @@ from typing import Any
 
 import torch
 
-from generalist.data_types.input_types import GeneralizedTensor, TextTypeRaw, TextType
+from generalist.data_types.input_types import GeneralizedTensor, TextType
 from transformers import GPT2PreTrainedModel
 
 import torch.nn as nn
@@ -55,9 +55,7 @@ class TextEmbedding(GPT2PreTrainedModel):
             token_type_ids = token_type_ids.view(-1, input_shape[-1])
 
         past_length = 0
-        position_ids = torch.arange(
-            past_length, input_shape[-1] + past_length, dtype=torch.long, device=tokens.device
-        )
+        position_ids = torch.arange(past_length, input_shape[-1] + past_length, dtype=torch.long, device=tokens.device)
 
         position_ids = position_ids.unsqueeze(0).view(-1, input_shape[-1])
 

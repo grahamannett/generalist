@@ -4,7 +4,7 @@ from generalist.generalist_tokenizers.image_tokenizers import ImageTokenizer
 from generalist.generalist_tokenizers.text_tokenizers import TextTokenizer
 from generalist.models.embedding_model import EmbeddingModel
 from generalist.models.model import GeneralistModel
-from generalist.data_types.input_types import ImageType, TextType
+from generalist.data_types.input_types import ImageType, TextType, TextTypeTensor
 
 from torch.nn import functional as F
 
@@ -35,8 +35,6 @@ class ImageCaptionPrediction:
         **kwargs,
     ):
 
-
-
         # target_list = [self.text_tokenizer.cls_token_id]
         embedded_image = self.embedding_model([image])
 
@@ -49,7 +47,8 @@ class ImageCaptionPrediction:
 
         for i in range(max_length):
 
-            tokenized_target = TextType(target_list).to(int).to(image.device)
+            # tokenized_target = TextType(target_list).to(int).to(image.device)
+            tokenized_target = TextTypeTensor(target_list).to(int).to(image.device)
             # embedded_tgt = embedding_model([tokenized_target]) if use_caption else None
             embedded_tgt = self.embedding_model(tokenized_target)
             logits = self.model(embedded_image, embedded_tgt)

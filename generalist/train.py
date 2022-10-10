@@ -1,22 +1,28 @@
 import logging
 from pathlib import Path
+from typing import Any, Dict
 
 import hydra
 import torch
 from omegaconf import DictConfig
 from rich import print
 from torch.utils.data import DataLoader
+from generalist.data_types.helper_types import Sample
 
-from generalist.data_types.input_types import ImageType, TextTypeRaw
-from generalist.generalist_datasets import AokvqaDataset, CocoDataset, GeneralistDataset, MNISTDataset
-from generalist.generalist_datasets.base import ChainedGenearlistDataset
+from torchvision import transforms
+import random
+from generalist.data_types.input_types import ImageType, TextType
+from generalist.generalist_datasets import AokvqaDataset, GeneralistDataset, MNISTDataset
+from generalist.generalist_datasets.coco.coco import CocoCaption, CocoDetection, coco_get_filepaths
 from generalist.generalist_datasets.coco.eval import CocoEval
+from generalist.generalist_datasets.utils.data_collate import collate_func_helper
+from generalist.generalist_datasets.utils.tasks_utils import TaskInterface
 from generalist.generalist_tokenizers import image_tokenizers, text_tokenizers
 from generalist.models.model import EmbeddingModel, GeneralistModel
-from generalist.models.output_model import GeneralClassificationOutput, GeneralOutput
+from generalist.models.output_model import GeneralOutput
 from generalist.predict import ImageCaptionPrediction
 from generalist.utils.display import GeneralistDisplay
-from generalist.utils.utils import collate_func_helper, get_hostname, save_checkpoint
+from generalist.utils.utils import get_hostname, save_checkpoint
 
 log = logging.getLogger(__name__)
 
@@ -25,23 +31,34 @@ def train_step(embedding_model, genearlist_model, dataloader):
     pass
 
 
-def manage_live(group):
-    pass
+def make_coco_image_transform():
+    def _to_image_type(*args, **kwargs):
+        return ImageType(*args).unsqueeze(0)
+
+    coco_image_transform = transforms.Compose(
+        [
+            transforms.Resize((320, 320)),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+            transforms.Lambda(_to_image_type),
+        ]
+    )
+    return coco_image_transform
 
 
-# def get_dataset():
-#     dataset = AokvqaDataset()
-#     dataset = SummarizationDataset()
-#     dataset = LanguageModelingDataset()
-#     dataset = MNISTDataset(train=True, out_channels=3)
-#     datasets = None
+def make_coco_target_handler(text_tokenizer: text_tokenizers.TextTokenizer, text_tokenizer_kwargs: Dict[str, Any]):
+    def _to_text_type(*args):
+        out = TaskInterface.caption(random.choice(args[0]))
+        out = text_tokenizer.encode_plus(out, **text_tokenizer_kwargs)
+        return TextType(out["input_ids"]), out["attention_mask"]
 
-#     if datasets == None:
-#         raise NotImplementedError("TODO")
-
-#     return dataset
-
-# datasets = ChainedGenearlistDataset(datasets=[dataset])
+    coco_caption_transform = transforms.Compose(
+        [
+            transforms.Lambda(_to_text_type),
+        ]
+    )
+    return coco_caption_transform
 
 
 def pad_targets(targets, logits):
@@ -68,8 +85,6 @@ def train(cfg: DictConfig):
     image_tokenizer = image_tokenizers.ImageTokenizer(device=device)
     text_tokenizer = text_tokenizers.TextTokenizerBert.from_pretrained("bert-base-uncased")
 
-    # text_tokenizer = TextTokenizerPretrained("BertTokenizer", pretrained_name_or_model="bert-base-uncased", device=device)
-
     embedding_model = EmbeddingModel(model_dim=model_dim)
     # output_model = GeneralClassificationOutput(model_dim=model_dim, num_classes=10, reduce_type="cls")
     output_model = GeneralOutput(model_dim=model_dim, output_dim=text_tokenizer.vocab_size)
@@ -92,51 +107,60 @@ def train(cfg: DictConfig):
 
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1.0, gamma=0.95)
 
-    TextTypeRaw.tokenizer = text_tokenizer
-    ImageType.tokenizer = image_tokenizer
-
     tokenizers = [image_tokenizer, text_tokenizer]
 
-    # can just call this with the base class for all datasets
-    GeneralistDataset.use_tokenizers(tokenizers)
-    # or can call on a specific dataset
-    MNISTDataset.use_tokenizers(tokenizers)
+    text_tokenizer_kwargs = {
+        "return_tensors": "pt",
+        "truncation": True,
+        "padding": "max_length",
+        "max_length": 32,
+        "return_attention_mask": True,
+    }
 
-    coco_dataset = CocoDataset(coco_dir=cfg.coco_dir, device=device)
-    coco_val_dataset = CocoDataset(coco_dir=cfg.coco_dir, device=device, split="val")
+    coco_filepaths = coco_get_filepaths(coco_dir=cfg.coco_dir, split="train")
 
-    dataset = coco_dataset
+    coco_base_kwargs = {
+        "root": coco_filepaths.images_root,
+        # "annFile": coco_filepaths.captions_filepath,
+    }
+
+    coco_caption = CocoCaption(
+        root=coco_filepaths.images_root,
+        annFile=coco_filepaths.captions_filepath,
+        transform=make_coco_image_transform(),
+        target_transform=make_coco_target_handler(text_tokenizer=text_tokenizer, text_tokenizer_kwargs=text_tokenizer_kwargs),
+    )
+
+    coco_detection = CocoDetection(root=coco_filepaths.images_root, annFile=coco_filepaths.instances_filepath)
+
+    detection_sample = coco_detection[0]
+
+    dataset = coco_caption
+    sample = coco_caption[0]
 
     # eval example
-    out = dataset[1]
-    out_data = out.data
-    out_target_tokens = out.target
-    _max_length = torch.where(out.target == 0)[1][0].item()
+
+    sample_data = sample.data
+    out_target_tokens = sample.target
+    _max_length = torch.where(sample.target == 0)[1][0].item()
     out_target_true = text_tokenizer.decode(out_target_tokens[0, :_max_length])
 
-    # out.data = out.data.to(device)
-    # out.target = out.target.to(device)
     caption_preder = ImageCaptionPrediction(
         image_tokenizer=image_tokenizer, text_tokenizer=text_tokenizer, embedding_model=embedding_model, model=model, device=device
     )
 
-    # eval_coco = CocoEval(coco_val_dataset, caption_preder)
-    # eval_coco.make_captions_baseline()
-    # eval_coco.make_captions_prediction()
-    # breakpoint()
-
-    out_data = out_data.to(device)
+    sample_data = sample_data.to(device)
     # tokenized_caption = out_target_tokens.to(device)
     generated_captions = []
 
     if cfg.display.initial_caption:
         initial_caption = caption_preder.make_caption(
-            image=out_data,
+            image=sample_data,
             max_length=_max_length,
         )
         generated_captions.append(initial_caption)
 
-    collate_fn = collate_func_helper(device=device)
+    collate_fn = collate_func_helper(device=device, return_tensors="pt")
 
     train_dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
     # val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
@@ -157,7 +181,8 @@ def train(cfg: DictConfig):
         for batch_idx, batch in enumerate(train_dataloader):
 
             data, target = batch.data, batch.target
-            task_input_attention_mask = torch.cat([t["target"] for t in batch.masks])
+            task_input_attention_mask = batch.get_masks("caption")
+            data, target, task_input_attention_mask = data.to(device), target.to(device), task_input_attention_mask.to(device)
 
             embedding = embedding_model(data)
 
@@ -171,7 +196,7 @@ def train(cfg: DictConfig):
 
             logits = model(embedding, embedded_tgt=embedded_tgt, tgt_key_padding_mask=task_input_attention_mask, tgt_mask=tgt_mask)
 
-            loss = loss_fn(logits[:, :-1].permute(0, 2, 1), torch.cat(target)[:, 1:])
+            loss = loss_fn(logits[:, :-1].permute(0, 2, 1), target[:, 1:])
 
             running_loss += loss.item()
 
@@ -198,14 +223,14 @@ def train(cfg: DictConfig):
             # breakpoint()
             if batch_idx % 50 == 0:
                 decoded__ = text_tokenizer.batch_decode(logits.argmax(dim=-1)[:5, :10])
-                actual__ = text_tokenizer.batch_decode(torch.cat(target)[:5, :10])
+                actual__ = text_tokenizer.batch_decode(target[:5, :10])
                 print(list(zip(decoded__, actual__)))
 
                 # breakpoint()
 
             if batch_idx % 250 == 0:
                 latest_caption = caption_preder.make_caption(
-                    image=out_data,
+                    image=sample_data,
                     max_length=context_length,
                 )
 
@@ -246,7 +271,7 @@ def train(cfg: DictConfig):
             filename="latest.pt",
         )
 
-        latest_caption = caption_preder.make_caption(image=out_data, max_length=context_length)
+        latest_caption = caption_preder.make_caption(image=sample_data, max_length=context_length)
         generated_captions.append(latest_caption)
 
     captions_generated = text_tokenizer.batch_decode(generated_captions)

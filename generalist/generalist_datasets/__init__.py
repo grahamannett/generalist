@@ -1,5 +1,5 @@
 from generalist.generalist_datasets.aokvqa.aokvqa import AokvqaDataset
 from generalist.generalist_datasets.base import GeneralistDataset
-from generalist.generalist_datasets.coco.coco import CocoDataset
+from generalist.generalist_datasets.coco.coco import CocoCaption
 from generalist.generalist_datasets.hf.hf_datasets import LanguageModelingDataset, SummarizationDataset
 from generalist.generalist_datasets.simple.mnist import MNISTDataset

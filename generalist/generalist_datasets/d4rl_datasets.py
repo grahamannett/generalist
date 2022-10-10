@@ -5,8 +5,8 @@ import torch
 
 
 class OfflineRLDataset(GeneralistDataset):
-    def __init__(self, return_raw: bool = True, **kwargs) -> None:
-        super().__init__(return_raw, **kwargs)
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
 
         self.actions = []
         self.rewards = []
