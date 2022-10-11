@@ -3,7 +3,7 @@ from torch.utils.data import Dataset
 from typing import Any, Sequence
 from generalist.generalist_tokenizers.general_tokenizer import GeneralTokenizer
 from generalist.data_types.input_types import InputType
-from generalist.data_types.helper_types import Sample, SampleBuilder, SampleMetaData
+from generalist.data_types.helper_types import Sample, SampleBuilder, SampleMetaData, SampleBuilderMixin
 
 
 class TokenizersHandler:
@@ -19,11 +19,6 @@ class TokenizersHandler:
     def __repr__(self):
         _tokenizers_str = "\n".join([f"\t{key}:\n\t\t{val}" for key, val in self._tokenizers.items()])
         return f"{self.__class__.__name__}\n{_tokenizers_str}"
-
-
-
-class SampleBuilderMixin:
-    sample_builder = SampleBuilder()
 
 
 class GeneralistDataset(SampleBuilderMixin, Dataset):

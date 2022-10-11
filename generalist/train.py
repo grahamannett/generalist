@@ -1,4 +1,5 @@
 import logging
+import random
 from pathlib import Path
 from typing import Any, Dict
 
@@ -7,14 +8,21 @@ import torch
 from omegaconf import DictConfig
 from rich import print
 from torch.utils.data import DataLoader
-from generalist.data_types.helper_types import Sample
-
 from torchvision import transforms
-import random
+
+from generalist.data_types.helper_types import Sample
 from generalist.data_types.input_types import ImageType, TextType
 from generalist.generalist_datasets import AokvqaDataset, GeneralistDataset, MNISTDataset
-from generalist.generalist_datasets.coco.coco import CocoCaption, CocoDetection, coco_get_filepaths
+from generalist.generalist_datasets.coco.coco import (
+    CocoCaption,
+    CocoCaptionTargetTranform,
+    CocoDetection,
+    CocoFilepaths,
+    CocoRegionTargetTransform,
+    CocoImageTransforms,
+)
 from generalist.generalist_datasets.coco.eval import CocoEval
+from generalist.generalist_datasets.hf.summary import BillSum, BillSumTransforms
 from generalist.generalist_datasets.utils.data_collate import collate_func_helper
 from generalist.generalist_datasets.utils.tasks_utils import TaskInterface
 from generalist.generalist_tokenizers import image_tokenizers, text_tokenizers
@@ -31,46 +39,8 @@ def train_step(embedding_model, genearlist_model, dataloader):
     pass
 
 
-def make_coco_image_transform():
-    def _to_image_type(*args, **kwargs):
-        return ImageType(*args).unsqueeze(0)
-
-    coco_image_transform = transforms.Compose(
-        [
-            transforms.Resize((320, 320)),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-            transforms.Lambda(_to_image_type),
-        ]
-    )
-    return coco_image_transform
-
-
-def make_coco_target_handler(text_tokenizer: text_tokenizers.TextTokenizer, text_tokenizer_kwargs: Dict[str, Any]):
-    def _to_text_type(*args):
-        out = TaskInterface.caption(random.choice(args[0]))
-        out = text_tokenizer.encode_plus(out, **text_tokenizer_kwargs)
-        return TextType(out["input_ids"]), out["attention_mask"]
-
-    coco_caption_transform = transforms.Compose(
-        [
-            transforms.Lambda(_to_text_type),
-        ]
-    )
-    return coco_caption_transform
-
-
-def pad_targets(targets, logits):
-    # pad targets to match logits
-    encoded_targets = [torch.nn.functional.pad(t, (0, logits.shape[1] - t.shape[-1], 0, 0), mode="constant", value=0) for t in targets]
-    encoded_targets = torch.stack(encoded_targets)
-
-
 @hydra.main(config_path=f"../config", config_name=get_hostname(), version_base=None)
 def train(cfg: DictConfig):
-
-    # print("Working directory : {}".format(os.getcwd()))
     model_save_dir = Path(cfg.model_save_dir)
     display_flag = cfg.display.display_flag
     device = cfg.device
@@ -109,31 +79,22 @@ def train(cfg: DictConfig):
 
     tokenizers = [image_tokenizer, text_tokenizer]
 
-    text_tokenizer_kwargs = {
-        "return_tensors": "pt",
-        "truncation": True,
-        "padding": "max_length",
-        "max_length": 32,
-        "return_attention_mask": True,
-    }
+    text_tokenizer_kwargs = cfg.text_tokenizer
 
-    coco_filepaths = coco_get_filepaths(coco_dir=cfg.coco_dir, split="train")
-
-    coco_base_kwargs = {
-        "root": coco_filepaths.images_root,
-        # "annFile": coco_filepaths.captions_filepath,
-    }
+    coco_filepaths = CocoFilepaths(base_dir=cfg.coco_dir, split="train")
 
     coco_caption = CocoCaption(
         root=coco_filepaths.images_root,
         annFile=coco_filepaths.captions_filepath,
-        transform=make_coco_image_transform(),
-        target_transform=make_coco_target_handler(text_tokenizer=text_tokenizer, text_tokenizer_kwargs=text_tokenizer_kwargs),
+        transform=CocoImageTransforms.train,
+        target_transform=CocoCaptionTargetTranform.get(text_tokenizer=text_tokenizer, text_tokenizer_kwargs=text_tokenizer_kwargs).train,
     )
 
-    coco_detection = CocoDetection(root=coco_filepaths.images_root, annFile=coco_filepaths.instances_filepath)
-
-    detection_sample = coco_detection[0]
+    summary_dataset = BillSum(
+        text_transform=BillSumTransforms.get(text_tokenizer=text_tokenizer, text_tokenizer_kwargs=text_tokenizer_kwargs).train,
+    )
+    out = summary_dataset[0]
+    # out = summary_dataset[0]
 
     dataset = coco_caption
     sample = coco_caption[0]
@@ -142,6 +103,7 @@ def train(cfg: DictConfig):
 
     sample_data = sample.data
     out_target_tokens = sample.target
+
     _max_length = torch.where(sample.target == 0)[1][0].item()
     out_target_true = text_tokenizer.decode(out_target_tokens[0, :_max_length])
 
@@ -162,7 +124,8 @@ def train(cfg: DictConfig):
 
     collate_fn = collate_func_helper(device=device, return_tensors="pt")
 
-    train_dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
+    # train_dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
+    train_dataloader = DataLoader(summary_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
     # val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 
     display = GeneralistDisplay.make(display=display_flag, logger=log)
@@ -181,20 +144,28 @@ def train(cfg: DictConfig):
         for batch_idx, batch in enumerate(train_dataloader):
 
             data, target = batch.data, batch.target
-            task_input_attention_mask = batch.get_masks("caption")
-            data, target, task_input_attention_mask = data.to(device), target.to(device), task_input_attention_mask.to(device)
 
-            embedding = embedding_model(data)
+            target_mask = batch.get_masks("target")
+            data_mask = batch.get_masks("data")
 
-            task_input_attention_mask = ~task_input_attention_mask.to(bool)
+            # breakpoint()
+            # for modality, data in batch.data.items():
+            #     embedding[modality] = embedding_model(data)
+
+            embedding = torch.cat([embedding_model(v) for modality, v in data.items()])
+
+            # embedding = embedding_model(data)
+
+            target_mask = ~target_mask.to(bool)
 
             # embedded_tgt = embedding_model.embed_data(task_input_ids, data_type="text")
 
             # emb = [embedding_model.embed_data(t_, data_type="text") for t_ in target]
             embedded_tgt = embedding_model(target)
+
             tgt_mask = model.get_tgt_mask(embedded_tgt=embedded_tgt)
 
-            logits = model(embedding, embedded_tgt=embedded_tgt, tgt_key_padding_mask=task_input_attention_mask, tgt_mask=tgt_mask)
+            logits = model(embedding, embedded_tgt=embedded_tgt, tgt_key_padding_mask=target_mask, tgt_mask=tgt_mask)
 
             loss = loss_fn(logits[:, :-1].permute(0, 2, 1), target[:, 1:])
 

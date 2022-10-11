@@ -7,10 +7,7 @@ from torch import nn
 from torchvision.transforms import functional as F
 from typing_extensions import Self
 
-# from generalist.generalist_tokenizers.general_tokenizer import GeneralTokenizer
 
-
-# class InputTypes(str, Enum):
 class InputTypes:
     generic = "generic"
     image = "image"  # PIL, tensor or similar
@@ -49,6 +46,10 @@ class TextType(InputType):
     def __init__(self, data: Any, **kwargs):
         self.data = data
 
+    @classmethod
+    def transform(cls, *args, **kwargs):
+        return
+
 
 class TextTypeTensor(GeneralizedTensor):
     data: torch.Tensor
@@ -66,6 +67,10 @@ class ImageType(InputType):
 
     def __init__(self, data: Any, **kwargs):
         self.data = data
+
+    @classmethod
+    def transform(cls, *args, **kwargs):
+        return cls(*args).unsqueeze(0)
 
 
 class ImageTypeTensor(GeneralizedTensor):

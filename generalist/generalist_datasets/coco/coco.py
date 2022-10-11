@@ -1,78 +1,84 @@
+import random
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Tuple
 
-import numpy as np
 import torch
-
 import torchvision
-from generalist.data_types.helper_types import Sample, SampleBuilder
-from generalist.data_types.input_types import ImageType, TextType
-from generalist.generalist_datasets.base import GeneralistDataset, SampleBuilderMixin
-from generalist.generalist_datasets.image_datasets import ImageDatasetMixin
-from torchvision import transforms
+import torchvision.transforms as transforms
+import pycocotools.mask as coco_mask
 
+# from generalist.data_types.helper_types import Sample, SampleBuilder
+from generalist.data_types.input_types import ImageType, TextType
+from generalist.data_types.helper_types import SampleBuilderMixin
+from generalist.generalist_datasets.coco.file_info import CocoFilepathsBase
 from generalist.generalist_datasets.utils.tasks_utils import TaskInterface
 from generalist.generalist_tokenizers import text_tokenizers
 
-from pycocotools import mask as coco_mask
+# from pycocotools import mask as coco_mask
 
 
-def fix_channels(image):
-    # if greyscale, repeat channels
-    if image.shape[0] == 1:
-        image = image.repeat(3, 1, 1)
-    return image
+class CocoCaptionTargetTranform:
+    train = transforms.Compose([])
+    val = transforms.Compose([])
+
+    @staticmethod
+    def use_text_tokenizer(text_tokenizer: text_tokenizers.TextTokenizer, text_tokenizer_kwargs: Dict[str, Any]):
+        def _to_text_type(*args, **kwargs):
+            caption = random.choice(args[0])
+            caption = TaskInterface.caption(caption)
+            caption = text_tokenizer.encode_plus(caption, **text_tokenizer_kwargs)
+            return TextType(caption["input_ids"]), caption["attention_mask"]
+
+        return _to_text_type
+
+    @classmethod
+    def get(cls, text_tokenizer: text_tokenizers.TextTokenizer, text_tokenizer_kwargs: Dict[str, Any]):
+        cls.train.transforms.append(CocoCaptionTargetTranform.use_text_tokenizer(text_tokenizer, text_tokenizer_kwargs))
+        _transforms = cls()
+        return _transforms
 
 
-# def normalize_image(image):
-#     image = image / 255.0
-#     return image
+class CocoImageTransforms:
+    # potentially add these:
+
+    # transforms.ColorJitter(brightness=[0.5, 1.3], contrast=[0.8, 1.5], saturation=[0.2, 1.5]),
+    train = transforms.Compose(
+        [
+            transforms.Resize((320, 320)),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+            # transforms.Lambda(ImageType.transform),
+            transforms.Lambda(ImageType.transform),
+        ]
+    )
+
+    val = transforms.Compose(
+        [
+            transforms.Resize((320, 320)),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+            transforms.Lambda(ImageType.transform),
+        ]
+    )
 
 
-# _train_transform = transforms.Compose(
-#     [
-#         transforms.Lambda(fix_channels),
-#         # transforms.Lambda(normalize_image),
-#         transforms.Resize((320, 320)),
-#         # transforms.ColorJitter(brightness=[0.5, 1.3], contrast=[0.8, 1.5], saturation=[0.2, 1.5]),
-#         transforms.RandomHorizontalFlip(),
-#         # transforms.ToTensor(),
-#         # transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-#     ]
-# )
+@dataclass
+class CocoFilepaths(CocoFilepathsBase):
+    coco_dir: str = None
+    images_root: str = None
+    captions_filepath: str = None
+    instances_filepath: str = None
+    person_keypoints_filepath: str = None
 
-# _val_transform = transforms.Compose(
-#     [
-#         # transforms.Lambda(normalize_image),
-#         transforms.Lambda(fix_channels),
-#         transforms.Resize((320, 320)),
-#         # transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-#     ]
-# )
+    def __post_init__(self):
+        assert self.split in ["train", "val"]
+        self.coco_dir = self.base_dir
 
-# _transforms = {
-#     "train": _train_transform,
-#     "val": _val_transform,
-# }
-
-# _coco_train_transform =
-
-coco_transforms = {}
-
-
-def coco_get_filepaths(coco_dir: str, split: str):
-    assert split in ["train", "val", "test"]
-
-    @dataclass
-    class CocoFilepaths:
-        base_dir: str = coco_dir
-        images_root: str = f"{coco_dir}/{split}2017"
-        captions_filepath: str = f"{coco_dir}/annotations/captions_{split}2017.json"
-        instances_filepath: str = f"{coco_dir}/annotations/instances_{split}2017.json"
-        person_keypoints_filepath: str = f"{coco_dir}/annotations/person_keypoints_{split}2017.json"
-
-    return CocoFilepaths()
+        self.images_root: str = f"{self.coco_dir}/{self.split}2017"
+        self.captions_filepath: str = f"{self.coco_dir}/annotations/captions_{self.split}2017.json"
+        self.instances_filepath: str = f"{self.coco_dir}/annotations/instances_{self.split}2017.json"
+        self.person_keypoints_filepath: str = f"{self.coco_dir}/annotations/person_keypoints_{self.split}2017.json"
 
 
 class CocoCaption(SampleBuilderMixin, torchvision.datasets.CocoCaptions):
@@ -90,29 +96,64 @@ class CocoCaption(SampleBuilderMixin, torchvision.datasets.CocoCaptions):
     ) -> None:
         super().__init__(root=root, annFile=annFile, transform=transform, target_transform=target_transform, transforms=transforms)
 
-    def __getitem__(self, *args, **kwargs) -> Tuple[Any, Any]:
-        image, (caption, caption_mask) = super().__getitem__(*args, **kwargs)
+    def __getitem__(self, idx: int, *args, **kwargs) -> Tuple[Any, Any]:
+        image, (caption, caption_mask) = super().__getitem__(idx, *args, **kwargs)
+        image_id = self.ids[idx]
 
-        masks = {"caption": caption_mask}
+        image_mask = torch.zeros(image.shape[-3:], dtype=torch.uint8)
 
-        sample_metadata = self.sample_builder.metadata.make(*args, dataset_name=self.__class__.__name__)
+        masks = {"data": image_mask, "target": caption_mask}
+
+        sample_metadata = self.sample_builder.metadata(idx=idx, dataset_name=self.__class__.__name__, image_id=image_id)
         sample = self.sample_builder(data=image, target=caption, masks=masks, metadata=sample_metadata)
         return sample
 
 
 # class CocoDetection(SampleBuilderMixin, torchvision.datasets.CocoDetection):
-class CocoDetection(torchvision.datasets.CocoDetection):
+class CocoDetection(SampleBuilderMixin, torchvision.datasets.CocoDetection):
+    """
+    use something like
+        coco_detection = CocoDetection(
+        root=coco_filepaths.images_root,
+        annFile=coco_filepaths.instances_filepath,
+        transform=CocoImageTransforms.train,
+        # transforms=CocoRegionTargetTransform.train
+        # transforms=coco_detction_transforms,
+    )
+
+    # detection_sample = coco_detection[59537]
+    """
+
     def __init__(self, return_masks: bool = True, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.prepare = ConvertCocoPolysToMask(return_masks)
 
-    def __getitem__(self, index: int, *args, **kwargs) -> Tuple[Any, Any]:
+    def __getitem__(self, idx: int, **kwargs) -> Tuple[Any, Any]:
         # img, target = super().__getitem__(idx, *args, **kwargs)
-        img, target = super(CocoDetection, self).__getitem__(index=index)
-        image_id = self.ids[index]
-        target2 = {"image_id": image_id, "annotations": target}
-        img3, target3 = self.prepare(img, target2)
-        return img3, target3
+        image, target = super(CocoDetection, self).__getitem__(index=idx)
+        image_id = self.ids[idx]
+        target = {"image_id": image_id, "annotations": target}
+        sample_metadata = self.sample_builder.metadata(idx=idx, image_id=image_id, dataset_name=self.__class__.__name__)
+
+        image, target = self.prepare(image, target)
+
+        _random_idx = random.randint(0, len(target["boxes"]) - 1)
+
+        boxes, labels, image_mask, area, iscrowd = (
+            target["boxes"][_random_idx],
+            target["labels"][_random_idx],
+            target["masks"][_random_idx],
+            target["area"][_random_idx],
+            target["iscrowd"][_random_idx],
+        )
+
+        category = self.coco.loadCats(labels.item())[0]["name"]
+
+        _caption = TaskInterface.categorize_region(boxes.to(int).tolist(), category)
+        masks = {"image_mask": None}
+        # breakpoint()
+        sample = self.sample_builder(data=image, target=_caption, masks=masks, metadata=sample_metadata)
+        return sample
 
 
 def convert_coco_poly_to_mask(segmentations, height, width):
@@ -139,11 +180,15 @@ class ConvertCocoPolysToMask(object):
     def __init__(self, return_masks=False):
         self.return_masks = return_masks
 
-    def __call__(self, image, target):
-        w, h = image.size
+    def __call__(self, image: ImageType, target):
+
+        if image.ndim == 3:
+            image = image.unsqueeze(0)
+
+        b, c, w, h = image.shape
 
         image_id = target["image_id"]
-        image_id = torch.tensor([image_id])
+        # image_id = torch.tensor([image_id])
 
         anno = target["annotations"]
 
@@ -151,7 +196,9 @@ class ConvertCocoPolysToMask(object):
 
         boxes = [obj["bbox"] for obj in anno]
         # guard against no boxes via resizing
+
         boxes = torch.as_tensor(boxes, dtype=torch.float32).reshape(-1, 4)
+        breakpoint()
         boxes[:, 2:] += boxes[:, :2]
         boxes[:, 0::2].clamp_(min=0, max=w)
         boxes[:, 1::2].clamp_(min=0, max=h)
@@ -200,145 +247,6 @@ class ConvertCocoPolysToMask(object):
         return image, target
 
 
-# --- ---- --- --- old below
-# class CocoDatasetMultipleTask(ImageDatasetMixin, GeneralistDataset):
-#     """
-#     this was the dataset before i looked at using the torchvision coco dataset.  slower but more flexible
-#     """
-
-#     shortname = "coco"
-
-#     def __init__(self, coco_dir: str = None, split: str = "train", **kwargs) -> None:
-#         assert split in ["train", "test", "val"]
-#         assert split != "test", "COCO test split is not available since it doesnt have captions/keypoints"
-
-#         super().__init__(**kwargs)
-#         self.split = split
-#         self.image_transform = _transforms[self.split]
-
-#         self.coco_dir = Path(coco_dir)
-#         self.img_dir = self.coco_dir / f"{split}2017"
-#         self.captions_path = self.coco_dir / "annotations" / f"captions_{split}2017.json"
-#         self.instances_path = self.coco_dir / "annotations" / f"instances_{split}2017.json"
-#         self.person_keypoints_path = self.coco_dir / "annotations" / f"person_keypoints_{split}2017.json"
-
-#         self.captions_data = json.load(open(self.captions_path))
-#         self.instances_data = json.load(open(self.instances_path))
-#         self._process_captions()
-#         # these other ones only have segmentation maps
-#         # self.instances_data = json.load(open(self.instances))
-#         # self.person_keypoints_data = json.load(open(self.person_keypoints))
-#         self.text_tokenizer_kwargs = {
-#             "return_tensors": "pt",
-#             "truncation": True,
-#             "padding": "max_length",
-#             "max_length": 32,
-#             "return_attention_mask": True,
-#         }
-
-#         # tasks available
-#         self.tasks = TaskInterface()
-
-#     def _process_captions(self) -> None:
-#         self._image_info = {}
-#         self.image_annotation = {}
-
-#         # there are multiple captions per image
-#         for annotation in self.captions_data["annotations"]:
-#             if annotation["image_id"] not in self.image_annotation:
-#                 self.image_annotation[annotation["image_id"]] = []
-#             self.image_annotation[annotation["image_id"]].append(annotation)
-
-#         self._dataset = []
-#         for image_info in self.captions_data["images"]:
-#             if image_info["id"] not in self._image_info:
-#                 self._image_info[image_info["id"]] = image_info
-#             else:
-#                 raise ValueError("Duplicate image id! This should not happen.")
-
-#             image_id = image_info["id"]
-#             image_path = self.img_dir / image_info["file_name"]
-#             captions = self.image_annotation.get(image_id, None)
-
-#             self._dataset.append(
-#                 {
-#                     "image_id": image_id,
-#                     "image_path": str(image_path),
-#                     "caption": captions,
-#                 }
-#             )
-
-#     def __len__(self):
-#         return len(self._dataset)
-
-#     def __getitem__(self, idx: int, **kwargs) -> Sample:
-#         sample = super().__getitem__(idx, **kwargs)
-
-#         item = self._dataset[idx]
-#         self.extra_metadata(sample, item)
-
-#         image = self.read_image(item["image_path"])
-#         image = self.image_transform(ImageType(image))
-#         # pick from one of the captions
-#         caption = random.choice(item["caption"])
-#         caption = TextType(caption["caption"])
-#         # instruction = TextTypeRaw(f"Describe this image.")
-
-#         sample.data = image
-#         sample.target = caption
-
-#         text_tokenizer_kwargs = {**self.text_tokenizer_kwargs, **kwargs.get("text_tokenizer_kwargs", {})}
-
-#         if not kwargs.get("process_data", self.process_data):
-#             data = self.tokenizers.image(sample.data)
-#             sample.data = data
-
-#         if not kwargs.get("process_target", self.process_target):
-#             _caption = f"{self.tasks.caption(caption.data)}"
-
-#             target = self.tokenizers.text.encode_plus(_caption, **text_tokenizer_kwargs)
-#             sample.target = TextType(target["input_ids"])
-#             sample.masks["target"] = target["attention_mask"]
-
-#         return sample
-
-#     def extra_metadata(self, sample: Sample, item: Dict[Any, Any]) -> dict:
-#         sample.metadata.item_path = item["image_path"]
-#         sample.metadata.image_id = item["image_id"]
-
-
-# from generalist.generalist_tokenizers import image_tokenizers
-# from generalist.generalist_tokenizers import text_tokenizers
-
-
-# if __name__ == "__main__":
-#     import time
-
-#     device = "cuda"
-#     image_tokenizer = image_tokenizers.ImageTokenizer(device=device)
-#     text_tokenizer = text_tokenizers.TextTokenizerBert.from_pretrained("bert-base-uncased")
-#     # CocoDatasetMultipleTask.use_tokenizers([image_tokenizer, text_tokenizer])
-
-#     t1 = time.process_time()
-#     dataset = CocoCaption(
-#         # dataset = datasets.CocoCaptions(
-#         root="/data/graham/datasets/coco/aokvqacoco/datasets/coco/val2017",
-#         annFile="/data/graham/datasets/coco/aokvqacoco/datasets/coco/annotations/captions_val2017.json",
-#     )
-
-#     t2 = time.process_time()
-
-#     # breakpoint()
-#     # my_dataset = CocoDatasetMultipleTask(coco_dir="/data/graham/datasets/coco/aokvqacoco/datasets/coco", split="val")
-
-#     t3 = time.process_time()
-
-#     out1 = dataset[5]
-#     t4 = time.process_time()
-#     out2 = my_dataset[0]
-#     t5 = time.process_time()
-
-#     # my_out = dataset[0]
-#     # out = dataset[0]
-
-#     breakpoint()
+class CocoRegionTargetTransform:
+    train = transforms.Compose([transforms.Lambda(ConvertCocoPolysToMask())])
+    val = transforms.Compose([])

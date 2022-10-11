@@ -58,7 +58,7 @@ class collate_func_helper:
 
     def __call__(self, samples: List[Sample]) -> Batch:
 
-        batch = Batch(samples, **self.batch_kwargs)
+        batch = Batch(samples, device=self.device, **self.batch_kwargs)
         return batch
 
         # TODO: this might need to be a part of the dataset
@@ -67,7 +67,6 @@ class collate_func_helper:
         #     sample.data = self.fix_prop(sample.data)
         #     sample.target = self.fix_prop(sample.target)
         #     sample.masks = {k: self.fix_prop(v) for k, v in sample.masks.items()}
-
         # return batch
 
     def fix_prop(self, prop):

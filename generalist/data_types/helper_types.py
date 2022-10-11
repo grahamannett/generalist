@@ -1,3 +1,4 @@
+from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List
 
@@ -61,8 +62,7 @@ class Sample:
 
 
 class SampleBuilder:
-    metadata: SampleMetaData = SampleMetaData()
-    # sample_cls: Sample = Sample
+    metadata: SampleMetaData = SampleMetaData
     preprocessing: List[Callable] = []
 
     def __call__(self, *args, **kwargs):
@@ -79,20 +79,34 @@ class SampleBuilder:
         self.preprocessing.append(func)
 
 
+class SampleBuilderMixin:
+    sample_builder = SampleBuilder()
+
+
 class Batch:
-    def __init__(self, samples: List[Sample] = None, return_tensors: str = None, **kwargs):
+    def __init__(self, samples: List[Sample] = None, return_tensors: str = None, device: str = None, **kwargs):
         self.samples = samples
         self.return_tensors = return_tensors
+        self.device = device
 
     def attr_get(self, key: str):
         out = [getattr(s, key) for s in self.samples]
         if self.return_tensors == "pt":
-            out = torch.cat(out)
+            out = torch.cat(out).to(self.device)
         return out
 
     @property
     def data(self):
-        return self.attr_get("data")
+        out = defaultdict(list)
+        sample: Sample
+        for sample in self.samples:
+            out[sample.data.data_type].append(sample.data)
+
+        if self.return_tensors == "pt":
+            for key, val in out.items():
+                out[key] = torch.cat(val).to(self.device)
+
+        return out
 
     @property
     def target(self):
@@ -102,7 +116,7 @@ class Batch:
     def get_masks(self, key: str):
         out = [s.masks[key] for s in self.samples]
         if self.return_tensors == "pt":
-            out = torch.cat(out)
+            out = torch.cat(out).to(self.device)
 
         return out
 
