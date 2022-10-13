@@ -126,6 +126,10 @@ class TextTokenizerBert(BertTokenizer):
     data_type = TextType.data_type
 
     def __call__(self, *args, **kwargs):
+        return self.__call__default(*args, **kwargs)
+        # return self.encode_to_type(*args, **kwargs)
+
+    def encode_to_type(self, *args, **kwargs):
         if _original := kwargs.pop("original", False):
             return super().__call__(*args, **kwargs)
 
@@ -140,8 +144,10 @@ class TextTokenizerBert(BertTokenizer):
 
         return tokenized_text
 
-    def _encode(self, *args, **kwargs):
+    def original_encode(self, *args, **kwargs):
         return super().__call__(*args, **kwargs)
+
+    __call__default = original_encode
 
 
 if __name__ == "__main__":

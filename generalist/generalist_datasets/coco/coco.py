@@ -8,7 +8,7 @@ import torchvision.transforms as transforms
 import pycocotools.mask as coco_mask
 
 # from generalist.data_types.helper_types import Sample, SampleBuilder
-from generalist.data_types.input_types import ImageType, TextType
+from generalist.data_types.input_types import ImageType, TextType, TextTypeTensor
 from generalist.data_types.helper_types import SampleBuilderMixin
 from generalist.generalist_datasets.coco.file_info import CocoFilepathsBase
 from generalist.generalist_datasets.utils.tasks_utils import TaskInterface
@@ -24,10 +24,12 @@ class CocoCaptionTargetTranform:
     @staticmethod
     def use_text_tokenizer(text_tokenizer: text_tokenizers.TextTokenizer, text_tokenizer_kwargs: Dict[str, Any]):
         def _to_text_type(*args, **kwargs):
-            caption = random.choice(args[0])
-            caption = TaskInterface.caption(caption)
-            caption = text_tokenizer.encode_plus(caption, **text_tokenizer_kwargs)
-            return TextType(caption["input_ids"]), caption["attention_mask"]
+            # caption = random.choice(args[0])
+
+            captions = [TaskInterface.caption(cap) for cap in args[0]]
+            captions = text_tokenizer(captions, **text_tokenizer_kwargs)
+            other = {"attention_mask": captions["attention_mask"], "token_type_ids": captions["token_type_ids"]}
+            return TextType(captions["input_ids"]), other
 
         return _to_text_type
 
@@ -96,15 +98,29 @@ class CocoCaption(SampleBuilderMixin, torchvision.datasets.CocoCaptions):
     ) -> None:
         super().__init__(root=root, annFile=annFile, transform=transform, target_transform=target_transform, transforms=transforms)
 
-    def __getitem__(self, idx: int, *args, **kwargs) -> Tuple[Any, Any]:
-        image, (caption, caption_mask) = super().__getitem__(idx, *args, **kwargs)
-        image_id = self.ids[idx]
+    def extra_caption(self, caption: torch.Tensor, caption_other: Dict[str, Any], caption_choice: int):
 
+        caption_choice = caption_choice % len(caption) if caption_choice is not None else random.randint(0, len(caption) - 1)
+
+        caption = caption[caption_choice]
+        caption_other = {k: v[caption_choice] for k, v in caption_other.items()}
+
+        return caption, caption_other
+
+    def extra_image(self, image: torch.Tensor):
         image_mask = torch.zeros(image.shape[-3:], dtype=torch.uint8)
 
-        masks = {"data": image_mask, "target": caption_mask}
+        return image, {"image_mask": image_mask}
 
-        sample_metadata = self.sample_builder.metadata(idx=idx, dataset_name=self.__class__.__name__, image_id=image_id)
+    def __getitem__(self, idx: int, caption_choice: int = None, *args, **kwargs) -> Tuple[Any, Any]:
+        image, (caption, caption_other) = super().__getitem__(idx)
+
+        caption, caption_other = self.extra_caption(caption, caption_other, caption_choice=caption_choice)
+        image, image_other = self.extra_image(image)
+
+        masks = {"data": image_other["image_mask"], "target": caption_other["attention_mask"]}
+
+        sample_metadata = self.sample_builder.metadata(idx=idx, dataset_name=self.__class__.__name__, image_id=self.ids[idx])
         sample = self.sample_builder(data=image, target=caption, masks=masks, metadata=sample_metadata)
         return sample
 

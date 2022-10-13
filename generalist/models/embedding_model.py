@@ -7,7 +7,7 @@ from generalist.generalist_embedding import image_embedding
 
 # from generalist.generalist_embedding.image_embedding import ImageEmbeddingPath, TorchvisionPretrained, ImagePath, ImagePathConv
 from generalist.generalist_embedding.text_embedding import TextEmbeddingPath
-from generalist.data_types.input_types import GeneralizedTensor
+from generalist.data_types.input_types import GeneralizedTensor, TextTypeTensor, ImageTypeTensor
 from generalist.data_types.helper_types import DataHandlerPath
 
 
@@ -39,6 +39,7 @@ class EmbeddingModel(nn.Module):
 
         if embedding_paths is None:
             embedding_paths = default_embedding_paths(model_dim=model_dim)
+
         for embedd_path in embedding_paths:
             self.setup_path(embedd_path, **kwargs)
 
@@ -47,14 +48,20 @@ class EmbeddingModel(nn.Module):
     def embed_data(self, data: torch.Tensor, data_type: str) -> torch.Tensor:
         return self.data_type[data_type](data)
 
-    def forward(self, data: Dict[str, GeneralizedTensor]) -> Dict[str, GeneralizedTensor]:
-        return {k: self.data_type[k](v) for k, v in data.items()}
-
     def forward(self, data: GeneralizedTensor | List[GeneralizedTensor]) -> GeneralizedTensor:
-        if isinstance(data, GeneralizedTensor):
-            return self.data_type[data.data_type](data)
-        elif isinstance(data, Sequence):
-            return self.forward_sequence(data)
+
+        match data:
+            case GeneralizedTensor():
+                embedded = self.data_type[data.data_type](data)
+            case list():
+                embedded = self.forward_sequence(data)
+            case _:
+                breakpoint()
+
+        if isinstance(embedded, (TextTypeTensor, ImageTypeTensor)):
+            embedded = torch.Tensor(embedded)
+
+        return embedded
 
     def forward_sequence(self, data: Sequence[GeneralizedTensor]) -> GeneralizedTensor:
         # this handles a list of tokenized data.
@@ -81,6 +88,9 @@ class EmbeddingModel(nn.Module):
         return torch.cat(embeddings, dim=0)
 
     def setup_path(self, embedding_path: DataHandlerPath, **kwargs) -> None:
+        if hasattr(self, embedding_path.name):
+            raise ValueError(f"{embedding_path.name} already exists")
+
         setattr(self, embedding_path.name, embedding_path.module)
         self.data_type[embedding_path.data_type] = embedding_path.module
 

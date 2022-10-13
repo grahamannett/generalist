@@ -7,7 +7,8 @@ device: cuda
 log_dir: logs/
 
 # DATA RELATED
-coco_dir: /data/graham/datasets/coco/aokvqacoco/datasets/coco
+coco_dir: /data/graham/datasets/coco/aokvqacoco/datasets/coco # honestly not sure what is this folder versus below
+# coco_dir: /data/graham/datasets/coco/coco/images
 coco_panoptic: /data/graham/datasets/coco/aokvqacoco/datasets/coco_panoptic
 
 aokvqa_dir: /data/graham/datasets/coco/aokvqacoco

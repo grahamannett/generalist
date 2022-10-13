@@ -24,6 +24,7 @@ from generalist.generalist_datasets.coco.coco import (
 from generalist.generalist_datasets.coco.eval import CocoEval
 from generalist.generalist_datasets.hf.summary import BillSum, BillSumTransforms
 from generalist.generalist_datasets.utils.data_collate import collate_func_helper
+from generalist.generalist_datasets.utils.multiple_datasets import ChainedDataset
 from generalist.generalist_datasets.utils.tasks_utils import TaskInterface
 from generalist.generalist_tokenizers import image_tokenizers, text_tokenizers
 from generalist.models.model import EmbeddingModel, GeneralistModel
@@ -93,11 +94,20 @@ def train(cfg: DictConfig):
     summary_dataset = BillSum(
         text_transform=BillSumTransforms.get(text_tokenizer=text_tokenizer, text_tokenizer_kwargs=text_tokenizer_kwargs).train,
     )
-    out = summary_dataset[0]
+
+    # sample = coco_caption.__getitem__(0, caption_choice=5)
+    breakpoint()
+
+    # chained_dataset = ChainedDataset([coco_caption, summary_dataset])
+    chained_dataset = ChainedDataset([summary_dataset])
+
+    # _out = chained_dataset[118287]
+    # breakpoint()
     # out = summary_dataset[0]
+    sample = summary_dataset[0]
 
     dataset = coco_caption
-    sample = coco_caption[0]
+    # sample = coco_caption[0]
 
     # eval example
 
@@ -125,7 +135,8 @@ def train(cfg: DictConfig):
     collate_fn = collate_func_helper(device=device, return_tensors="pt")
 
     # train_dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
-    train_dataloader = DataLoader(summary_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
+    # train_dataloader = DataLoader(summary_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
+    train_dataloader = DataLoader(chained_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
     # val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 
     display = GeneralistDisplay.make(display=display_flag, logger=log)
@@ -146,13 +157,17 @@ def train(cfg: DictConfig):
             data, target = batch.data, batch.target
 
             target_mask = batch.get_masks("target")
-            data_mask = batch.get_masks("data")
+            # data_mask = batch.get_masks("data")
 
             # breakpoint()
             # for modality, data in batch.data.items():
             #     embedding[modality] = embedding_model(data)
 
-            embedding = torch.cat([embedding_model(v) for modality, v in data.items()])
+            embedding = [embedding_model(v) for modality, v in data.items()]
+            try:
+                embedding = torch.cat(embedding)
+            except RuntimeError:
+                breakpoint()
 
             # embedding = embedding_model(data)
 
@@ -163,7 +178,7 @@ def train(cfg: DictConfig):
             # emb = [embedding_model.embed_data(t_, data_type="text") for t_ in target]
             embedded_tgt = embedding_model(target)
 
-            tgt_mask = model.get_tgt_mask(embedded_tgt=embedded_tgt)
+            tgt_mask = model.get_tgt_mask_tri(embedded_tgt=embedded_tgt)
 
             logits = model(embedding, embedded_tgt=embedded_tgt, tgt_key_padding_mask=target_mask, tgt_mask=tgt_mask)
 
@@ -246,8 +261,10 @@ def train(cfg: DictConfig):
         generated_captions.append(latest_caption)
 
     captions_generated = text_tokenizer.batch_decode(generated_captions)
-    print("--- --- --- captions_generated --- --- ---")
-    print(captions_generated)
+
+    print(f"--- --- --- captions_generated --- --- ---\n")
+    print("\n".join(captions_generated))
+    print(f"--- --- --- true target: --- --- ---\n{out_target_true}")
 
     display.manage("epoch", display.END)
     print("done with training")

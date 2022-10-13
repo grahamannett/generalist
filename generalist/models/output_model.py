@@ -44,3 +44,11 @@ class GeneralClassificationOutput(GeneralOutput):
     def forward(self, hidden_states: torch.Tensor, **kwargs) -> torch.Tensor:
         hidden_states = self.reduce_dict[self.reduce_type](hidden_states)
         return self.output(hidden_states)
+
+
+class GeneralImageOutput(GeneralOutput):
+    def __init__(self, model_dim: int, output_dim: int = 768, bias: bool = False) -> None:
+        super().__init__(model_dim=model_dim, output_dim=output_dim, bias=bias)
+
+    def forward(self, hidden_states: torch.Tensor, **kwargs) -> torch.Tensor:
+        return self.output(hidden_states)

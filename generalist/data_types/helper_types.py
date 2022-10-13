@@ -112,13 +112,17 @@ class Batch:
     def target(self):
         return self.attr_get("target")
 
-    # TODO: refacotr this so it is similar to attr_get
+    # TODO: refactor this so it is similar to attr_get
     def get_masks(self, key: str):
         out = [s.masks[key] for s in self.samples]
         if self.return_tensors == "pt":
             out = torch.cat(out).to(self.device)
 
         return out
+
+        # out = defaultdict(list)
+        # for sample in self.samples:
+        #     out[key] =
 
     # @property
     # def masks(self):

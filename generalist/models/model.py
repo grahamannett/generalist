@@ -73,7 +73,7 @@ class GeneralistModel(nn.Module):
         if self.use_encoder:
             return self.transformer_encoder
 
-    def get_tgt_mask(self, embedded_tgt):
+    def get_tgt_mask_tri(self, embedded_tgt):
         tgt_mask = (torch.triu(torch.ones(embedded_tgt.shape[1], embedded_tgt.shape[1])) == 1).transpose(0, 1).to(embedded_tgt.device)
         tgt_mask = ~tgt_mask
         return tgt_mask
@@ -89,7 +89,7 @@ class GeneralistModel(nn.Module):
     ) -> torch.Tensor:
 
         if tgt_mask is None:
-            tgt_mask = self.get_tgt_mask(embedded_tgt)
+            tgt_mask = self.get_tgt_mask_tri(embedded_tgt)
 
         encoded = self.transformer_encoder(src=embedded_src, src_key_padding_mask=None, mask=None)
         hidden_states = self.transformer_decoder(
