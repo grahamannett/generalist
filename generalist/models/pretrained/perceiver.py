@@ -11,7 +11,7 @@ from transformers.models.perceiver.modeling_perceiver import (
     PerceiverForImageClassificationLearned,
 )
 
-from generalist.generalist_embedding.general_embedding import GeneralizedTensor
+from generalist.models.embedding.general_embedding import GeneralizedTensor
 from generalist.models.latents import LatentEmbedding
 
 
@@ -45,10 +45,8 @@ class ImagePath(nn.Module):
         model = PerceiverForImageClassificationLearned.from_pretrained("deepmind/vision-perceiver-learned")
         config = model.config
 
-        # pretrained
         input_preprocessor = model.perceiver.input_preprocessor
         latents = model.perceiver.embeddings
-        # decoder = model.perceiver.decoder
 
         self.embedding_path = input_preprocessor
 

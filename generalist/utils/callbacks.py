@@ -8,8 +8,4 @@ class SetupRuns(Callback):
         pass
 
     def on_run_start(self, cfg: DictConfig, **kwargs: Any) -> None:
-        print("callback with run start")
-
-    # def on_job_start(self, config: DictConfig, **kwargs: Any) -> None:
-    #     print(f"Job started, downloading...")
-    #     breakpoint()
+        pass

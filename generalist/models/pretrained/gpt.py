@@ -8,7 +8,7 @@ from transformers.models.gpt2.modeling_gpt2 import (
     GPT2PreTrainedModel,
 )
 
-from generalist.generalist_embedding.general_embedding import GeneralizedTensor
+from generalist.models.embedding.general_embedding import GeneralizedTensor
 
 
 class TransformerDecoder(GPT2Model):
@@ -61,11 +61,6 @@ class TransformerDecoder(GPT2Model):
         encoder_attention_mask = None
 
         output_shape = embeddings.embedding.shape
-        # output_shape = getattr(
-        #     general_encoded,
-        #     "output_shape",
-        #     self._get_output_shape(input_shape, general_encoded.hidden_states),
-        # )
 
         for i, (block, layer_past) in enumerate(zip(self.h, past_key_values)):
 

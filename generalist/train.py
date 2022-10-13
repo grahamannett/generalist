@@ -30,7 +30,7 @@ from generalist.generalist_tokenizers import image_tokenizers, text_tokenizers
 from generalist.models.model import EmbeddingModel, GeneralistModel
 from generalist.models.output_model import GeneralOutput
 from generalist.predict import ImageCaptionPrediction
-from generalist.utils.display import GeneralistDisplay
+from generalist.utils.display.display import GeneralistDisplay
 from generalist.utils.utils import get_hostname, save_checkpoint
 
 log = logging.getLogger(__name__)

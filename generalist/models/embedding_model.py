@@ -3,10 +3,9 @@ from typing import List, Sequence, Dict
 
 import torch
 import torch.nn as nn
-from generalist.generalist_embedding import image_embedding
+from generalist.models.embedding import image_embedding
+from generalist.models.embedding.text_embedding import TextEmbeddingPath
 
-# from generalist.generalist_embedding.image_embedding import ImageEmbeddingPath, TorchvisionPretrained, ImagePath, ImagePathConv
-from generalist.generalist_embedding.text_embedding import TextEmbeddingPath
 from generalist.data_types.input_types import GeneralizedTensor, TextTypeTensor, ImageTypeTensor
 from generalist.data_types.helper_types import DataHandlerPath
 

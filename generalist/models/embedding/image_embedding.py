@@ -7,9 +7,9 @@ import torchvision
 from torchvision.models._utils import IntermediateLayerGetter
 
 from generalist.data_types.input_types import ImageType, GeneralizedTensor
-from generalist.generalist_embedding.resnet_embedding import build_backbone
+from generalist.models.embedding.resnet_embedding import build_backbone
+from generalist.models.embedding.image_positional_embeddings import LearnedPositionalEmbeddings, PositionEmbeddingSine
 from generalist.generalist_tokenizers.image_tokenizers import normalize_image
-from generalist.generalist_embedding.image_positional_embeddings import LearnedPositionalEmbeddings, PositionEmbeddingSine
 
 from einops import repeat
 
