@@ -8,7 +8,7 @@ import torchvision.transforms as transforms
 import pycocotools.mask as coco_mask
 
 # from generalist.data_types.helper_types import Sample, SampleBuilder
-from generalist.data_types.input_types import ImageType, TextType, TextTypeTensor
+from generalist.data_types.input_types import ImageType, ImageTypeTensor, TextType, TextTypeTensor
 from generalist.data_types.helper_types import SampleBuilderMixin
 from generalist.generalist_datasets.coco.file_info import CocoFilepathsBase
 from generalist.generalist_datasets.utils.tasks_utils import TaskInterface
@@ -40,6 +40,10 @@ class CocoCaptionTargetTranform:
         return _transforms
 
 
+def _unsqueeze_transform(image: ImageTypeTensor):
+    return image.unsqueeze(0)
+
+
 class CocoImageTransforms:
     # potentially add these:
 
@@ -50,8 +54,7 @@ class CocoImageTransforms:
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-            # transforms.Lambda(ImageType.transform),
-            transforms.Lambda(ImageType.transform),
+            transforms.Lambda(_unsqueeze_transform),
         ]
     )
 
@@ -60,7 +63,7 @@ class CocoImageTransforms:
             transforms.Resize((320, 320)),
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-            transforms.Lambda(ImageType.transform),
+            transforms.Lambda(_unsqueeze_transform),
         ]
     )
 

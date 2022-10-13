@@ -1,11 +1,12 @@
 from dataclasses import KW_ONLY, dataclass
 from enum import Enum
-from typing import Any, Callable, List, TypeVar
+from pathlib import Path
+from typing import Any, Callable, List
 
 import torch
 from torch import nn
+from torchvision.io import read_image
 from torchvision.transforms import functional as F
-from typing_extensions import Self
 
 
 class InputTypes:
@@ -38,7 +39,7 @@ class TextType(InputType):
     data: Any
     data_type = InputTypes.text
 
-    def __new__(cls: type[Self], *args, **kwargs) -> Self:
+    def __new__(cls: type["TextType"], *args, **kwargs):
         if isinstance(args[0], torch.Tensor):
             return TextTypeTensor(*args, **kwargs)
         return super().__new__(cls)
@@ -46,9 +47,8 @@ class TextType(InputType):
     def __init__(self, data: Any, **kwargs):
         self.data = data
 
-    @classmethod
-    def transform(cls, *args, **kwargs):
-        return
+    def __len__(self):
+        return len(self.data)
 
 
 class TextTypeTensor(GeneralizedTensor):
@@ -60,7 +60,7 @@ class ImageType(InputType):
     data: Any
     data_type = InputTypes.image
 
-    def __new__(cls: type[Self], *args, **kwargs) -> Self:
+    def __new__(cls: type["ImageType"], *args, **kwargs):
         if isinstance(args[0], torch.Tensor):
             return ImageTypeTensor(*args, **kwargs)
         return super().__new__(cls)
@@ -69,24 +69,44 @@ class ImageType(InputType):
         self.data = data
 
     @classmethod
-    def transform(cls, *args, **kwargs):
-        return cls(*args).unsqueeze(0)
+    def from_file(cls, filepath: str | Path):
+        image = read_image(filepath)
+        return cls(image)
 
 
 class ImageTypeTensor(GeneralizedTensor):
     data: torch.Tensor
     data_type = InputTypes.image
 
-    def resize_image(self, size: List[int], **kwargs) -> "ImageType":
+    def resize_image(self, size: List[int], **kwargs) -> "ImageTypeTensor":
         self.data = F.resize(self.data, size=size, **kwargs)
         return self
 
 
-@dataclass
-class RLType(InputType):
-    observation: Any
-    action: Any
-    reward: Any
+# @dataclass
+class OfflineRLType(InputType):
+    observations: torch.Tensor
+    actions: torch.Tensor
+    rewards: torch.Tensor
+    dones: torch.Tensor
+
+    data_type = InputTypes.rl
+
+    def __init__(self, observations: torch.Tensor, actions: torch.Tensor, rewards: torch.Tensor, dones: torch.Tensor) -> None:
+        super().__init__()
+        self.observations = observations
+        self.actions = actions
+        self.rewards = rewards
+        self.dones = dones
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(observations={self.observations.shape}, actions={self.actions.shape}, rewards={self.rewards.shape}, dones={self.dones.shape})"
+
+    def hook_attributes(self, sample: "Sample"):
+        sample.observations = self.observations
+        sample.actions = self.actions
+        sample.rewards = self.rewards
+        sample.dones = self.dones
 
 
 class DataWithMask:
@@ -97,12 +117,3 @@ class DataWithMask:
 
     def get(self):
         return self.data_cls(self.data), self.mask
-
-
-if __name__ == "__main__":
-    x = TextType("this is a string")
-    x2 = TextType(torch.Tensor([1, 2, 3]))
-    x3 = ImageType(torch.rand(3, 224, 224))
-
-    assert type(x) == TextType
-    assert type(x2) == TextTypeTensor

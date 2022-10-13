@@ -34,8 +34,6 @@ class Sample:
     def __init__(self, data: List[InputType] = None, target: Any = None, masks: Dict[str, Any] = {}, metadata: SampleMetaData = None):
         self.data = data
         self.target = target
-        # self._data = data
-        # self._target = target
         self.metadata = metadata
         self.masks = masks
 
@@ -56,6 +54,9 @@ class Sample:
         string += ")"
         return string
 
+    def _input_type_hook(self, hook_fn: Callable):
+        hook_fn(self)
+
     @classmethod
     def new(cls, **kwargs):
         return cls(**kwargs)
@@ -71,7 +72,11 @@ class SampleBuilder:
 
         sample = Sample(*args, **kwargs)
         for func in self.preprocessing:
-            func(sample)
+            if isinstance(func, str):
+                func = getattr(sample.data, func)(sample)
+
+            else:
+                func(sample)
 
         return sample
 
@@ -119,14 +124,6 @@ class Batch:
             out = torch.cat(out).to(self.device)
 
         return out
-
-        # out = defaultdict(list)
-        # for sample in self.samples:
-        #     out[key] =
-
-    # @property
-    # def masks(self):
-    #     return self.attr_get("masks")
 
     def __len__(self):
         return len(self.samples)

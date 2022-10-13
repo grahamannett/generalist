@@ -1,50 +1,22 @@
 import unittest
-from collections import UserDict
-#     def setUp(self):
-#         self.path = text_path.TextEmbeddingPath(device=self.device)
-#         self.embedding = text_path.TextEmbedding(device=self.device)
-from dataclasses import dataclass
-from typing import NamedTuple
-
-from config import device
-from generalist.generalist_tokenizers import text_tokenizers
-from torch.utils.data import DataLoader, Dataset
-
-# class TestText(unitttest.TestCase):
-#     device = device
+import torch
+from generalist.data_types.input_types import ImageType, ImageTypeTensor, TextType
 
 
+class TestImageType(unittest.TestCase):
+    def test(self):
+        image = ImageType.from_file("./tests/fixtures/img1.jpg")
+        image_tensor = ImageType(torch.rand(3, 224, 224))
+
+        self.assertIsInstance(image, ImageTypeTensor)
+        self.assertIsInstance(image_tensor, ImageTypeTensor)
 
 
-@dataclass
-class DataInstance:
-    val: int = 0
+class TestTextType(unittest.TestCase):
+    def test(self):
+        base_str = "this is a string"
+        text_str = TextType(base_str)
+        text_tensor = TextType(torch.Tensor([1, 2, 3]))
+        self.assertEqual(len(text_str), len(base_str))
+        self.assertEqual(len(text_tensor), 3)
 
-
-class ExDataset(Dataset):
-    def __init__(self) -> None:
-        super().__init__()
-
-        self.vals = [DataInstance(val=i) for i in range(10)]
-
-    def __getitem__(self, idx: int):
-        return self.vals[idx]
-
-    def __len__(self):
-        return len(self.vals)
-
-
-dataset = ExDataset()
-
-val1 = dataset[0]
-print(val1)
-
-
-def _collate_fn(batch):
-    return batch
-
-
-dataloader = DataLoader(dataset, batch_size=3, shuffle=True, collate_fn=_collate_fn)
-
-for batch_idx, batch in enumerate(dataloader):
-    print(batch_idx, batch)

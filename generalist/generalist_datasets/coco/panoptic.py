@@ -1,14 +1,13 @@
-from dataclasses import dataclass
 import json
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
 import torch
-from PIL import Image
-from generalist.generalist_datasets.coco.filepaths import CocoFilepathsBase
-
-from panopticapi.utils import rgb2id
+from generalist.generalist_datasets.coco.file_info import CocoFilepathsBase
 from generalist.generalist_datasets.coco.utils import masks_to_boxes
+from panopticapi.utils import rgb2id
+from PIL import Image
 
 
 @dataclass

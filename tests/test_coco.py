@@ -24,7 +24,7 @@ class TestCoco(unittest.TestCase):
             self.coco_filepaths = CocoFilepaths(base_dir=cfg.coco_dir, split=self.split)
             self.coco_panoptic_filepaths = CocoPanopticFilepaths(base_dir=cfg.coco_panoptic, split=self.split)
 
-
+    @unittest.skip
     def test_coco_detection(self):
 
         coco_detection = CocoDetection(
@@ -35,6 +35,7 @@ class TestCoco(unittest.TestCase):
 
         self.assertEqual(image.__class__.__name__, "Image")
 
+    @unittest.skip
     def test_coco_panoptic(self):
         coco_panoptic = CocoPanoptic(
             img_folder=self.coco_filepaths.images_root,
