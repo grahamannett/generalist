@@ -35,7 +35,6 @@ class GeneralistModel(nn.Module):
         # BELOW COMES FROM HYDRA CONFIG
         use_encoder: bool = True,
         model_dim: int = 768,
-        latent_seq_len: int = 32,
         encoder_nhead: int = 4,
         decoder_nhead: int = 4,
         encoder_num_layers: int = 4,
@@ -43,6 +42,7 @@ class GeneralistModel(nn.Module):
         enable_nested_tensor: bool = True,
         token_idx: int = 0,
         model_max_length: int = 512,
+        batch_first: bool = True,
         **kwargs,
     ) -> None:
         super().__init__()
@@ -53,21 +53,16 @@ class GeneralistModel(nn.Module):
         self.output_model = output_model
         self.use_encoder = use_encoder
 
-        encoder_layer = nn.TransformerEncoderLayer(d_model=self.model_dim, nhead=encoder_nhead, batch_first=True)
-        decoder_layer = nn.TransformerDecoderLayer(d_model=self.model_dim, nhead=decoder_nhead, batch_first=True)
+        decoder_layer = nn.TransformerDecoderLayer(d_model=self.model_dim, nhead=decoder_nhead, batch_first=batch_first)
+        self.transformer_decoder = nn.TransformerDecoder(decoder_layer=decoder_layer, num_layers=decoder_num_layers)
 
         if self.use_encoder:
+            encoder_layer = nn.TransformerEncoderLayer(d_model=self.model_dim, nhead=encoder_nhead, batch_first=batch_first)
             self.transformer_encoder = nn.TransformerEncoder(
                 encoder_layer=encoder_layer, num_layers=encoder_num_layers, enable_nested_tensor=enable_nested_tensor
             )
         else:
             self.transformer_encoder = Identity(return_key="src")
-
-        self.transformer_decoder = nn.TransformerDecoder(decoder_layer=decoder_layer, num_layers=decoder_num_layers)
-
-        # FIXME: from my experiments this doesnt seem to work. but it works in perceiver paper
-        self.latent_seq_len = latent_seq_len
-        # self.latents = LatentEmbedding(self.latent_seq_len, self.model_dim)
 
     def get_memory(self):
         if self.use_encoder:
