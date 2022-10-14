@@ -40,8 +40,9 @@ class CocoCaptionTargetTranform:
         return _transforms
 
 
-def _unsqueeze_transform(image: ImageTypeTensor):
-    return image.unsqueeze(0)
+def _unsqueeze_transform(image: torch.Tensor):
+    image = ImageTypeTensor(image.unsqueeze(0))
+    return image
 
 
 class CocoImageTransforms:
@@ -105,8 +106,9 @@ class CocoCaption(SampleBuilderMixin, torchvision.datasets.CocoCaptions):
 
         caption_choice = caption_choice % len(caption) if caption_choice is not None else random.randint(0, len(caption) - 1)
 
-        caption = caption[caption_choice]
-        caption_other = {k: v[caption_choice] for k, v in caption_other.items()}
+        # get idx like this so we dont have to unsqueeze
+        caption = caption[caption_choice : caption_choice + 1]
+        caption_other = {k: v[caption_choice : caption_choice + 1] for k, v in caption_other.items()}
 
         return caption, caption_other
 
@@ -125,6 +127,7 @@ class CocoCaption(SampleBuilderMixin, torchvision.datasets.CocoCaptions):
 
         sample_metadata = self.sample_builder.metadata(idx=idx, dataset_name=self.__class__.__name__, image_id=self.ids[idx])
         sample = self.sample_builder(data=image, target=caption, masks=masks, metadata=sample_metadata)
+
         return sample
 
 

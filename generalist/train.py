@@ -8,18 +8,14 @@ import torch
 from omegaconf import DictConfig
 from rich import print
 from torch.utils.data import DataLoader
-from torchvision import transforms
 
-from generalist.data_types.helper_types import Sample
-from generalist.data_types.input_types import ImageType, TextType
-from generalist.generalist_datasets import AokvqaDataset, GeneralistDataset, MNISTDataset
 from generalist.generalist_datasets.coco.coco import (
     CocoCaption,
     CocoCaptionTargetTranform,
     CocoDetection,
     CocoFilepaths,
-    CocoRegionTargetTransform,
     CocoImageTransforms,
+    CocoRegionTargetTransform,
 )
 from generalist.generalist_datasets.coco.eval import CocoEval
 from generalist.generalist_datasets.hf.summary import BillSum, BillSumTransforms
@@ -27,7 +23,8 @@ from generalist.generalist_datasets.utils.data_collate import collate_func_helpe
 from generalist.generalist_datasets.utils.multiple_datasets import ChainedDataset
 from generalist.generalist_datasets.utils.tasks_utils import TaskInterface
 from generalist.generalist_tokenizers import image_tokenizers, text_tokenizers
-from generalist.models.model import EmbeddingModel, GeneralistModel
+from generalist.models.embedding_model import EmbeddingModel
+from generalist.models.model import GeneralistModel
 from generalist.models.output_model import GeneralOutput
 from generalist.predict import ImageCaptionPrediction
 from generalist.utils.display.display import GeneralistDisplay
@@ -38,6 +35,9 @@ log = logging.getLogger(__name__)
 
 def train_step(embedding_model, genearlist_model, dataloader):
     pass
+
+
+# def preliminary_eval(sample, )
 
 
 @hydra.main(config_path=f"../config", config_name=get_hostname(), version_base=None)
@@ -96,21 +96,14 @@ def train(cfg: DictConfig):
     )
 
     # sample = coco_caption.__getitem__(0, caption_choice=5)
-    breakpoint()
-
-    # chained_dataset = ChainedDataset([coco_caption, summary_dataset])
-    chained_dataset = ChainedDataset([summary_dataset])
-
-    # _out = chained_dataset[118287]
-    # breakpoint()
-    # out = summary_dataset[0]
-    sample = summary_dataset[0]
 
     dataset = coco_caption
-    # sample = coco_caption[0]
+    chained_dataset = ChainedDataset([coco_caption, summary_dataset])
+    # chained_dataset = ChainedDataset([summary_dataset])
+
+    sample = summary_dataset[0]
 
     # eval example
-
     sample_data = sample.data
     out_target_tokens = sample.target
 
@@ -135,12 +128,13 @@ def train(cfg: DictConfig):
     collate_fn = collate_func_helper(device=device, return_tensors="pt")
 
     # train_dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
-    # train_dataloader = DataLoader(summary_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
-    train_dataloader = DataLoader(chained_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
-    # val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 
+    train_dataloader = DataLoader(chained_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
+
+    # display = GeneralistDisplay.make(display=display_flag, logger=log)
+    # display.manage()
     display = GeneralistDisplay.make(display=display_flag, logger=log)
-    display.manage()
+    display.setup_layout(n_epochs=n_epochs, n_batches=len(train_dataloader))
     for epoch in range(n_epochs):
         # epoch_progress.update(epoch_task)
 
@@ -152,6 +146,7 @@ def train(cfg: DictConfig):
 
         model.train()
 
+        display.ready_batch(train_dataloader)
         for batch_idx, batch in enumerate(train_dataloader):
 
             data, target = batch.data, batch.target
@@ -163,13 +158,13 @@ def train(cfg: DictConfig):
             # for modality, data in batch.data.items():
             #     embedding[modality] = embedding_model(data)
 
-            embedding = [embedding_model(v) for modality, v in data.items()]
-            try:
-                embedding = torch.cat(embedding)
-            except RuntimeError:
-                breakpoint()
+            embedding = embedding_model.foward_modality_dict(data)
+            # embedding = [embedding_model(v) for modality, v in data.items()]
 
-            # embedding = embedding_model(data)
+            # try:
+            #     embedding = torch.cat(embedding)
+            # except RuntimeError:
+            #     breakpoint()
 
             target_mask = ~target_mask.to(bool)
 

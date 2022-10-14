@@ -47,6 +47,10 @@ class EmbeddingModel(nn.Module):
     def embed_data(self, data: torch.Tensor, data_type: str) -> torch.Tensor:
         return self.data_type[data_type](data)
 
+    def foward_modality_dict(self, data: Dict[str, GeneralizedTensor]) -> torch.Tensor:
+        embedding = [self.forward(v) for modality, v in data.items()]
+        return torch.cat(embedding)
+
     def forward(self, data: GeneralizedTensor | List[GeneralizedTensor]) -> GeneralizedTensor:
 
         match data:

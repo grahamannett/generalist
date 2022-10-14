@@ -3,11 +3,7 @@ from typing import Any, List, Sequence
 import torch
 import torch.nn as nn
 
-from generalist.models.embedding_model import EmbeddingModel
 from generalist.models.output_model import GeneralOutput
-from generalist.models.transformers.transformerdecoder import TransformerDecoder
-from generalist.models.transformers.from_torch import Transformer
-from generalist.models.latents import LatentEmbedding
 
 
 def generate_square_subsequent_mask(sz):
@@ -42,7 +38,7 @@ class GeneralistModel(nn.Module):
         enable_nested_tensor: bool = True,
         token_idx: int = 0,
         model_max_length: int = 512,
-        batch_first: bool = True,
+        # batch_first: bool = True,
         **kwargs,
     ) -> None:
         super().__init__()
@@ -52,6 +48,8 @@ class GeneralistModel(nn.Module):
 
         self.output_model = output_model
         self.use_encoder = use_encoder
+
+        batch_first = True
 
         decoder_layer = nn.TransformerDecoderLayer(d_model=self.model_dim, nhead=decoder_nhead, batch_first=batch_first)
         self.transformer_decoder = nn.TransformerDecoder(decoder_layer=decoder_layer, num_layers=decoder_num_layers)
@@ -87,6 +85,7 @@ class GeneralistModel(nn.Module):
             tgt_mask = self.get_tgt_mask_tri(embedded_tgt)
 
         encoded = self.transformer_encoder(src=embedded_src, src_key_padding_mask=None, mask=None)
+
         hidden_states = self.transformer_decoder(
             tgt=embedded_tgt, memory=encoded, tgt_mask=tgt_mask, tgt_key_padding_mask=tgt_key_padding_mask
         )

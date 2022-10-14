@@ -61,6 +61,7 @@ class ImageType(InputType):
     data_type = InputTypes.image
 
     def __new__(cls: type["ImageType"], *args, **kwargs):
+        # breakpoint()
         if isinstance(args[0], torch.Tensor):
             return ImageTypeTensor(*args, **kwargs)
         return super().__new__(cls)

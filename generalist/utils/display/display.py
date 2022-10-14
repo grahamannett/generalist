@@ -1,4 +1,3 @@
-
 from enum import Enum
 from typing import Any, Callable, Dict, List
 
@@ -13,12 +12,12 @@ class DisplayStates(Enum):
 
 from rich import print
 
+
 class GeneralistDisplay(object):
     """
     base class for displaying info.
     just print info to console unless display
     """
-
 
     def __init__(self, display: bool, **kwargs):
         self.console = Console()
@@ -32,6 +31,7 @@ class GeneralistDisplay(object):
     def make(cls, *args, **kwargs):
         if kwargs.get("display", True):
             from generalist.utils.rich_display.rich_display import RichDisplay
+
             cls = RichDisplay
         return cls(*args, **kwargs)
 
@@ -45,6 +45,15 @@ class GeneralistDisplay(object):
         pass
 
     def stop(self, *args, **kwargs):
+        pass
+
+    def setup_layout(self, *args, **kwargs):
+        pass
+
+    def ready_batch(self, *args, **kwargs):
+        pass
+
+    def ready_epoch(self, *args, **kwargs):
         pass
 
     def update(self, *args, **kwargs):

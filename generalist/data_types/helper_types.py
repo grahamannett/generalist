@@ -105,6 +105,7 @@ class Batch:
         out = defaultdict(list)
         sample: Sample
         for sample in self.samples:
+            # breakpoint()
             out[sample.data.data_type].append(sample.data)
 
         if self.return_tensors == "pt":
@@ -115,13 +116,23 @@ class Batch:
 
     @property
     def target(self):
-        return self.attr_get("target")
+        # return self.attr_get("target")
+        out = [getattr(s, "target") for s in self.samples]
+        if self.return_tensors == "pt":
+            if out[0].ndim == 1:
+                out = torch.stack(out).to(self.device)
+            else:
+                out = torch.cat(out).to(self.device)
+        return out
 
     # TODO: refactor this so it is similar to attr_get
     def get_masks(self, key: str):
         out = [s.masks[key] for s in self.samples]
         if self.return_tensors == "pt":
-            out = torch.cat(out).to(self.device)
+            if out[0].ndim == 1:
+                out = torch.stack(out).to(self.device)
+            else:
+                out = torch.cat(out).to(self.device)
 
         return out
 
@@ -132,7 +143,6 @@ class Batch:
         return self.samples[key]
 
     def __iter__(self):
-        breakpoint()
         return iter(self.samples)
 
     @classmethod
