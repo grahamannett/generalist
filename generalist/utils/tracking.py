@@ -1,5 +1,7 @@
 import wandb
 
 
-def init_wandb():
-    wandb.init(project="2022_neurips_workshop", entity="graham")
+def init_wandb(project: str, entity: str):
+    # wandb.init(project=project, entity="graham")
+    wandb.init(project=project)
+    return wandb

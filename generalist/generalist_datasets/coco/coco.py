@@ -101,6 +101,7 @@ class CocoCaption(SampleBuilderMixin, torchvision.datasets.CocoCaptions):
         **kwargs,
     ) -> None:
         super().__init__(root=root, annFile=annFile, transform=transform, target_transform=target_transform, transforms=transforms)
+        self.sample_builder.with_task_type(TaskInterface.caption)
 
     def extra_caption(self, caption: torch.Tensor, caption_other: Dict[str, Any], caption_choice: int):
 
@@ -128,6 +129,7 @@ class CocoCaption(SampleBuilderMixin, torchvision.datasets.CocoCaptions):
         sample_metadata = self.sample_builder.metadata(idx=idx, dataset_name=self.__class__.__name__, image_id=self.ids[idx])
         sample = self.sample_builder(data=image, target=caption, masks=masks, metadata=sample_metadata)
 
+        # breakpoint()
         return sample
 
 
@@ -149,6 +151,7 @@ class CocoDetection(SampleBuilderMixin, torchvision.datasets.CocoDetection):
     def __init__(self, return_masks: bool = True, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.prepare = ConvertCocoPolysToMask(return_masks)
+        self.sample_builder.with_task_type(TaskInterface.detection)
 
     def __getitem__(self, idx: int, **kwargs) -> Tuple[Any, Any]:
         # img, target = super().__getitem__(idx, *args, **kwargs)
@@ -173,7 +176,6 @@ class CocoDetection(SampleBuilderMixin, torchvision.datasets.CocoDetection):
 
         _caption = TaskInterface.categorize_region(boxes.to(int).tolist(), category)
         masks = {"image_mask": None}
-        # breakpoint()
         sample = self.sample_builder(data=image, target=_caption, masks=masks, metadata=sample_metadata)
         return sample
 

@@ -47,9 +47,6 @@ class EmbeddingModel(nn.Module):
     def embed_data(self, data: torch.Tensor, data_type: str) -> torch.Tensor:
         return self.data_type[data_type](data)
 
-    def foward_modality_dict(self, data: Dict[str, GeneralizedTensor]) -> torch.Tensor:
-        embedding = [self.forward(v) for modality, v in data.items()]
-        return torch.cat(embedding)
 
     def forward(self, data: GeneralizedTensor | List[GeneralizedTensor]) -> GeneralizedTensor:
 
@@ -58,13 +55,20 @@ class EmbeddingModel(nn.Module):
                 embedded = self.data_type[data.data_type](data)
             case list():
                 embedded = self.forward_sequence(data)
+
+            case dict():
+                embedded = self.foward_modality_dict(data)
+
             case _:
                 breakpoint()
 
         if isinstance(embedded, (TextTypeTensor, ImageTypeTensor)):
             embedded = torch.Tensor(embedded)
-
         return embedded
+
+    def foward_modality_dict(self, data: Dict[str, GeneralizedTensor]) -> torch.Tensor:
+        embedding = [self.forward(v) for modality, v in data.items()]
+        return torch.cat(embedding)
 
     def forward_sequence(self, data: Sequence[GeneralizedTensor]) -> GeneralizedTensor:
         # this handles a list of tokenized data.

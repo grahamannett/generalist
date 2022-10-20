@@ -1,5 +1,4 @@
 import logging
-import random
 from pathlib import Path
 from typing import Any, Dict
 
@@ -12,16 +11,13 @@ from torch.utils.data import DataLoader
 from generalist.generalist_datasets.coco.coco import (
     CocoCaption,
     CocoCaptionTargetTranform,
-    CocoDetection,
     CocoFilepaths,
     CocoImageTransforms,
-    CocoRegionTargetTransform,
 )
-from generalist.generalist_datasets.coco.eval import CocoEval
-from generalist.generalist_datasets.hf.summary import BillSum, BillSumTransforms
+from generalist.eval import preliminary_eval
+from generalist.generalist_datasets.hf.summary import BillSum, XSum, SummaryTransforms
 from generalist.generalist_datasets.utils.data_collate import collate_func_helper
 from generalist.generalist_datasets.utils.multiple_datasets import ChainedDataset
-from generalist.generalist_datasets.utils.tasks_utils import TaskInterface
 from generalist.generalist_tokenizers import image_tokenizers, text_tokenizers
 from generalist.models.embedding_model import EmbeddingModel
 from generalist.models.model import GeneralistModel
@@ -32,12 +28,18 @@ from generalist.utils.utils import get_hostname, save_checkpoint
 
 log = logging.getLogger(__name__)
 
+import evaluate
+
+rouge_score = evaluate.load("rouge")
+
+
+def eval_summary(predictions: List[str], references: List[str]):
+    scores = rouge_score.compute(predictions=[generated_summary], references=[reference_summary])
+    return scores
+
 
 def train_step(embedding_model, genearlist_model, dataloader):
     pass
-
-
-# def preliminary_eval(sample, )
 
 
 @hydra.main(config_path=f"../config", config_name=get_hostname(), version_base=None)
@@ -91,39 +93,37 @@ def train(cfg: DictConfig):
         target_transform=CocoCaptionTargetTranform.get(text_tokenizer=text_tokenizer, text_tokenizer_kwargs=text_tokenizer_kwargs).train,
     )
 
-    summary_dataset = BillSum(
-        text_transform=BillSumTransforms.get(text_tokenizer=text_tokenizer, text_tokenizer_kwargs=text_tokenizer_kwargs).train,
+    summary_dataset = XSum(
+        text_transform=SummaryTransforms.make_transforms(text_tokenizer=text_tokenizer, text_tokenizer_kwargs=text_tokenizer_kwargs).train,
     )
+    from evaluate import evaluator
+
+    task_evaluator = evaluator("summarization")
+
+    summary_dataset = BillSum(
+        text_transform=SummaryTransforms.make_transforms(text_tokenizer=text_tokenizer, text_tokenizer_kwargs=text_tokenizer_kwargs).train,
+    )
+
+    su
 
     # sample = coco_caption.__getitem__(0, caption_choice=5)
 
     dataset = coco_caption
     chained_dataset = ChainedDataset([coco_caption, summary_dataset])
-    # chained_dataset = ChainedDataset([summary_dataset])
 
     sample = summary_dataset[0]
+    sample.data = sample.data.to(device)
+    sample.target = sample.target.to(device)
 
-    # eval example
-    sample_data = sample.data
-    out_target_tokens = sample.target
-
-    _max_length = torch.where(sample.target == 0)[1][0].item()
-    out_target_true = text_tokenizer.decode(out_target_tokens[0, :_max_length])
-
-    caption_preder = ImageCaptionPrediction(
-        image_tokenizer=image_tokenizer, text_tokenizer=text_tokenizer, embedding_model=embedding_model, model=model, device=device
+    generated_captions, caption_preder, out_target_true = preliminary_eval(
+        sample,
+        text_tokenizer=text_tokenizer,
+        image_tokenizer=image_tokenizer,
+        embedding_model=embedding_model,
+        model=model,
+        device=device,
+        initial_caption=cfg.display.initial_caption,
     )
-
-    sample_data = sample_data.to(device)
-    # tokenized_caption = out_target_tokens.to(device)
-    generated_captions = []
-
-    if cfg.display.initial_caption:
-        initial_caption = caption_preder.make_caption(
-            image=sample_data,
-            max_length=_max_length,
-        )
-        generated_captions.append(initial_caption)
 
     collate_fn = collate_func_helper(device=device, return_tensors="pt")
 
@@ -131,25 +131,30 @@ def train(cfg: DictConfig):
 
     train_dataloader = DataLoader(chained_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 
-    # display = GeneralistDisplay.make(display=display_flag, logger=log)
-    # display.manage()
-    display = GeneralistDisplay.make(display=display_flag, logger=log)
-    display.setup_layout(n_epochs=n_epochs, n_batches=len(train_dataloader))
-    for epoch in range(n_epochs):
-        # epoch_progress.update(epoch_task)
+    display = GeneralistDisplay.make(display=display_flag, logger=log, override_rich_print=True)
+    display.setup_layout(debug=False)
+
+    display.epoch_progress.task(n_epochs)
+
+    for epoch in display.epoch_progress:
 
         running_loss = 0.0
         running_correct = 0
         running_total = 0
         display.update("epoch_progress", epoch)
-        display.add_task("batch_progress", "[green]Batch", total=len(train_dataloader), running_loss=running_loss)
+        # display.add_task("batch_progress", "[green]Batch", total=len(train_dataloader), running_loss=running_loss)
 
         model.train()
 
-        display.ready_batch(train_dataloader)
-        for batch_idx, batch in enumerate(train_dataloader):
+        display.batch_progress.task(train_dataloader)
+        for batch_idx, batch in enumerate(display.batch_progress):
+            # for batch_idx, batch in enumerate(train_dataloader):
+            # for batch_idx, batch in display.batch_progress:
 
             data, target = batch.data, batch.target
+            task_types = batch.tasks
+            if len(set(task_types)) > 1:
+                breakpoint()
 
             target_mask = batch.get_masks("target")
             # data_mask = batch.get_masks("data")
@@ -158,7 +163,8 @@ def train(cfg: DictConfig):
             # for modality, data in batch.data.items():
             #     embedding[modality] = embedding_model(data)
 
-            embedding = embedding_model.foward_modality_dict(data)
+            # embedding = embedding_model.foward_modality_dict(data)
+            embedding = embedding_model(data)
             # embedding = [embedding_model(v) for modality, v in data.items()]
 
             # try:
@@ -211,14 +217,16 @@ def train(cfg: DictConfig):
 
             if batch_idx % 250 == 0:
                 latest_caption = caption_preder.make_caption(
-                    image=sample_data,
+                    data=sample.data,
                     max_length=context_length,
                 )
 
-                print(f"latest caption:{text_tokenizer.decode(latest_caption)}")
-                print(f"true caption: {out_target_true}")
+                # print(f"latest caption:{text_tokenizer.decode(latest_caption)}")
+                # print(f"true caption: {out_target_true}")
 
                 generated_captions.append(latest_caption)
+                breakpoint()
+                scores = eval_summary(latest_caption, out_target_true)
 
             acc = f"{(running_correct / running_total):0.3f}"
 
@@ -252,7 +260,7 @@ def train(cfg: DictConfig):
             filename="latest.pt",
         )
 
-        latest_caption = caption_preder.make_caption(image=sample_data, max_length=context_length)
+        latest_caption = caption_preder.make_caption(image=sample.data, max_length=context_length)
         generated_captions.append(latest_caption)
 
     captions_generated = text_tokenizer.batch_decode(generated_captions)

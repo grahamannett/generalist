@@ -28,7 +28,7 @@ class ImageCaptionPrediction:
         self,
         # embedding_model: EmbeddingModel,
         # model: GeneralistModel,
-        image: ImageType,
+        data: torch.Tensor,
         max_length: int = 32,
         # tokenized_caption: TextType,
         use_caption: bool = True,
@@ -36,7 +36,7 @@ class ImageCaptionPrediction:
     ):
 
         # target_list = [self.text_tokenizer.cls_token_id]
-        embedded_image = self.embedding_model([image])
+        embedded_data = self.embedding_model([data])
 
         target_list_top_k_p = [self.text_tokenizer.cls_token_id]
         target_list_top_p = [self.text_tokenizer.cls_token_id]
@@ -48,10 +48,10 @@ class ImageCaptionPrediction:
         for i in range(max_length):
 
             # tokenized_target = TextType(target_list).to(int).to(image.device)
-            tokenized_target = TextTypeTensor(target_list).to(int).to(image.device)
+            tokenized_target = TextTypeTensor(target_list).to(int).to(data.device)
             # embedded_tgt = embedding_model([tokenized_target]) if use_caption else None
             embedded_tgt = self.embedding_model(tokenized_target)
-            logits = self.model(embedded_image, embedded_tgt)
+            logits = self.model(embedded_data, embedded_tgt)
 
             # token_pred = top_k_top_p_filtering(logits[:, -1, :], device=logits.device).argmax().item()
 

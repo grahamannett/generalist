@@ -11,7 +11,7 @@ from generalist.generalist_datasets.utils.tasks_utils import TaskInterface
 from generalist.generalist_tokenizers import text_tokenizers
 
 
-class BillSumTransforms:
+class SummaryTransforms:
     train = transforms.Compose([])
     val = transforms.Compose([])
 
@@ -19,50 +19,93 @@ class BillSumTransforms:
     def use_text_tokenizer(text_tokenizer: text_tokenizers.TextTokenizer, text_tokenizer_kwargs: Dict[str, Any]):
         def _to_text_type(text: str):
             text = text_tokenizer.encode_plus(text, **text_tokenizer_kwargs)
-            return TextType(text["input_ids"]), text["attention_mask"]
+            # return TextType(text["input_ids"]), {"attention_mask": text["attention_mask"], "task_type":
+            return TextType(text["input_ids"]), {"attention_mask": text["attention_mask"]}
 
         return _to_text_type
 
     @classmethod
-    def get(cls, text_tokenizer: text_tokenizers.TextTokenizer, text_tokenizer_kwargs: Dict[str, Any]):
+    def make_transforms(cls, text_tokenizer: text_tokenizers.TextTokenizer, text_tokenizer_kwargs: Dict[str, Any]):
         _transforms = cls()
-        _transforms.train.transforms.append(transforms.Lambda(BillSumTransforms.use_text_tokenizer(text_tokenizer, text_tokenizer_kwargs)))
+        _transforms.train.transforms.append(transforms.Lambda(SummaryTransforms.use_text_tokenizer(text_tokenizer, text_tokenizer_kwargs)))
         return _transforms
 
     def __call__(self, *args, **kwargs):
         return self.train(*args, **kwargs)
 
 
-class BillSum(SampleBuilderMixin):
+class BaseSummary(SampleBuilderMixin):
     def __init__(
         self,
-        split: str = "ca_test",
-        text_transform: Callable = BillSumTransforms.train,
-        # summary_transform: Callable = BillSumTransforms.train,
+        path: str,
+        split: str,
+        text_transform: Callable = SummaryTransforms.train,
         *args,
         **kwargs,
     ) -> None:
-        # self._dataset = load_dataset("billsum")
-        self._dataset = load_dataset("billsum", split=split)
+
+        self._dataset = load_dataset(path, split=split)
 
         self.text_transform = text_transform
-        # self.summary_transform = summary_transform
         self.summary_transform = text_transform
+
+        self.sample_builder.with_task_type(TaskInterface.text_summary)
 
     def __len__(self):
         return len(self._dataset)
+
+    def _to_sample(self, idx: int, document, summary, other):
+
+        if self.text_transform:
+            text, text_other = self.text_transform(raw_text)
+        if self.summary_transform:
+            target, target_other = self.summary_transform(target)
+
+        sample_metadata = self.sample_builder.metadata(idx=idx, dataset_name=self.__class__.__name__)
+        masks = {"data": text_other["attention_mask"], "target": target_other["attention_mask"]}
+
+        sample = self.sample_builder(data=text, target=target, masks=masks, metadata=sample_metadata)
+
+        return sample
+
+
+class BillSum(BaseSummary):
+    def __init__(self, *args, **kwargs):
+        super().__init__(path="billsum", split="ca_test", *args, **kwargs)
 
     def __getitem__(self, idx: int | slice, *args, **kwargs):
         raw_text, summary, title = self._dataset[idx]["text"], self._dataset[idx]["summary"], self._dataset[idx]["title"]
         target = TaskInterface.text_summary(summary=summary)
 
         if self.text_transform:
-            text, text_mask = self.text_transform(raw_text)
+            text, text_other = self.text_transform(raw_text)
         if self.summary_transform:
-            target, target_mask = self.summary_transform(target)
+            target, target_other = self.summary_transform(target)
 
         sample_metadata = self.sample_builder.metadata(idx=idx, dataset_name=self.__class__.__name__)
-        masks = {"data": text_mask, "target": target_mask}
+        masks = {"data": text_other["attention_mask"], "target": target_other["attention_mask"]}
+
+        sample = self.sample_builder(data=text, target=target, masks=masks, metadata=sample_metadata)
+
+        return sample
+
+
+class XSum(BaseSummary):
+    def __init__(self, *args, **kwargs):
+        super().__init__(path="xsum", split="train", *args, **kwargs)
+
+    def __getitem__(self, idx: int | slice, *args, **kwargs):
+        obj = self._dataset[idx]
+        document, summary, doc_id = obj["document"], obj["summary"], obj["id"]
+        target = TaskInterface.text_summary(summary=summary)
+
+        if self.text_transform:
+            text, text_other = self.text_transform(document)
+        if self.summary_transform:
+            target, target_other = self.summary_transform(target)
+
+        sample_metadata = self.sample_builder.metadata(idx=idx, dataset_name=self.__class__.__name__)
+        masks = {"data": text_other["attention_mask"], "target": target_other["attention_mask"]}
 
         sample = self.sample_builder(data=text, target=target, masks=masks, metadata=sample_metadata)
 

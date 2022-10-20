@@ -1,5 +1,4 @@
 defaults:
-  # - /hydra/callbacks/callback
   - override hydra/job_logging: colorlog
   - override hydra/hydra_logging: colorlog
 
@@ -7,7 +6,7 @@ defaults:
 debug: False
 
 device: cpu
-# display: False
+
 
 context_length: 128
 
@@ -26,16 +25,9 @@ training:
   learning_rate: 5e-5
   n_epochs: 1
 
-tracking:
-  project: "2022_neurips_workshop"
-
 display:
   display_flag: False # rich display
   initial_caption: True
-
-# evalcommand: _helphelp
-# eval:
-#   command: eval
 
 text_tokenizer:
   return_tensors: pt

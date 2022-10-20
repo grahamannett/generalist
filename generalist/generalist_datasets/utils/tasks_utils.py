@@ -1,7 +1,13 @@
 from typing import Any, List
 
 
-class TextSummaryMixin:
+class TaskBaseClass:
+    task_type: str = None
+    default: str = None
+
+
+class TextSummaryMixin(TaskBaseClass):
+    task_type: str = "summary"
     default = "summary: "
 
     # def __call__(self, text: str, summary: str, title: str = None) -> str:
@@ -16,22 +22,29 @@ class TextSummaryMixin:
     def __call__(self, summary: str):
         return f"{self.default}{summary}"
 
+    # @property
+    # def default(self):
+    #     return self._default
 
-class ImageCaptioningMixin:
+
+class ImageCaptioningMixin(TaskBaseClass):
+    task_type: str = "image captioning"
     default = "image caption: "
 
     def __call__(self, data: str, **kwds: Any) -> str:
         return f"{self.default}{data}"
 
 
-class SegmentationMixin:
+class SegmentationMixin(TaskBaseClass):
+    task_type: str = "segmentation"
     default = "segmentation: "
 
     def __call__(self, data: str, **kwds: Any) -> str:
         return f"{self.default}{data}"
 
 
-class RegionToCategoryMixin:
+class RegionToCategoryMixin(TaskBaseClass):
+    task_type: str = "region to category"
     default = "what is in this region: "
 
     def __call__(self, region: List[int], category: str, **kwds: Any) -> str:

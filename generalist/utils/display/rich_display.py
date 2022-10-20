@@ -16,6 +16,8 @@ from generalist.utils.display.display import GeneralistDisplay
 
 
 class SampleInfo:
+    TableCls = Table  # or Table.grid
+
     def __init__(self, parent_layout: Layout, title: str = None, padding: int = 1):
         self.parent_layout = parent_layout
         self.padding = padding
@@ -30,7 +32,8 @@ class SampleInfo:
 
     def update(self, data: List[Dict[str, Any]] = None):
 
-        self.table = Table.grid(padding=self.padding)
+        # self.table = Table.grid(padding=self.padding)
+        self.table = self.TableCls(padding=self.padding)
 
         if data:
             self.make_table(data)
@@ -47,9 +50,9 @@ class SampleInfo:
         self.parent_layout.update(self._panel)
 
 
-class RichDisplay(GeneralistDisplay):
-    def __init__(self, display: bool = True):
-        super().__init__(display)
+class RichDisplay:
+    def __init__(self, display: bool = True, **kwargs):
+        # super().__init__(display)
         self._status = "init" if display else False
 
     def _stop(self):
@@ -72,33 +75,11 @@ class RichDisplay(GeneralistDisplay):
             Layout(name="sample_info"),
         )
 
-        self.layout_epochs = self.layout["main"]
+        self.setup_epoch_progress()
+        self.setup_batch_progress()
 
-        # if n_batches:
-        #     self.layout["main"].split(
-        #         Layout(name="epoch_progress", ratio=2),
-        #         Layout(name="batch_progress"),
-        #     )
-        #     self.layout_epochs = self.layout["main"]["epoch_progress"]
-        #     self.layout_batches = self.layout["main"]["batch_progress"]
-
-        #     # self.layout_batches.update(self.setup_batch_progress(n_batches=n_batches))
-        #     self.batch_progress = BatchProgress()
-        #     self.layout_batches.update(self.batch_progress.panel)
-
-        # else:
-        #     self.layout_epochs = self.layout["main"]
-
-        # self.layout_epochs.update(self.setup_epoch_progress(n_epochs=n_epochs))
-        # self.epoch_progress = EpochProgress()
-        # self.layout_epochs.update(self.epoch_progress.panel)
-
-        # self.sample_info = SampleInfo(parent_layout=self.layout["sample_info"], title="Sample Info", padding=1)
-        epoch_panel = self.setup_epoch_progress()
-        batch_panel = self.setup_batch_progress()
-
-        self.layout_batches.update(self.batch_progress.panel)
         self.layout_epochs.update(self.epoch_progress.panel)
+        self.layout_batches.update(self.batch_progress.panel)
 
         self.setup_sample_info(parent_layout=self.layout["sample_info"], title="Sample Info", padding=1)
 
@@ -112,25 +93,23 @@ class RichDisplay(GeneralistDisplay):
 
     def setup_epoch_progress(self, n_epochs: int = 10):
         self.epoch_progress = EpochProgress()
+        # self.layout_epochs = self.layout["main"]
         return self.epoch_progress.panel
 
     def setup_batch_progress(self, batch_iter: Iterable | int = None):
         if hasattr(self, "batch_progress"):
-            print("ERROR!!!")
-            # self.batch_progress.progress.reset(self.batch_progress.progress.task_ids[0])
-            pass
-
-        else:
-            self.layout["main"].split(
-                Layout(name="epoch_progress", ratio=2),
-                Layout(name="batch_progress"),
-            )
-
-            self.layout_epochs = self.layout["main"]["epoch_progress"]
-            self.layout_batches = self.layout["main"]["batch_progress"]
+            raise NotImplementedError("batch progress already set")
+        #     pass
+        # else:
 
         self.batch_progress = BatchProgress()
+        self.layout["main"].split(
+            Layout(name="epoch_progress", ratio=2),
+            Layout(name="batch_progress"),
+        )
 
+        self.layout_epochs = self.layout["main"]["epoch_progress"]
+        self.layout_batches = self.layout["main"]["batch_progress"]
 
     def split___(self):
         self.layout["main"].split(
@@ -141,24 +120,35 @@ class RichDisplay(GeneralistDisplay):
         self.layout_epochs = self.layout["main"]["epoch_progress"]
         self.layout_batches = self.layout["main"]["batch_progress"]
 
+    def update(self, *args):
+        self.sample_info.update(*args)
+
 
 class ProgressBase:
-    def __init__(self, progress_task: Iterable = None, title: str = None, task_name: str = None, **kwargs) -> None:
-        # self.parent = parent
+    def __init__(
+        self, task_name: str = None, title: str = None, columns: List[ProgressColumn] = None, progress_task: Iterable = None, **kwargs
+    ) -> None:
         self.progress: Progress = None
 
         self.progress_task = progress_task
 
         self.task_name = task_name if task_name is not None else self._task_name
         self.title = title if title is not None else self._task_name
+        self.columns = columns
+
+        if task_name and title and columns:
+            self.make_progress_bar(task_name=self.task_name, title=self.title, columns=self.columns)
 
     @property
     def panel(self):
         return self._panel
 
-    def task(self, progress_task: Iterable | int):
+    def task(self, progress_task: Iterable | int, make_enumerate: bool = False):
         if isinstance(progress_task, int):
             progress_task = range(progress_task)
+        # if make_enumerate:
+        #     progress_task = enumerate(progress_task)
+
         self.progress_task = progress_task
 
         if self.progress.task_ids:
@@ -194,8 +184,7 @@ class EpochProgress(ProgressBase):
     ]
 
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.make_progress_bar(task_name=self._task_name, title=self._title, columns=self._columns)
+        super().__init__(task_name=self._task_name, title=self._title, columns=self._columns, **kwargs)
 
 
 class BatchProgress(ProgressBase):
@@ -209,9 +198,7 @@ class BatchProgress(ProgressBase):
     ]
 
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-        self.make_progress_bar(task_name=self._task_name, title=self._title, columns=self._columns)
+        super().__init__(task_name=self._task_name, title=self._title, columns=self._columns, **kwargs)
 
 
 if __name__ == "__main__":
@@ -227,9 +214,16 @@ if __name__ == "__main__":
     num_batches = 10
     batch_updates = [n for n in range(num_batches)]
 
+    def make_obj(idx: int = 5):
+        return {"key1": "val1", "key2": "val2", "key3": "val3", "key4": "val4", "key5": "val5", "key6": "val6"}
+
     sample_info_arr = [
-        [{"idx": 1, "text": "This is a text1"}, {"idx": 1, "text": "This is a text1"}, {"idx": 1, "text": "This is a text1"}],
-        [{"idx": 2, "text": "This is a text2"}, {"idx": 2, "text": "This is a text2"}],
+        [
+            {"idx": 1, "text": "This is a text1", "obj": make_obj()},
+            {"idx": 1, "text": "This is a text1", "obj": make_obj()},
+            {"idx": 1, "text": "This is a text1", "obj": make_obj()},
+        ],
+        [{"idx": 2, "text": "This is a text2", "obj": make_obj()}, {"idx": 2, "text": "This is a text2", "obj": make_obj()}],
         [
             {"idx": 3, "text": "This is a text3"},
             {"idx": 3, "text": "This is a text3"},
@@ -253,11 +247,12 @@ if __name__ == "__main__":
 
     # for i in range(num_epochs):
     for i in display.epoch_progress:
-        display.batch_progress.task(batch_updates)
+        # display.batch_progress.task(enumerate(batch_updates))
+        display.batch_progress.task(batch_updates, make_enumerate=False)
         # display.update(epoch_kwargs={"task_id": display.epoch_task, "advance": 1})
-        # for ii in display.batch_progress:
-        #     x = 5 - ii
-        #     time.sleep(0.1)
+        for batch_idx, ii in display.batch_progress:
+            x = 5 - ii
+            time.sleep(0.1)
         # for ii in range(num_batches):
         #     display.batch_progress.advance()
         #     time.sleep(0.1)
@@ -266,7 +261,8 @@ if __name__ == "__main__":
         #     x = 5 - ii
         #     time.sleep(0.1)
 
-        display.sample_info.update(sample_info_arr[i])
+        # display.sample_info.update(sample_info_arr[i])
+        display.update(sample_info_arr[i])
         time.sleep(1.5)
 
     display.stop()

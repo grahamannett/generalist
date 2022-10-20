@@ -1,4 +1,3 @@
-from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List
 
@@ -7,6 +6,7 @@ import torch.nn as nn
 
 # commented until i fix circular import
 from generalist.data_types.input_types import InputType
+from generalist.generalist_datasets.utils.tasks_utils import TaskBaseClass, TaskInterface
 from generalist.generalist_tokenizers.general_tokenizer import GeneralTokenizer
 
 
@@ -31,11 +31,21 @@ class SampleMetaData:
 
 
 class Sample:
-    def __init__(self, data: List[InputType] = None, target: Any = None, masks: Dict[str, Any] = {}, metadata: SampleMetaData = None):
+    def __init__(
+        self,
+        data: List[InputType] = None,
+        target: Any = None,
+        masks: Dict[str, Any] = {},
+        metadata: SampleMetaData = None,
+        task_type: str = None,
+    ) -> None:
         self.data = data
         self.target = target
         self.metadata = metadata
         self.masks = masks
+
+        # task type helps with how target should be used
+        self.task_type = task_type
 
     def __call__(self, **kwargs):
         for key, val in kwargs.items():
@@ -45,9 +55,14 @@ class Sample:
         yield self._data, self._target
 
     def __repr__(self) -> str:
-        string = f"Sample(data={self.data}, target={self.target}"
+        # added this so its easier to look at during debugging
+        data_str = f"data(shape)[{self.data.shape}]" if isinstance(self.data, torch.Tensor) else f"data={self.data}"
+        target_str = f"target(shape)[{self.target.shape}]" if isinstance(self.target, torch.Tensor) else f"{self.target}"
+
+        string = f"Sample(data={data_str}, target={target_str}"
         if self.masks:
-            string += f", masks={self.masks}"
+            mask_str = ", ".join([f"{k}={v.shape}" for k, v in self.masks.items()])
+            string += f", masks={mask_str}"
 
         if self.metadata is not None:
             string += f", metadata={self.metadata}"
@@ -64,13 +79,20 @@ class Sample:
 
 class SampleBuilder:
     metadata: SampleMetaData = SampleMetaData
-    preprocessing: List[Callable] = []
+
+    def __init__(self, *args, **kwargs):
+        self.task_type = None
+        self.preprocessing: List[Callable] = []
 
     def __call__(self, *args, **kwargs):
         key: str
         val: Dict[str, Any]
 
         sample = Sample(*args, **kwargs)
+
+        if self.task_type:
+            sample.task_type = self.task_type
+
         for func in self.preprocessing:
             if isinstance(func, str):
                 func = getattr(sample.data, func)(sample)
@@ -79,6 +101,9 @@ class SampleBuilder:
                 func(sample)
 
         return sample
+
+    def with_task_type(self, task_type: TaskBaseClass):
+        self.task_type = task_type.task_type
 
     def use_preprocessing(self, func: Callable):
         self.preprocessing.append(func)
@@ -102,10 +127,12 @@ class Batch:
 
     @property
     def data(self):
-        out = defaultdict(list)
+
+        out = {}  # use this instead of defaultdict(list) because it looks better in debugger
         sample: Sample
         for sample in self.samples:
-            # breakpoint()
+            if sample.data.data_type not in out:
+                out[sample.data.data_type] = []
             out[sample.data.data_type].append(sample.data)
 
         if self.return_tensors == "pt":
@@ -135,6 +162,10 @@ class Batch:
                 out = torch.cat(out).to(self.device)
 
         return out
+
+    @property
+    def tasks(self):
+        return [s.task_type for s in self.samples]
 
     def __len__(self):
         return len(self.samples)

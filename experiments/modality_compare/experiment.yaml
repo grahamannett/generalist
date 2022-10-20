@@ -1,0 +1,6 @@
+defaults:
+  - "../../config/iapetus"
+  - _self_
+
+tracking:
+  project: "generalist_modality_experiment"
