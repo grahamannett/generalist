@@ -1,4 +1,7 @@
-from generalist.train import train
+from dataclasses import dataclass
+from typing import List
+from omegaconf import DictConfig
+from generalist.train import train_step
 import hydra
 from hydra import compose, initialize
 from generalist.utils.utils import get_hostname
@@ -6,14 +9,50 @@ from generalist.utils.utils import get_hostname
 
 # @hydra.main(config_path="./", config_name="experiment", version_base=None)
 # def exp_one(cfg):
-def exp_one():
+def combine_cfgs(*cfgs: List[DictConfig]):
+    out = {**cfgs[0]}
+    for c in cfgs[1:]:
+        out.update(**c)
+    return DictConfig(out)
+
+
+@dataclass
+class ExperimentHelper:
+    model = None
+
+    def __post_init__(self):
+        pass
+        # self.model = self.model()
+
+
+class ResultsTracker:
+    def __init__(self, wandb):
+        self.wandb = wandb
+
+
+def get_results():
+    pass
+
+
+def exp_combine_tgt():
     with initialize(version_base=None, config_path="../../config"):
-        cfg = compose(config_name="iapetus")
-        breakpoint()
-    cfg = hydra.compose(config_name="experiment")
-    # breakpoint()
-    train(cfg)
+        base_cfg = compose(config_name=get_hostname())
+
+    with initialize(config_path="."):
+        exp_cfg = hydra.compose(config_name="experiment")
+
+    results_tracker = ResultsTracker()
+
+    cfg = combine_cfgs(base_cfg, exp_cfg)
+
+    experiment_related = ExperimentHelper(cfg)
+
+    for epoch in range(cfg.training.n_epochs):
+        train_step(experiment_related, cfg, results_tracker)
+        results = get_results()
+
+    # train_step(c)
 
 
 if __name__ == "__main__":
-    exp_one()
+    exp_combine_tgt()

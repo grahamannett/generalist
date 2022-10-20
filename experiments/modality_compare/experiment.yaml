@@ -1,6 +1,17 @@
-defaults:
-  - "../../config/iapetus"
-  - _self_
 
 tracking:
   project: "generalist_modality_experiment"
+
+
+experiment1:
+  model:
+    : null
+
+
+datasets:
+  xsum:
+    task: summary
+  coco:
+    name: cococaption
+    task: image caption
+

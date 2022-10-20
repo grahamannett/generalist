@@ -23,7 +23,7 @@ model:
 training:
   batch_size: 2
   learning_rate: 5e-5
-  n_epochs: 1
+  n_epochs: 10
 
 display:
   display_flag: False # rich display

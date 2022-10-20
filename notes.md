@@ -64,3 +64,10 @@ https://github.com/lucidrains/perceiver-pytorch/blob/main/perceiver_pytorch/perc
 https://github.com/deepmind/deepmind-research/blob/master/perceiver/io_processors.py
 https://github.com/deepmind/deepmind-research/tree/master/perceiver/train
 https://github.com/OFA-Sys/OFA
+
+
+# setup
+I still have no idea the best way to have this setup to work on linux + mac machines.  seems like enviornment.yaml from conda will have issues or pip lists /system files
+
+for metrics you probably need
+pip install rouge_score

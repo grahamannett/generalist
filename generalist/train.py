@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import hydra
 import torch
@@ -34,7 +34,7 @@ rouge_score = evaluate.load("rouge")
 
 
 def eval_summary(predictions: List[str], references: List[str]):
-    scores = rouge_score.compute(predictions=[generated_summary], references=[reference_summary])
+    scores = rouge_score.compute(predictions=[predictions], references=[references])
     return scores
 
 
@@ -103,8 +103,6 @@ def train(cfg: DictConfig):
     summary_dataset = BillSum(
         text_transform=SummaryTransforms.make_transforms(text_tokenizer=text_tokenizer, text_tokenizer_kwargs=text_tokenizer_kwargs).train,
     )
-
-    su
 
     # sample = coco_caption.__getitem__(0, caption_choice=5)
 

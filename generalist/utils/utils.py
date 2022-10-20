@@ -4,9 +4,13 @@ from pathlib import Path
 import torch
 
 import datetime
+import os
 
 
 def get_hostname():
+    if override_config := os.getenv("CONFIG_NAME"):
+        return override_config
+
     import platform
 
     return platform.node()
