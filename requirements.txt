@@ -1,112 +1,159 @@
-absl-py==1.1.0
-accelerate==0.10.0
+absl-py==1.2.0
 aiohttp==3.8.1
 aiosignal==1.2.0
-ale-py==0.7.5
+antlr4-python3-runtime==4.9.3
+anyio==3.6.1
+argon2-cffi==21.3.0
+argon2-cffi-bindings==21.2.0
+asttokens @ file:///home/conda/feedstock_root/build_artifacts/asttokens_1660605382950/work
 async-timeout==4.0.2
-attrs==21.4.0
-AutoROM==0.4.2
-AutoROM.accept-rom-license==0.4.2
-black==22.6.0
-certifi==2022.6.15
-cffi @ file:///Users/runner/miniforge3/conda-bld/cffi_1656783163977/work
-charset-normalizer==2.1.0
-chex==0.1.3
+attrs==22.1.0
+Babel==2.10.3
+backcall @ file:///home/conda/feedstock_root/build_artifacts/backcall_1592338393461/work
+backports.functools-lru-cache @ file:///home/conda/feedstock_root/build_artifacts/backports.functools_lru_cache_1618230623929/work
+beautifulsoup4==4.11.1
+black==22.8.0
+bleach==5.0.1
+certifi==2022.6.15.2
+cffi==1.15.1
+charset-normalizer==2.1.1
 click==8.1.3
-cloudpickle==2.1.0
-colorama==0.4.5
+cloudpickle==2.2.0
+colorlog==6.7.0
 commonmark==0.9.1
 cycler==0.11.0
-Cython==0.29.30
-d4rl @ git+https://github.com/rail-berkeley/d4rl@d842aa194b416e564e54b0730d9f934e3e32f854
-datasets==2.3.2
+Cython==0.29.32
+d4rl @ git+https://github.com/rail-berkeley/d4rl@0711ccdc95dc0fcc28282b4d305f5c407f6fe7e7
+datasets==2.4.0
+debugpy==1.6.3
+decorator @ file:///home/conda/feedstock_root/build_artifacts/decorator_1641555617451/work
+defusedxml==0.7.1
 dill==0.3.5.1
-dm-control==1.0.3.post1
+dm-control==1.0.7
 dm-env==1.5
 dm-tree==0.1.7
-docker-pycreds==0.4.0
 einops==0.4.1
-etils==0.6.0
-fasteners==0.17.3
-filelock==3.7.1
-flatbuffers==2.0
-flax==0.5.2
-fonttools==4.34.3
-frozenlist==1.3.0
-fsspec==2022.5.0
-functorch @ git+https://github.com/pytorch/functorch.git@76178743084277cf6d7cac752279f905cdd60e13
--e git+ssh://git@gitlab.com/besiktas/generalist.git@40eba14c37d05da94f9fe2019b677d72f1a4971d#egg=generalist
-gitdb==4.0.9
-GitPython==3.1.27
-glfw==2.5.3
+entrypoints==0.4
+evaluate==0.3.0
+executing @ file:///home/conda/feedstock_root/build_artifacts/executing_1664126393503/work
+fasteners==0.18
+fastjsonschema==2.16.2
+filelock==3.8.0
+fonttools==4.37.2
+frozenlist==1.3.1
+fsspec==2022.8.2
+-e git+ssh://git@gitlab.com/besiktas/generalist.git@d930a0a05d8846cbcb9ee4658551bcd02e1d4547#egg=generalist
+glfw==2.5.5
 gym==0.23.1
-gym-notices==0.0.7
+gym-notices==0.0.8
 h5py==3.7.0
-huggingface-hub==0.8.1
-idna==3.3
-imageio==2.19.3
-importlib-resources==5.8.0
-jax==0.3.14
-jaxlib==0.3.14
-kiwisolver==1.4.3
-kmeans-pytorch==0.3
+huggingface-hub==0.9.1
+hydra-colorlog==1.2.0
+hydra-core==1.2.0
+idna==3.4
+imageio==2.21.3
+ipykernel==6.16.0
+ipython @ file:///home/conda/feedstock_root/build_artifacts/ipython_1662481517711/work
+ipython-genutils==0.2.0
+jedi @ file:///home/conda/feedstock_root/build_artifacts/jedi_1659959867326/work
+Jinja2==3.1.2
+joblib==1.2.0
+json5==0.9.10
+jsonschema==4.16.0
+jupyter-core==4.11.1
+jupyter-server==1.19.1
+jupyter_client==7.3.5
+jupyterlab==3.4.7
+jupyterlab-pygments==0.2.2
+jupyterlab_server==2.15.2
+kiwisolver==1.4.4
 labmaze==1.0.5
 lxml==4.9.1
-matplotlib==3.5.2
+MarkupSafe==2.1.1
+matplotlib==3.5.3
+matplotlib-inline @ file:///home/conda/feedstock_root/build_artifacts/matplotlib-inline_1660814786464/work
+mistune==2.0.4
 mjrl @ git+https://github.com/aravindr93/mjrl@3871d93763d3b49c4741e6daeaebbc605fe140dc
-msgpack==1.0.4
-mujoco==2.2.0
+mujoco==2.2.2
 mujoco-py==2.1.2.14
 multidict==6.0.2
 multiprocess==0.70.13
 mypy-extensions==0.4.3
-ninja==1.10.2.3
-numpy @ file:///Users/runner/miniforge3/conda-bld/numpy_1655989026689/work
-opt-einsum==3.3.0
-optax==0.1.2
+nbclassic==0.4.3
+nbclient==0.6.8
+nbconvert==7.0.0
+nbformat==5.6.1
+nest-asyncio==1.5.5
+networkx==2.8.7
+nltk==3.7
+notebook==6.4.12
+notebook-shim==0.1.0
+numpy==1.23.3
+omegaconf==2.2.3
 packaging==21.3
-pandas==1.4.3
-pathspec==0.9.0
-pathtools==0.1.2
+pandas==1.4.4
+pandocfilters==1.5.0
+panopticapi @ git+https://github.com/cocodataset/panopticapi.git@7bb4655548f98f3fedc07bf37e9040a992b054b0
+parso @ file:///home/conda/feedstock_root/build_artifacts/parso_1638334955874/work
+pathspec==0.10.1
+patsy==0.5.2
+pexpect @ file:///home/conda/feedstock_root/build_artifacts/pexpect_1602535608087/work
+pickleshare @ file:///home/conda/feedstock_root/build_artifacts/pickleshare_1602536217715/work
 Pillow==9.2.0
 platformdirs==2.5.2
-promise==2.3
-protobuf==3.20.1
-psutil==5.9.1
-pyarrow==8.0.0
-pybullet @ file:///Users/runner/miniforge3/conda-bld/bullet_1655702818125/work
-pycparser @ file:///home/conda/feedstock_root/build_artifacts/pycparser_1636257122734/work
-pygame==2.1.0
-Pygments==2.12.0
+prometheus-client==0.14.1
+prompt-toolkit @ file:///home/conda/feedstock_root/build_artifacts/prompt-toolkit_1662384672173/work
+protobuf==4.21.6
+psutil==5.9.2
+ptyprocess @ file:///home/conda/feedstock_root/build_artifacts/ptyprocess_1609419310487/work/dist/ptyprocess-0.7.0-py2.py3-none-any.whl
+pure-eval @ file:///home/conda/feedstock_root/build_artifacts/pure_eval_1642875951954/work
+pyarrow==9.0.0
+pybullet==3.2.5
+pycocoevalcap==1.2
+pycocotools==2.0.5
+pycparser==2.21
+Pygments @ file:///home/conda/feedstock_root/build_artifacts/pygments_1660666458521/work
 PyOpenGL==3.1.6
 pyparsing==2.4.7
+pyrsistent==0.18.1
 python-dateutil==2.8.2
-pytz==2022.1
+pytomlpp==1.0.11
+pytz==2022.2.1
+PyWavelets==1.4.1
 PyYAML==6.0
-regex==2022.6.2
+pyzmq==24.0.1
+regex==2022.9.13
 requests==2.28.1
 responses==0.18.0
-rich==11.2.0
-scipy==1.8.1
-sentencepiece==0.1.96
-sentry-sdk==1.6.0
-setproctitle==1.2.3
-shortuuid==1.0.9
-six==1.16.0
-smmap==5.0.0
-termcolor==1.1.0
+rich==12.5.1
+rouge-score==0.1.2
+scikit-image==0.19.3
+scipy==1.9.1
+seaborn==0.12.0
+Send2Trash==1.8.0
+six @ file:///home/conda/feedstock_root/build_artifacts/six_1620240208055/work
+sniffio==1.3.0
+soupsieve==2.3.2.post1
+stack-data @ file:///home/conda/feedstock_root/build_artifacts/stack_data_1664126450622/work
+statsmodels==0.13.2
+termcolor==2.0.1
+terminado==0.15.0
+textual==0.1.18
+tifffile==2022.8.12
+tinycss2==1.1.1
 tokenizers==0.12.1
 tomli==2.0.1
-toolz==0.11.2
-torch==1.13.0.dev20220707
-torch-semiring-einsum==1.0.0
-torchaudio==0.14.0.dev20220603
-torchvision==0.13.0
-tqdm==4.64.0
-transformers==4.20.1
+torch==1.12.1
+torchvision==0.13.1
+tornado==6.2
+tqdm==4.64.1
+traitlets @ file:///home/conda/feedstock_root/build_artifacts/traitlets_1663005918942/work
+transformers==4.22.0
 typing_extensions==4.3.0
-urllib3==1.26.9
-wandb==0.12.21
+urllib3==1.26.12
+wcwidth @ file:///home/conda/feedstock_root/build_artifacts/wcwidth_1600965781394/work
+webencodings==0.5.1
+websocket-client==1.4.1
+x-transformers==1.1.0
 xxhash==3.0.0
-yarl==1.7.2
-zipp==3.8.0
+yarl==1.8.1
