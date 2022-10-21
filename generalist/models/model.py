@@ -2,6 +2,7 @@ from typing import Any, List, Sequence
 
 import torch
 import torch.nn as nn
+from generalist.models.embedding_model import EmbeddingModel
 
 from generalist.models.output_model import GeneralOutput
 
@@ -28,6 +29,7 @@ class GeneralistModel(nn.Module):
     def __init__(
         self,
         output_model: GeneralOutput,
+        embeddding_model: EmbeddingModel = None,
         # BELOW COMES FROM HYDRA CONFIG
         use_encoder: bool = True,
         model_dim: int = 768,
@@ -71,7 +73,10 @@ class GeneralistModel(nn.Module):
         tgt_mask = ~tgt_mask
         return tgt_mask
 
-    def forward(
+    def forward(self, **kwargs):
+        return self.forward_embedded(**kwargs)
+
+    def forward_embedded(
         self,
         embedded_src: torch.Tensor,
         embedded_tgt: torch.Tensor = None,
@@ -80,6 +85,9 @@ class GeneralistModel(nn.Module):
         tgt_mask: torch.Tensor = None,
         **kwargs,
     ) -> torch.Tensor:
+
+        if embedded_tgt is None:
+            embedded_tgt = embedded_src
 
         if tgt_mask is None:
             tgt_mask = self.get_tgt_mask_tri(embedded_tgt)

@@ -24,10 +24,8 @@ class ImageCaptionPrediction:
         self.model = model
         self.device: str = device
 
-    def make_caption(
+    def generate_output(
         self,
-        # embedding_model: EmbeddingModel,
-        # model: GeneralistModel,
         data: torch.Tensor,
         max_length: int = 32,
         # tokenized_caption: TextType,
@@ -51,7 +49,7 @@ class ImageCaptionPrediction:
             tokenized_target = TextTypeTensor(target_list).to(int).to(data.device)
             # embedded_tgt = embedding_model([tokenized_target]) if use_caption else None
             embedded_tgt = self.embedding_model(tokenized_target)
-            logits = self.model(embedded_data, embedded_tgt)
+            logits = self.model(embedded_src=embedded_data, embedded_tgt=embedded_tgt)
 
             # token_pred = top_k_top_p_filtering(logits[:, -1, :], device=logits.device).argmax().item()
 
@@ -79,11 +77,11 @@ class ImageCaptionPrediction:
         # normal_caption = self.text_tokenizer.batch_decode(tokenized_caption)[0]
         return target_list
 
-    def generate(self, logits: torch.Tensor, max_length: int):
-        # more similar to minGPT example
-        # https://github.com/karpathy/minGPT/blob/master/mingpt/model.py
-        for _ in range(max_length):
-            pass
+    # def generate(self, logits: torch.Tensor, max_length: int):
+    #     # more similar to minGPT example
+    #     # https://github.com/karpathy/minGPT/blob/master/mingpt/model.py
+    #     for _ in range(max_length):
+    #         pass
 
 
 def simple_next_token_pred(next_token_logits: torch.Tensor):

@@ -7,10 +7,14 @@ debug: False
 
 device: cpu
 
+wandb:
+  enabled: False
+  project_name: generalist_modality_experiment
 
 context_length: 128
 
 model:
+  combine_embeddings: True
   model_dim: 768
   latent_seq_len: 32
   encoder_nhead: 4

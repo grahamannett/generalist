@@ -76,6 +76,7 @@ class BillSum(BaseSummary):
     def __getitem__(self, idx: int | slice, *args, **kwargs):
         raw_text, summary, title = self._dataset[idx]["text"], self._dataset[idx]["summary"], self._dataset[idx]["title"]
         target = TaskInterface.text_summary(summary=summary)
+        breakpoint()
 
         if self.text_transform:
             text, text_other = self.text_transform(raw_text)

@@ -34,8 +34,24 @@ rouge_score = evaluate.load("rouge")
 
 
 def eval_summary(predictions: List[str], references: List[str]):
-    scores = rouge_score.compute(predictions=[predictions], references=[references])
+    scores = rouge_score.compute(predictions=predictions, references=references)
     return scores
+
+
+class TrainStepHandler:
+    def __init__(self, embedding_model, model):
+        self.embedding_model = embedding_model
+        self.model = model
+
+    def step(self, dataloader):
+        pass
+
+
+class Pipeline:
+    def __init__(self, model, embedding_model, device):
+        self.model = model
+        self.embedding_model = embedding_model
+        self.device = device
 
 
 def train_step(embedding_model, genearlist_model, dataloader):
@@ -44,8 +60,10 @@ def train_step(embedding_model, genearlist_model, dataloader):
 
 @hydra.main(config_path=f"../config", config_name=get_hostname(), version_base=None)
 def train(cfg: DictConfig):
+
+    display = GeneralistDisplay.make(display=cfg.display.display_flag, logger=log, override_rich_print=True, wandb_info=cfg.wandb)
+
     model_save_dir = Path(cfg.model_save_dir)
-    display_flag = cfg.display.display_flag
     device = cfg.device
     context_length = cfg.context_length
 
@@ -67,6 +85,8 @@ def train(cfg: DictConfig):
 
     embedding_model.to(device)
     model.to(device)
+
+    display.extra_setup(model=model)
 
     loss_fn = torch.nn.CrossEntropyLoss()
 
@@ -96,15 +116,10 @@ def train(cfg: DictConfig):
     summary_dataset = XSum(
         text_transform=SummaryTransforms.make_transforms(text_tokenizer=text_tokenizer, text_tokenizer_kwargs=text_tokenizer_kwargs).train,
     )
-    from evaluate import evaluator
 
-    task_evaluator = evaluator("summarization")
-
-    summary_dataset = BillSum(
-        text_transform=SummaryTransforms.make_transforms(text_tokenizer=text_tokenizer, text_tokenizer_kwargs=text_tokenizer_kwargs).train,
-    )
-
-    # sample = coco_caption.__getitem__(0, caption_choice=5)
+    # summary_dataset_billsum = BillSum(
+    #     text_transform=SummaryTransforms.make_transforms(text_tokenizer=text_tokenizer, text_tokenizer_kwargs=text_tokenizer_kwargs).train,
+    # )
 
     dataset = coco_caption
     chained_dataset = ChainedDataset([coco_caption, summary_dataset])
@@ -125,11 +140,8 @@ def train(cfg: DictConfig):
 
     collate_fn = collate_func_helper(device=device, return_tensors="pt")
 
-    # train_dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
-
     train_dataloader = DataLoader(chained_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 
-    display = GeneralistDisplay.make(display=display_flag, logger=log, override_rich_print=True)
     display.setup_layout(debug=False)
 
     display.epoch_progress.task(n_epochs)
@@ -146,8 +158,6 @@ def train(cfg: DictConfig):
 
         display.batch_progress.task(train_dataloader)
         for batch_idx, batch in enumerate(display.batch_progress):
-            # for batch_idx, batch in enumerate(train_dataloader):
-            # for batch_idx, batch in display.batch_progress:
 
             data, target = batch.data, batch.target
             task_types = batch.tasks
@@ -155,31 +165,18 @@ def train(cfg: DictConfig):
                 breakpoint()
 
             target_mask = batch.get_masks("target")
-            # data_mask = batch.get_masks("data")
-
-            # breakpoint()
-            # for modality, data in batch.data.items():
-            #     embedding[modality] = embedding_model(data)
-
-            # embedding = embedding_model.foward_modality_dict(data)
-            embedding = embedding_model(data)
-            # embedding = [embedding_model(v) for modality, v in data.items()]
-
-            # try:
-            #     embedding = torch.cat(embedding)
-            # except RuntimeError:
-            #     breakpoint()
-
             target_mask = ~target_mask.to(bool)
 
-            # embedded_tgt = embedding_model.embed_data(task_input_ids, data_type="text")
-
-            # emb = [embedding_model.embed_data(t_, data_type="text") for t_ in target]
+            embedded_data = embedding_model(data)
             embedded_tgt = embedding_model(target)
 
             tgt_mask = model.get_tgt_mask_tri(embedded_tgt=embedded_tgt)
 
-            logits = model(embedding, embedded_tgt=embedded_tgt, tgt_key_padding_mask=target_mask, tgt_mask=tgt_mask)
+            if cfg.model.combine_embeddings:
+                logits = model(embedded_src=torch.cat([embedded_data, embedded_tgt], dim=1))
+                logits = logits[:, embedded_tgt.shape[1] :]
+            else:
+                logits = model(embedded_src=embedded_data, embedded_tgt=embedded_tgt, tgt_key_padding_mask=target_mask, tgt_mask=tgt_mask)
 
             loss = loss_fn(logits[:, :-1].permute(0, 2, 1), target[:, 1:])
 
@@ -207,24 +204,27 @@ def train(cfg: DictConfig):
 
             # breakpoint()
             if batch_idx % 50 == 0:
-                decoded__ = text_tokenizer.batch_decode(logits.argmax(dim=-1)[:5, :10])
-                actual__ = text_tokenizer.batch_decode(target[:5, :10])
-                print(list(zip(decoded__, actual__)))
+                batch_predictions = text_tokenizer.batch_decode(logits.argmax(dim=-1)[:5], skip_special_tokens=True)
+                batch_references = text_tokenizer.batch_decode(target[:5], skip_special_tokens=True)
+
+                scores = eval_summary(predictions=batch_predictions, references=batch_references)
+                display.update(scores)
+                print(list(zip(batch_predictions, batch_references)))
+                # breakpoint()
+                # print(list(zip(batch_predictions, batch_references)))
 
                 # breakpoint()
 
-            if batch_idx % 250 == 0:
-                latest_caption = caption_preder.make_caption(
-                    data=sample.data,
-                    max_length=context_length,
-                )
+            # if batch_idx % 250 == 0:
+            #     latest_caption_tokenized = caption_preder.generate_output(
+            #         data=sample.data,
+            #         max_length=context_length,
+            #     )
 
-                # print(f"latest caption:{text_tokenizer.decode(latest_caption)}")
-                # print(f"true caption: {out_target_true}")
+            #     latest_caption = text_tokenizer.decode(latest_caption_tokenized)
 
-                generated_captions.append(latest_caption)
-                breakpoint()
-                scores = eval_summary(latest_caption, out_target_true)
+            #     generated_captions.append(latest_caption)
+            #     # scores = eval_summary(latest_caption, out_target_true)
 
             acc = f"{(running_correct / running_total):0.3f}"
 
@@ -236,7 +236,6 @@ def train(cfg: DictConfig):
 
             display.update(
                 "batch_progress",
-                advance=1,
                 batch_loss=f"{loss.item():0.3f}",
                 running_loss=f"{running_loss:.3f}",
                 test=display_vals,
@@ -258,7 +257,7 @@ def train(cfg: DictConfig):
             filename="latest.pt",
         )
 
-        latest_caption = caption_preder.make_caption(image=sample.data, max_length=context_length)
+        latest_caption = caption_preder.generate(image=sample.data, max_length=context_length)
         generated_captions.append(latest_caption)
 
     captions_generated = text_tokenizer.batch_decode(generated_captions)
