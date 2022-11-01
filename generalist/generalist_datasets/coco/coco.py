@@ -19,13 +19,12 @@ from generalist.generalist_tokenizers import text_tokenizers
 
 class CocoCaptionTargetTranform:
     train = transforms.Compose([])
+    test = transforms.Compose([])
     val = transforms.Compose([])
 
     @staticmethod
     def use_text_tokenizer(text_tokenizer: text_tokenizers.TextTokenizer, text_tokenizer_kwargs: Dict[str, Any]):
         def _to_text_type(*args, **kwargs):
-            # caption = random.choice(args[0])
-
             captions = [TaskInterface.caption(cap) for cap in args[0]]
             captions = text_tokenizer(captions, **text_tokenizer_kwargs)
             other = {"attention_mask": captions["attention_mask"], "token_type_ids": captions["token_type_ids"]}
@@ -35,9 +34,13 @@ class CocoCaptionTargetTranform:
 
     @classmethod
     def get(cls, text_tokenizer: text_tokenizers.TextTokenizer, text_tokenizer_kwargs: Dict[str, Any]):
-        cls.train.transforms.append(CocoCaptionTargetTranform.use_text_tokenizer(text_tokenizer, text_tokenizer_kwargs))
-        _transforms = cls()
-        return _transforms
+        transform_func = CocoCaptionTargetTranform.use_text_tokenizer(text_tokenizer, text_tokenizer_kwargs)
+
+        tranform_cls = cls()
+        tranform_cls.train = transforms.Compose([transform_func])
+        tranform_cls.test = transforms.Compose([transform_func])
+        tranform_cls.val = transforms.Compose([transform_func])
+        return tranform_cls
 
 
 def _unsqueeze_transform(image: torch.Tensor):

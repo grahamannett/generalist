@@ -2,8 +2,9 @@ from typing import Any
 
 import torch
 
-from generalist.data_types.input_types import GeneralizedTensor, TextType
+from generalist.data_types.input_types import TextType
 from transformers import GPT2PreTrainedModel
+from transformers.configuration_utils import PretrainedConfig
 
 import torch.nn as nn
 
@@ -14,7 +15,7 @@ class TextEmbeddingPath(nn.Module):
     def __init__(self, device: str = None, **kwargs) -> None:
         super().__init__()
 
-        self.embedder = TextEmbedding.from_pretrained("gpt2")
+        self.embedder = TextEmbeddingPretrained.from_pretrained("gpt2")
         self.device = device
 
     def forward(self, data: Any) -> torch.Tensor:
@@ -25,11 +26,24 @@ class TextEmbeddingPath(nn.Module):
         return embedding
 
 
-class TextEmbedding(GPT2PreTrainedModel):
+class TextEmbedding(nn.Module):
+    def __init__(self, config: dict):
+        super().__init__()
+        vocab_size = config.get("vocab_size", 50257)
+        n_embd = config.get("n_embd", 768)
+        max_position_embeddings = config.get("max_positional_embeddings", 1024)
+        embd_pdrop = config.get("embd_pdrop", 0.1)
+
+        self.wte = nn.Embedding(vocab_size, n_embd)
+        self.wpe = nn.Embedding(max_position_embeddings, n_embd)
+        self.drop = nn.Dropout(embd_pdrop)
+
+
+class TextEmbeddingPretrained(GPT2PreTrainedModel):
     # unclear if i should use GPT2Model or GPT2PreTrainedModel for weights
     _keys_to_ignore_on_load_unexpected = ["h", "ln_f"]
 
-    def __init__(self, config) -> None:
+    def __init__(self, config: PretrainedConfig) -> None:
         super().__init__(config)
         self.wte = nn.Embedding(config.vocab_size, config.n_embd)
         self.wpe = nn.Embedding(config.max_position_embeddings, config.n_embd)
@@ -41,12 +55,18 @@ class TextEmbedding(GPT2PreTrainedModel):
     def forward(
         self,
         data: TextType,
+        attention_mask: torch.Tensor = None,
+        token_type_ids: torch.Tensor = None,
     ):
 
         tokens = data
         input_shape = tokens.shape
-        attention_mask = getattr(data, "attention_mask", None)
-        token_type_ids = getattr(data, "token_type_ids", None)
+
+        if attention_mask is None:
+            attention_mask = getattr(data, "attention_mask", None)
+
+        if token_type_ids is None:
+            token_type_ids = getattr(data, "token_type_ids", None)
 
         tokens = tokens.view(-1, input_shape[-1])
         batch_size = tokens.shape[0]

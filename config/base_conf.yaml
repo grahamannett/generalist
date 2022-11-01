@@ -7,14 +7,19 @@ debug: False
 
 device: cpu
 
+display:
+  display_flag: False # rich display
+
+
 wandb:
   enabled: False
-  project_name: generalist_modality_experiment
+  project: generalist_modality_experiment
+  tags: null
 
 context_length: 128
 
 model:
-  combine_embeddings: True
+  combine_embeddings: False
   model_dim: 768
   latent_seq_len: 32
   encoder_nhead: 4
@@ -25,19 +30,23 @@ model:
   use_encoder: True
 
 training:
-  batch_size: 2
+  batch_size: 4
   learning_rate: 5e-5
   n_epochs: 10
+  batch_uniform_dataset_samples: False
 
-display:
-  display_flag: False # rich display
-  initial_caption: True
+
+
+predictions:
+  initial_generation: True
 
 text_tokenizer:
-  return_tensors: pt
-  truncation: True
-  padding: max_length
-  # max_length: 512
-  max_length: 400 # temporary workaround so text and image have same dim
-  return_attention_mask: True
+  name: bert
+  vocab_size: 30522 # probably comes from pretrained text_tokenizer
+  encode_kwargs:
+    return_tensors: pt
+    truncation: True
+    padding: max_length
+    max_length: 400 #  was 512, temporary workaround so text and image have same dim
+    return_attention_mask: True
 

@@ -14,19 +14,18 @@ class ImageCaptionPrediction:
         self,
         image_tokenizer: ImageTokenizer,
         text_tokenizer: TextTokenizer,
-        embedding_model: EmbeddingModel,
         model: GeneralistModel,
         device: str = None,
     ) -> None:
         self.image_tokenizer = image_tokenizer
         self.text_tokenizer = text_tokenizer
-        self.embedding_model = embedding_model
         self.model = model
         self.device: str = device
 
     def generate_output(
         self,
         data: torch.Tensor,
+        data_mask: torch.Tensor = None,
         max_length: int = 32,
         # tokenized_caption: TextType,
         use_caption: bool = True,
@@ -34,7 +33,8 @@ class ImageCaptionPrediction:
     ):
 
         # target_list = [self.text_tokenizer.cls_token_id]
-        embedded_data = self.embedding_model([data])
+
+        embedded_data = self.model.embedding([data])
 
         target_list_top_k_p = [self.text_tokenizer.cls_token_id]
         target_list_top_p = [self.text_tokenizer.cls_token_id]
@@ -48,7 +48,7 @@ class ImageCaptionPrediction:
             # tokenized_target = TextType(target_list).to(int).to(image.device)
             tokenized_target = TextTypeTensor(target_list).to(int).to(data.device)
             # embedded_tgt = embedding_model([tokenized_target]) if use_caption else None
-            embedded_tgt = self.embedding_model(tokenized_target)
+            embedded_tgt = self.model.embedding(tokenized_target)
             logits = self.model(embedded_src=embedded_data, embedded_tgt=embedded_tgt)
 
             # token_pred = top_k_top_p_filtering(logits[:, -1, :], device=logits.device).argmax().item()
@@ -67,8 +67,6 @@ class ImageCaptionPrediction:
             target_list_top_p.append(token_pred_top_p)
             target_list_top_k.append(token_pred_top_k)
             target_list_top_a.append(token_pred_top_a)
-
-            # breakpoint()
 
             if token_pred == self.text_tokenizer.sep_token_id:
                 break

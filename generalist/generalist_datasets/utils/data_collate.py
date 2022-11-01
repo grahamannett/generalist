@@ -57,17 +57,8 @@ class collate_func_helper:
             self.batch_kwargs["return_tensors"] = self.return_tensors
 
     def __call__(self, samples: List[Sample]) -> Batch:
-
         batch = Batch(samples, device=self.device, **self.batch_kwargs)
         return batch
-
-        # TODO: this might need to be a part of the dataset
-        # batch = Batch(samples, **self.batch_kwargs)
-        # for i, sample in enumerate(batch.samples):
-        #     sample.data = self.fix_prop(sample.data)
-        #     sample.target = self.fix_prop(sample.target)
-        #     sample.masks = {k: self.fix_prop(v) for k, v in sample.masks.items()}
-        # return batch
 
     def fix_prop(self, prop):
         if isinstance(prop, list):

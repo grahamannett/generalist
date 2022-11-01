@@ -2,6 +2,8 @@ from enum import Enum
 import logging
 from typing import Any, Callable, Dict, Iterable, List
 
+import wandb
+import omegaconf
 from rich import print as rich_print
 from rich.console import Console
 
@@ -91,17 +93,29 @@ class GeneralistDisplayLogger(GeneralistDisplay):
             self.setup_iters(**kwargs)
 
         self.wandb = None
+        cfg = kwargs.get("cfg", None)
+        cfg = omegaconf.OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True)
+
         if wandb_info := kwargs.get("wandb_info", None):
 
             if wandb_info.enabled:
-                import wandb
 
                 self.wandb = wandb
-                self.wandb.init(project=wandb_info.project_name)
+                self.wandb.config = cfg
+
+                wandb_init_kwargs = {
+                    "project": wandb_info.project,
+                }
+
+                if wandb_info.tags:
+                    wandb_init_kwargs["tags"] = wandb_info.tags
+
+                self.wandb.init(**wandb_init_kwargs)
 
     def extra_setup(self, model=None):
         if model and self.wandb:
-            self.wandb.watch(model)
+            # self.wandb.watch(model)
+            return
 
     def setup_iters(self, *args, **kwargs):
         self.logger = kwargs.get("logger", rich_print)

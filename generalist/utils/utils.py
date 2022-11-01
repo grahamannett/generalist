@@ -1,17 +1,23 @@
-from typing import Any
-
-from pathlib import Path
-import torch
-
 import datetime
 import os
+import platform
+from pathlib import Path
+from typing import Any, List
+
+import torch
+from omegaconf import DictConfig
 
 
-def get_hostname():
+def combine_cfgs(*cfgs: List[DictConfig]) -> DictConfig:
+    out = {**cfgs[0]}
+    for c in cfgs[1:]:
+        out.update(**c)
+    return DictConfig(out)
+
+
+def get_hostname() -> str:
     if override_config := os.getenv("CONFIG_NAME"):
         return override_config
-
-    import platform
 
     return platform.node()
 

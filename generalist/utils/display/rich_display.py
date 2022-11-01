@@ -1,4 +1,5 @@
 import atexit
+from datasets import load_dataset
 from torch.utils.data import DataLoader
 
 from typing import Any, Dict, Iterable, List
@@ -11,6 +12,9 @@ from rich.panel import Panel
 from rich.progress import BarColumn, MofNCompleteColumn, Progress, SpinnerColumn, TextColumn, ProgressColumn
 from rich.table import Table
 from rich.text import Text
+from generalist.generalist_datasets.hf.summary import SummaryTransforms, XSum
+from generalist.generalist_datasets.utils.data_collate import collate_func_helper
+from generalist.generalist_tokenizers import text_tokenizers
 
 from generalist.utils.display.display import GeneralistDisplay
 
@@ -54,6 +58,9 @@ class RichDisplay:
     def __init__(self, display: bool = True, **kwargs):
         # super().__init__(display)
         self._status = "init" if display else False
+
+    def extra_setup(self, *args, **kwargs):
+        pass
 
     def _stop(self):
         self.live.stop()
@@ -146,15 +153,14 @@ class ProgressBase:
     def task(self, progress_task: Iterable | int, make_enumerate: bool = False):
         if isinstance(progress_task, int):
             progress_task = range(progress_task)
-        # if make_enumerate:
-        #     progress_task = enumerate(progress_task)
 
         self.progress_task = progress_task
 
-        if self.progress.task_ids:
-            self.progress.reset(self.progress.task_ids[0])
-        else:
-            self.progress.add_task(self.task_name, total=len(self.progress_task))
+        # if self.progress.task_ids:
+        #     self.progress.reset(self.progress.task_ids[0])
+        # else:
+        # self.progress.add_task(self.task_name, total=len(self.progress_task))
+        self.progress.add_task(self.task_name, total=len(self.progress_task))
 
     def make_progress_bar(self, task_name: str, title: str = None, columns: List[ProgressColumn] = None):
         self.task_name = task_name
@@ -235,35 +241,39 @@ if __name__ == "__main__":
     # breakpoint()
 
     # args.
-    debug = args.debug
+    from datasets import load_dataset
 
+    debug = args.debug
+    # xsum = load_dataset("xsum", split="train")
+    text_tokenizer = text_tokenizers.TextTokenizerBert.from_pretrained("bert-base-uncased")
+    text_tokenizer_kwargs = {}
+    xsum = XSum(
+        text_transform=SummaryTransforms.make_transforms(text_tokenizer=text_tokenizer, text_tokenizer_kwargs=text_tokenizer_kwargs).train,
+    )
+    out = xsum[0]
+
+    collate_fn = collate_func_helper(device="cpu", return_tensors="pt")
+    dataloader = DataLoader(xsum, batch_size=16, shuffle=False, num_workers=0, collate_fn=collate_fn)
+    # for x in dataloader:
+    #     breakpoint()
+
+    # breakpoint()
     display = RichDisplay()
     num_epochs = len(sample_info_arr)
     # breakpoint()
     display.setup_layout(debug=args.debug)
     display.epoch_progress.task(num_epochs)
 
-    # display.run(debug=args.debug)
-
-    # for i in range(num_epochs):
     for i in display.epoch_progress:
-        # display.batch_progress.task(enumerate(batch_updates))
-        display.batch_progress.task(batch_updates, make_enumerate=False)
-        # display.update(epoch_kwargs={"task_id": display.epoch_task, "advance": 1})
-        for batch_idx, ii in display.batch_progress:
-            x = 5 - ii
-            time.sleep(0.1)
-        # for ii in range(num_batches):
-        #     display.batch_progress.advance()
-        #     time.sleep(0.1)
+        display.batch_progress.task(dataloader)
 
-        # for ii in display.batch_progress:
-        #     x = 5 - ii
-        #     time.sleep(0.1)
+        for ii in display.batch_progress:
+            # time.sleep(0.1)
+            pass
 
         # display.sample_info.update(sample_info_arr[i])
         display.update(sample_info_arr[i])
-        time.sleep(1.5)
+        time.sleep(1)
 
     display.stop()
     # display._stop()

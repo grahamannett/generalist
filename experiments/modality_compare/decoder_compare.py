@@ -4,16 +4,7 @@ from omegaconf import DictConfig
 from generalist.train import train_step
 import hydra
 from hydra import compose, initialize
-from generalist.utils.utils import get_hostname
-
-
-# @hydra.main(config_path="./", config_name="experiment", version_base=None)
-# def exp_one(cfg):
-def combine_cfgs(*cfgs: List[DictConfig]):
-    out = {**cfgs[0]}
-    for c in cfgs[1:]:
-        out.update(**c)
-    return DictConfig(out)
+from generalist.utils.utils import combine_cfgs, get_hostname
 
 
 @dataclass
@@ -22,7 +13,6 @@ class ExperimentHelper:
 
     def __post_init__(self):
         pass
-        # self.model = self.model()
 
 
 class ResultsTracker:

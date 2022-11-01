@@ -28,10 +28,12 @@ class Identity(nn.Module):
 class GeneralistModel(nn.Module):
     def __init__(
         self,
-        output_model: GeneralOutput,
-        embeddding_model: EmbeddingModel = None,
+        output_model: GeneralOutput = None,
+        embedding_model: EmbeddingModel = None,
         # BELOW COMES FROM HYDRA CONFIG
         use_encoder: bool = True,
+        output_dim: int = 30522,
+        combine_embeddings: bool = False,
         model_dim: int = 768,
         encoder_nhead: int = 4,
         decoder_nhead: int = 4,
@@ -48,8 +50,12 @@ class GeneralistModel(nn.Module):
         self.model_max_length = model_max_length
         self.model_dim = model_dim
 
-        self.output_model = output_model
+        # self.embedding_model = embedding_model if embedding_model is not None else EmbeddingModel(model_dim=model_dim)
+        self.embedding_model = embedding_model if embedding_model else EmbeddingModel(model_dim=model_dim)
+        self.output_model = output_model if output_model else GeneralOutput(model_dim=model_dim, output_dim=output_dim)
+
         self.use_encoder = use_encoder
+        self.combine_embeddings = combine_embeddings
 
         batch_first = True
 
@@ -102,4 +108,4 @@ class GeneralistModel(nn.Module):
         return out
 
     def embedding(self, data):
-        raise NotImplementedError("have to implement embedding")
+        return self.embedding_model(data)

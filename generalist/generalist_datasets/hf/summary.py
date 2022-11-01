@@ -14,21 +14,28 @@ from generalist.generalist_tokenizers import text_tokenizers
 class SummaryTransforms:
     train = transforms.Compose([])
     val = transforms.Compose([])
+    test = transforms.Compose([])
 
     @staticmethod
     def use_text_tokenizer(text_tokenizer: text_tokenizers.TextTokenizer, text_tokenizer_kwargs: Dict[str, Any]):
         def _to_text_type(text: str):
             text = text_tokenizer.encode_plus(text, **text_tokenizer_kwargs)
-            # return TextType(text["input_ids"]), {"attention_mask": text["attention_mask"], "task_type":
-            return TextType(text["input_ids"]), {"attention_mask": text["attention_mask"]}
+            text_type = TextType(text["input_ids"])
+            other = {"attention_mask": text["attention_mask"], "token_type_ids": text["token_type_ids"]}
+            return text_type, other
 
         return _to_text_type
 
     @classmethod
     def make_transforms(cls, text_tokenizer: text_tokenizers.TextTokenizer, text_tokenizer_kwargs: Dict[str, Any]):
-        _transforms = cls()
-        _transforms.train.transforms.append(transforms.Lambda(SummaryTransforms.use_text_tokenizer(text_tokenizer, text_tokenizer_kwargs)))
-        return _transforms
+        transform_func = transforms.Lambda(SummaryTransforms.use_text_tokenizer(text_tokenizer, text_tokenizer_kwargs))
+
+        transform_cls = cls()
+        transform_cls.train = transforms.Compose([transform_func])
+        transform_cls.test = transforms.Compose([transform_func])
+        transform_cls.val = transforms.Compose([transform_func])
+
+        return transform_cls
 
     def __call__(self, *args, **kwargs):
         return self.train(*args, **kwargs)
@@ -71,7 +78,8 @@ class BaseSummary(SampleBuilderMixin):
 
 class BillSum(BaseSummary):
     def __init__(self, *args, **kwargs):
-        super().__init__(path="billsum", split="ca_test", *args, **kwargs)
+        split = kwargs.pop("split", "ca_train")
+        super().__init__(path="billsum", split=split, *args, **kwargs)
 
     def __getitem__(self, idx: int | slice, *args, **kwargs):
         raw_text, summary, title = self._dataset[idx]["text"], self._dataset[idx]["summary"], self._dataset[idx]["title"]
@@ -93,7 +101,8 @@ class BillSum(BaseSummary):
 
 class XSum(BaseSummary):
     def __init__(self, *args, **kwargs):
-        super().__init__(path="xsum", split="train", *args, **kwargs)
+        split = kwargs.pop("split", "train")
+        super().__init__(path="xsum", split=split, *args, **kwargs)
 
     def __getitem__(self, idx: int | slice, *args, **kwargs):
         obj = self._dataset[idx]

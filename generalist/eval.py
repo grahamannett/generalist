@@ -1,22 +1,30 @@
-from typing import Any, Callable, Dict, Sequence
+from typing import Sequence, Tuple
+
 import torch
-import hydra
-from generalist.data_types.helper_types import Sample
-from generalist.generalist_datasets.coco.coco import (
-    CocoCaption,
-    CocoCaptionTargetTranform,
-    CocoFilepaths,
-    CocoImageTransforms,
-)
-from generalist.generalist_datasets.coco.eval import CocoEval
-from generalist.generalist_tokenizers import image_tokenizers, text_tokenizers
-from generalist.models.embedding_model import EmbeddingModel
-from generalist.models.model import GeneralistModel
-
-from generalist.utils.utils import get_hostname
 from omegaconf import DictConfig
+from torchmetrics.functional.text.bleu import bleu_score
+from torchmetrics.functional.text.rouge import rouge_score
 
+from generalist.data_types.helper_types import Sample
+from generalist.generalist_tokenizers import image_tokenizers, text_tokenizers
+from generalist.models.model import GeneralistModel
 from generalist.predict import ImageCaptionPrediction
+
+
+def eval_summary(predictions: Sequence[str], references: Sequence[str]):
+    # scores = rouge_score.compute(predictions=predictions, references=references)
+    rogue_scores = rouge_score(preds=predictions, target=references)
+    bleu_scores = bleu_score(preds=predictions, target=references, n_gram=1)
+
+    return {"rogue_scores": rogue_scores, "bleu_score": bleu_scores}
+
+
+class EvalMetrics:
+    def __init__(self):
+        self.metrics = {}
+
+    def __call__(self, *args, **kwd):
+        pass
 
 
 def get_max_length(arr: torch.Tensor) -> int:
@@ -25,7 +33,7 @@ def get_max_length(arr: torch.Tensor) -> int:
 
 def make_out_target_true(target: torch.Tensor, text_tokenizer: text_tokenizers.TextTokenizer, max_length: int = 32) -> str:
     max_length = get_max_length(target)
-    out_target_true = text_tokenizer.decode(target[0, :max_length])
+    out_target_true = text_tokenizer.decode(target[0, :max_length], skip_special_tokens=True)
     return out_target_true
 
 
@@ -33,20 +41,18 @@ def preliminary_eval(
     sample: Sample,
     text_tokenizer: text_tokenizers.TextTokenizer,
     image_tokenizer: image_tokenizers.ImageTokenizer,
-    embedding_model: EmbeddingModel,
     model: GeneralistModel,
     device: str,
     initial_caption: bool,
-) -> Sequence[Sequence[int]]:
+) -> Tuple[Sequence[Sequence[int]], ImageCaptionPrediction, str]:
     sample_data = sample.data
     out_target_tokens = sample.target
+    sample_data_mask = sample.masks["data"]
 
     max_length = get_max_length(sample.target)
     out_target_true = make_out_target_true(out_target_tokens, text_tokenizer, max_length=max_length)
 
-    caption_preder = ImageCaptionPrediction(
-        image_tokenizer=image_tokenizer, text_tokenizer=text_tokenizer, embedding_model=embedding_model, model=model, device=device
-    )
+    caption_preder = ImageCaptionPrediction(image_tokenizer=image_tokenizer, text_tokenizer=text_tokenizer, model=model, device=device)
 
     # tokenized_caption = out_target_tokens.to(device)
     generated_captions = []
@@ -61,13 +67,6 @@ def preliminary_eval(
 
 
 def eval_predictions(cfg: DictConfig):
-    pass
-
-    # def on_job_end(self, config: DictConfig, **kwargs: Any) -> None:
-    #     print(f"Job ended,uploading...")
-    #     # uploading...
-
-def main():
     pass
 
 

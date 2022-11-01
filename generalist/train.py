@@ -1,6 +1,7 @@
+from dataclasses import dataclass
 import logging
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Callable, Dict, List
 
 import hydra
 import torch
@@ -17,7 +18,7 @@ from generalist.generalist_datasets.coco.coco import (
 from generalist.eval import preliminary_eval
 from generalist.generalist_datasets.hf.summary import BillSum, XSum, SummaryTransforms
 from generalist.generalist_datasets.utils.data_collate import collate_func_helper
-from generalist.generalist_datasets.utils.multiple_datasets import ChainedDataset
+from generalist.generalist_datasets.utils.multiple_datasets import BatchUniformDatasetSampler, CombinedDataset
 from generalist.generalist_tokenizers import image_tokenizers, text_tokenizers
 from generalist.models.embedding_model import EmbeddingModel
 from generalist.models.model import GeneralistModel
@@ -26,42 +27,133 @@ from generalist.predict import ImageCaptionPrediction
 from generalist.utils.display.display import GeneralistDisplay
 from generalist.utils.utils import get_hostname, save_checkpoint
 
+from torchmetrics.functional.text.rouge import rouge_score
+from torchmetrics.functional.text.bleu import bleu_score
+
+from rich.progress import Progress, track
+
 log = logging.getLogger(__name__)
 
-import evaluate
-
-rouge_score = evaluate.load("rouge")
-
-
-def eval_summary(predictions: List[str], references: List[str]):
-    scores = rouge_score.compute(predictions=predictions, references=references)
-    return scores
+@dataclass
+class StepStats:
+    loss: float
 
 
-class TrainStepHandler:
-    def __init__(self, embedding_model, model):
-        self.embedding_model = embedding_model
-        self.model = model
+def train_step(
+    model: torch.nn.Module,
+    dataloader: DataLoader,
+    optimizer: torch.optim.Optimizer,
+    loss_fn: Callable,
+    use_progress_bar: bool = True,
+    text_tokenizer: text_tokenizers.TextTokenizer = None,
+):
+    if use_progress_bar:
+        dataloader = track(dataloader, description="[green]Train Step [blue]Batch...")
 
-    def step(self, dataloader):
-        pass
+    model.train()
+    running_loss = 0
+    for batch_idx, batch in enumerate(dataloader):
+
+        data, targets = batch.data, batch.target
+        task_types = batch.tasks
+        if len(set(task_types)) > 1:
+            raise ValueError("Batch contains multiple task types!!!")
+
+        target_mask = batch.get_masks("target")
+        target_mask = ~target_mask.to(bool)
+
+        embedded_data = model.embedding(data)
+        embedded_tgt = model.embedding(targets)
+
+        tgt_mask = model.get_tgt_mask_tri(embedded_tgt=embedded_tgt)
+
+        if model.combine_embeddings:
+            logits = model(embedded_src=torch.cat([embedded_data, embedded_tgt], dim=1))
+            logits = logits[:, embedded_tgt.shape[1] :]
+        else:
+            logits = model(embedded_src=embedded_data, embedded_tgt=embedded_tgt, tgt_key_padding_mask=target_mask, tgt_mask=tgt_mask)
+
+        loss = loss_fn(logits[:, :-1].permute(0, 2, 1), targets[:, 1:])
+
+        running_loss += loss.item()
+
+        optimizer.zero_grad()
+        loss.backward()
+
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        optimizer.step()
+
+    return StepStats(loss=running_loss)
 
 
-class Pipeline:
-    def __init__(self, model, embedding_model, device):
-        self.model = model
-        self.embedding_model = embedding_model
-        self.device = device
+def test_step(model: torch.nn.Module, dataloader: DataLoader, loss_fn: Callable, use_progress_bar: bool = True):
+    if use_progress_bar:
+        dataloader = track(dataloader, description="[yellow]Test Step [blue]Batch...")
+
+    model.eval()
+    running_loss = 0
+    for batch_idx, batch in enumerate(dataloader):
+        data, targets = batch.data, batch.target
+        task_types = batch.tasks
+
+        target_mask = batch.get_masks("target")
+        target_mask = ~target_mask.to(bool)
+
+        embedded_data = model.embedding(data)
+        embedded_tgt = model.embedding(targets)
+
+        tgt_mask = model.get_tgt_mask_tri(embedded_tgt=embedded_tgt)
+
+        if model.combine_embeddings:
+            logits = model(embedded_src=torch.cat([embedded_data, embedded_tgt], dim=1))
+            logits = logits[:, embedded_tgt.shape[1] :]
+        else:
+            logits = model(embedded_src=embedded_data, embedded_tgt=embedded_tgt, tgt_key_padding_mask=target_mask, tgt_mask=tgt_mask)
+
+        loss = loss_fn(logits[:, :-1].permute(0, 2, 1), targets[:, 1:])
+
+        running_loss += loss.item()
+
+    return StepStats(loss=running_loss)
 
 
-def train_step(embedding_model, genearlist_model, dataloader):
-    pass
+def post_batch_callback(logits, targets, text_tokenizer, batch_idx, display, running_loss, loss):
+    test_decoded = text_tokenizer.batch_decode(logits.argmax(dim=-1))
+    test_actual = [t.data for t in targets]
+
+    batch_total = len(test_decoded)
+
+    running_correct += batch_correct
+    running_total += batch_total
+
+    # breakpoint()
+    if batch_idx % 50 == 0:
+        batch_predictions = text_tokenizer.batch_decode(logits.argmax(dim=-1)[:5], skip_special_tokens=True)
+        batch_references = text_tokenizer.batch_decode(targets[:5], skip_special_tokens=True)
+
+        scores = eval_summary(predictions=batch_predictions, references=batch_references)
+        display.update(scores)
+        print(list(zip(batch_predictions, batch_references)))
+
+    acc = f"{(running_correct / running_total):0.3f}"
+
+    display_vals = {
+        "acc": acc,
+        "batch_acc": batch_correct / batch_total,
+        "batch_idx": batch_idx,
+    }
+
+    display.update(
+        "batch_progress",
+        batch_loss=f"{loss.item():0.3f}",
+        running_loss=f"{running_loss:.3f}",
+        test=display_vals,
+    )
 
 
 @hydra.main(config_path=f"../config", config_name=get_hostname(), version_base=None)
 def train(cfg: DictConfig):
-
-    display = GeneralistDisplay.make(display=cfg.display.display_flag, logger=log, override_rich_print=True, wandb_info=cfg.wandb)
+    display = GeneralistDisplay.make(display=cfg.display.display_flag, logger=log, override_rich_print=True, wandb_info=cfg.wandb, cfg=cfg)
 
     model_save_dir = Path(cfg.model_save_dir)
     device = cfg.device
@@ -76,14 +168,10 @@ def train(cfg: DictConfig):
     image_tokenizer = image_tokenizers.ImageTokenizer(device=device)
     text_tokenizer = text_tokenizers.TextTokenizerBert.from_pretrained("bert-base-uncased")
 
-    embedding_model = EmbeddingModel(model_dim=model_dim)
-    # output_model = GeneralClassificationOutput(model_dim=model_dim, num_classes=10, reduce_type="cls")
     output_model = GeneralOutput(model_dim=model_dim, output_dim=text_tokenizer.vocab_size)
     model = GeneralistModel(output_model=output_model, **cfg.model).to(device)
+    embedding_model = model.embedding_model
 
-    start_tokens = torch.Tensor([text_tokenizer.cls_token_id]).to(device).to(int)
-
-    embedding_model.to(device)
     model.to(device)
 
     display.extra_setup(model=model)
@@ -92,8 +180,11 @@ def train(cfg: DictConfig):
 
     optimizer = torch.optim.AdamW(
         [
-            {"params": embedding_model.parameters()},
-            {"params": model.parameters()},
+            # {"params": embedding_model.parameters()},
+            {"params": model.embedding_model.parameters()},
+            {"params": model.transformer_encoder.parameters()},
+            {"params": model.transformer_decoder.parameters()},
+            {"params": model.output_model.parameters()},
         ],
         lr=learning_rate,
     )
@@ -102,7 +193,7 @@ def train(cfg: DictConfig):
 
     tokenizers = [image_tokenizer, text_tokenizer]
 
-    text_tokenizer_kwargs = cfg.text_tokenizer
+    text_tokenizer_encode_kwargs = cfg.text_tokenizer.encode_kwargs
 
     coco_filepaths = CocoFilepaths(base_dir=cfg.coco_dir, split="train")
 
@@ -110,11 +201,17 @@ def train(cfg: DictConfig):
         root=coco_filepaths.images_root,
         annFile=coco_filepaths.captions_filepath,
         transform=CocoImageTransforms.train,
-        target_transform=CocoCaptionTargetTranform.get(text_tokenizer=text_tokenizer, text_tokenizer_kwargs=text_tokenizer_kwargs).train,
+        target_transform=CocoCaptionTargetTranform.get(
+            text_tokenizer=text_tokenizer, text_tokenizer_kwargs=text_tokenizer_encode_kwargs
+        ).train,
+    )
+    summary_transforms = SummaryTransforms.make_transforms(
+        text_tokenizer=text_tokenizer, text_tokenizer_kwargs=text_tokenizer_encode_kwargs
     )
 
     summary_dataset = XSum(
-        text_transform=SummaryTransforms.make_transforms(text_tokenizer=text_tokenizer, text_tokenizer_kwargs=text_tokenizer_kwargs).train,
+        split="train",
+        text_transform=summary_transforms.train,
     )
 
     # summary_dataset_billsum = BillSum(
@@ -122,7 +219,23 @@ def train(cfg: DictConfig):
     # )
 
     dataset = coco_caption
-    chained_dataset = ChainedDataset([coco_caption, summary_dataset])
+    chained_dataset = CombinedDataset([coco_caption, summary_dataset])
+
+    concat_datasets = torch.utils.data.ConcatDataset([coco_caption, summary_dataset])
+
+    coco_filepaths_test = CocoFilepaths(base_dir=cfg.coco_dir, split="val")
+    coco_target_tranfroms = CocoCaptionTargetTranform.get(text_tokenizer=text_tokenizer, text_tokenizer_kwargs=text_tokenizer_encode_kwargs)
+    coco_caption_test = CocoCaption(
+        root=coco_filepaths_test.images_root,
+        annFile=coco_filepaths_test.captions_filepath,
+        transform=CocoImageTransforms.train,
+        target_transform=coco_target_tranfroms.test,
+    )
+    summary_dataset_test = XSum(
+        text_transform=summary_transforms.test,
+        split="test",
+    )
+    chained_dataset_test = CombinedDataset([coco_caption_test, summary_dataset_test])
 
     sample = summary_dataset[0]
     sample.data = sample.data.to(device)
@@ -132,15 +245,18 @@ def train(cfg: DictConfig):
         sample,
         text_tokenizer=text_tokenizer,
         image_tokenizer=image_tokenizer,
-        embedding_model=embedding_model,
         model=model,
         device=device,
-        initial_caption=cfg.display.initial_caption,
+        initial_caption=cfg.predictions.initial_generation,
     )
 
     collate_fn = collate_func_helper(device=device, return_tensors="pt")
 
-    train_dataloader = DataLoader(chained_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
+    if cfg.training.batch_uniform_dataset_samples:
+        sampler = BatchUniformDatasetSampler(datasets=chained_dataset, batch_size=batch_size)
+        train_dataloader = DataLoader(dataset=chained_dataset, batch_sampler=sampler, collate_fn=collate_fn)
+    else:
+        train_dataloader = DataLoader(chained_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 
     display.setup_layout(debug=False)
 
@@ -148,105 +264,22 @@ def train(cfg: DictConfig):
 
     for epoch in display.epoch_progress:
 
-        running_loss = 0.0
-        running_correct = 0
-        running_total = 0
-        display.update("epoch_progress", epoch)
-        # display.add_task("batch_progress", "[green]Batch", total=len(train_dataloader), running_loss=running_loss)
-
-        model.train()
-
         display.batch_progress.task(train_dataloader)
-        for batch_idx, batch in enumerate(display.batch_progress):
 
-            data, target = batch.data, batch.target
-            task_types = batch.tasks
-            if len(set(task_types)) > 1:
-                breakpoint()
+        train_step_stats = train_step(
+            model=model, dataloader=train_dataloader, optimizer=optimizer, loss_fn=loss_fn, text_tokenizer=text_tokenizer
+        )
+        test_step_stats = test_step(model=model, dataloader=chained_dataset_test, loss_fn=loss_fn)
 
-            target_mask = batch.get_masks("target")
-            target_mask = ~target_mask.to(bool)
+        display.wandb.log({"train_loss": train_step_stats.loss})
 
-            embedded_data = embedding_model(data)
-            embedded_tgt = embedding_model(target)
-
-            tgt_mask = model.get_tgt_mask_tri(embedded_tgt=embedded_tgt)
-
-            if cfg.model.combine_embeddings:
-                logits = model(embedded_src=torch.cat([embedded_data, embedded_tgt], dim=1))
-                logits = logits[:, embedded_tgt.shape[1] :]
-            else:
-                logits = model(embedded_src=embedded_data, embedded_tgt=embedded_tgt, tgt_key_padding_mask=target_mask, tgt_mask=tgt_mask)
-
-            loss = loss_fn(logits[:, :-1].permute(0, 2, 1), target[:, 1:])
-
-            running_loss += loss.item()
-
-            optimizer.zero_grad()
-            loss.backward()
-
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
-            optimizer.step()
-
-            try:
-                test_decoded = text_tokenizer.batch_decode(logits.argmax(dim=-1))
-                # test_actual = text_tokenizer.batch_decode(encoded_target)
-                test_actual = [t.data for t in target]
-
-            except IndexError:
-                breakpoint()
-
-            batch_correct = sum([1 if a == b else 0 for a, b in zip(test_decoded, test_actual)])
-            batch_total = len(test_decoded)
-
-            running_correct += batch_correct
-            running_total += batch_total
-
-            # breakpoint()
-            if batch_idx % 50 == 0:
-                batch_predictions = text_tokenizer.batch_decode(logits.argmax(dim=-1)[:5], skip_special_tokens=True)
-                batch_references = text_tokenizer.batch_decode(target[:5], skip_special_tokens=True)
-
-                scores = eval_summary(predictions=batch_predictions, references=batch_references)
-                display.update(scores)
-                print(list(zip(batch_predictions, batch_references)))
-                # breakpoint()
-                # print(list(zip(batch_predictions, batch_references)))
-
-                # breakpoint()
-
-            # if batch_idx % 250 == 0:
-            #     latest_caption_tokenized = caption_preder.generate_output(
-            #         data=sample.data,
-            #         max_length=context_length,
-            #     )
-
-            #     latest_caption = text_tokenizer.decode(latest_caption_tokenized)
-
-            #     generated_captions.append(latest_caption)
-            #     # scores = eval_summary(latest_caption, out_target_true)
-
-            acc = f"{(running_correct / running_total):0.3f}"
-
-            display_vals = {
-                "acc": acc,
-                "batch_acc": batch_correct / batch_total,
-                "batch_idx": batch_idx,
-            }
-
-            display.update(
-                "batch_progress",
-                batch_loss=f"{loss.item():0.3f}",
-                running_loss=f"{running_loss:.3f}",
-                test=display_vals,
-            )
+        display.update("epoch_done", epoch, train_loss=train_step_stats.loss, test_loss=test_step_stats.loss)
 
         # save_checkpoint(model_save_dir, model, embedding_model, optimizer, epoch)
         save_checkpoint(
             model_save_dir,
             obj={
                 "model": model,
-                "embedding_model": embedding_model,
                 "optimizer": optimizer,
                 "epoch": epoch,
                 "tokenizers": {
@@ -257,16 +290,6 @@ def train(cfg: DictConfig):
             filename="latest.pt",
         )
 
-        latest_caption = caption_preder.generate(image=sample.data, max_length=context_length)
-        generated_captions.append(latest_caption)
-
-    captions_generated = text_tokenizer.batch_decode(generated_captions)
-
-    print(f"--- --- --- captions_generated --- --- ---\n")
-    print("\n".join(captions_generated))
-    print(f"--- --- --- true target: --- --- ---\n{out_target_true}")
-
-    display.manage("epoch", display.END)
     print("done with training")
 
 

@@ -35,7 +35,8 @@ class Sample:
         self,
         data: List[InputType] = None,
         target: Any = None,
-        masks: Dict[str, Any] = {},
+        masks: Dict[str, Any] = None,
+        token_type_ids: Dict[str, Any] = None,
         metadata: SampleMetaData = None,
         task_type: str = None,
     ) -> None:
@@ -166,6 +167,10 @@ class Batch:
     @property
     def tasks(self):
         return [s.task_type for s in self.samples]
+
+    @property
+    def metadata(self):
+        return [s.metadata for s in self.samples]
 
     def __len__(self):
         return len(self.samples)
