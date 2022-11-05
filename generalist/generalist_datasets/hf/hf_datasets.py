@@ -75,11 +75,10 @@ class LanguageModelingDataset(SampleBuilderMixin):
         # sample = super().__getitem__(idx, **kwargs)
         item = self._dataset[idx]
 
-
         data = item["text"]
         target = item["text"]
         sample_metadata = self.sample_builder.metadata(idx=idx, dataset_name=self.__class__.__name__)
 
-        sample = self.sample_builder(data=data, target= target, **kwargs)
+        sample = self.sample_builder(data=data, target=target, **kwargs)
 
         return sample

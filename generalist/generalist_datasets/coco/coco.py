@@ -1,6 +1,7 @@
 import random
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, Optional, Tuple
+from omegaconf import DictConfig, OmegaConf
 
 import torch
 import torchvision
@@ -11,13 +12,14 @@ import pycocotools.mask as coco_mask
 from generalist.data_types.input_types import ImageType, ImageTypeTensor, TextType, TextTypeTensor
 from generalist.data_types.helper_types import SampleBuilderMixin
 from generalist.generalist_datasets.coco.file_info import CocoFilepathsBase
+from generalist.generalist_datasets.dataset_utils import DatasetRegistry
 from generalist.generalist_datasets.utils.tasks_utils import TaskInterface
 from generalist.generalist_tokenizers import text_tokenizers
 
 # from pycocotools import mask as coco_mask
 
 
-class CocoCaptionTargetTranform:
+class CocoCaptionTargetTransform:
     train = transforms.Compose([])
     test = transforms.Compose([])
     val = transforms.Compose([])
@@ -34,7 +36,7 @@ class CocoCaptionTargetTranform:
 
     @classmethod
     def get(cls, text_tokenizer: text_tokenizers.TextTokenizer, text_tokenizer_kwargs: Dict[str, Any]):
-        transform_func = CocoCaptionTargetTranform.use_text_tokenizer(text_tokenizer, text_tokenizer_kwargs)
+        transform_func = CocoCaptionTargetTransform.use_text_tokenizer(text_tokenizer, text_tokenizer_kwargs)
 
         tranform_cls = cls()
         tranform_cls.train = transforms.Compose([transform_func])
@@ -51,7 +53,6 @@ def _unsqueeze_transform(image: torch.Tensor):
 class CocoImageTransforms:
     # potentially add these:
 
-    # transforms.ColorJitter(brightness=[0.5, 1.3], contrast=[0.8, 1.5], saturation=[0.2, 1.5]),
     train = transforms.Compose(
         [
             transforms.Resize((320, 320)),
@@ -59,6 +60,7 @@ class CocoImageTransforms:
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
             transforms.Lambda(_unsqueeze_transform),
+            # transforms.ColorJitter(brightness=[0.5, 1.3], contrast=[0.8, 1.5], saturation=[0.2, 1.5]),
         ]
     )
 
@@ -90,6 +92,7 @@ class CocoFilepaths(CocoFilepathsBase):
         self.person_keypoints_filepath: str = f"{self.coco_dir}/annotations/person_keypoints_{self.split}2017.json"
 
 
+@DatasetRegistry.register
 class CocoCaption(SampleBuilderMixin, torchvision.datasets.CocoCaptions):
     # sample_builder = SampleBuilder()
 
@@ -105,6 +108,35 @@ class CocoCaption(SampleBuilderMixin, torchvision.datasets.CocoCaptions):
     ) -> None:
         super().__init__(root=root, annFile=annFile, transform=transform, target_transform=target_transform, transforms=transforms)
         self.sample_builder.with_task_type(TaskInterface.caption)
+
+    @classmethod
+    def from_base_dir(cls, base_dir: str, split: str, transform: Callable, target_transform: Callable, **kwargs) -> "CocoCaption":
+        filepaths = CocoFilepaths(base_dir=base_dir, split=split)
+        return cls(
+            root=filepaths.images_root,
+            annFile=filepaths.captions_filepath,
+            transform=transform,
+            target_transform=target_transform,
+        )
+
+    @classmethod
+    def from_cfg(cls, split: str, cfg: DictConfig, tokenizers: DictConfig):
+        target_tranforms = CocoCaptionTargetTransform.get(
+            text_tokenizer=tokenizers.text, text_tokenizer_kwargs=tokenizers.text_tokenizer_encode_kwargs
+        )
+        transform = CocoImageTransforms
+
+        # filepaths = CocoFilepaths(base_dir=cfg.coco_dir, split=split)
+        # return cls(
+        #     root=filepaths.images_root,
+        #     annFile=filepaths.captions_filepath,
+        #     target_transform=getattr(target_tranforms, split),
+        #     transform=getattr(transform, split),
+        # )
+
+        return cls.from_base_dir(
+            base_dir=cfg.coco_dir, split=split, transform=getattr(transform, split), target_transform=getattr(target_tranforms, split)
+        )
 
     def extra_caption(self, caption: torch.Tensor, caption_other: Dict[str, Any], caption_choice: int):
 

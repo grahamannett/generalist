@@ -1,42 +1,55 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, make_dataclass
 import logging
 from pathlib import Path
 from typing import Any, Callable, Dict, List
 
 import hydra
 import torch
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 from rich import print
 from torch.utils.data import DataLoader
 
 from generalist.generalist_datasets.coco.coco import (
     CocoCaption,
-    CocoCaptionTargetTranform,
+    CocoCaptionTargetTransform,
     CocoFilepaths,
     CocoImageTransforms,
 )
-from generalist.eval import preliminary_eval
+from generalist.eval import eval_summary, preliminary_eval
+from generalist.generalist_datasets.dataset_utils import DatasetRegistry
 from generalist.generalist_datasets.hf.summary import BillSum, XSum, SummaryTransforms
 from generalist.generalist_datasets.utils.data_collate import collate_func_helper
 from generalist.generalist_datasets.utils.multiple_datasets import BatchUniformDatasetSampler, CombinedDataset
 from generalist.generalist_tokenizers import image_tokenizers, text_tokenizers
-from generalist.models.embedding_model import EmbeddingModel
 from generalist.models.model import GeneralistModel
 from generalist.models.output_model import GeneralOutput
-from generalist.predict import ImageCaptionPrediction
 from generalist.utils.display.display import GeneralistDisplay
 from generalist.utils.utils import get_hostname, save_checkpoint
 
-from torchmetrics.functional.text.rouge import rouge_score
-from torchmetrics.functional.text.bleu import bleu_score
 
-from rich.progress import Progress, track
+# from rich.progress import Progress, track
+from tqdm import tqdm
 
 log = logging.getLogger(__name__)
+
 
 @dataclass
 class StepStats:
     loss: float
+    scores: Any = None
+
+    def values(self):
+        _vals = {"loss": self.loss}
+        if self.scores is not None:
+            _vals["scores"] = self.scores
+        return _vals
+
+
+@dataclass
+class Tokenizers:
+    image: image_tokenizers.ImageTokenizer
+    text: text_tokenizers.TextTokenizer
+    text_tokenizer_encode_kwargs: DictConfig
 
 
 def train_step(
@@ -44,11 +57,12 @@ def train_step(
     dataloader: DataLoader,
     optimizer: torch.optim.Optimizer,
     loss_fn: Callable,
+    scheduler: torch.optim.lr_scheduler._LRScheduler = None,
     use_progress_bar: bool = True,
-    text_tokenizer: text_tokenizers.TextTokenizer = None,
+    end_early: int = None,
 ):
     if use_progress_bar:
-        dataloader = track(dataloader, description="[green]Train Step [blue]Batch...")
+        dataloader = tqdm(dataloader)
 
     model.train()
     running_loss = 0
@@ -83,18 +97,34 @@ def train_step(
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         optimizer.step()
 
+        if end_early and end_early == batch_idx:
+            break
+
+    if scheduler:
+        scheduler.step()
+
     return StepStats(loss=running_loss)
 
 
-def test_step(model: torch.nn.Module, dataloader: DataLoader, loss_fn: Callable, use_progress_bar: bool = True):
+def test_step(
+    model: torch.nn.Module,
+    dataloader: DataLoader,
+    loss_fn: Callable,
+    use_progress_bar: bool = True,
+    text_tokenizer: text_tokenizers.TextTokenizer = None,
+    end_early: int = None,
+):
     if use_progress_bar:
-        dataloader = track(dataloader, description="[yellow]Test Step [blue]Batch...")
+        dataloader = tqdm(dataloader)
+    #     dataloader = track(dataloader, description="[yellow]Test Step [blue]Batch...", disable=True)
+
+    all_predictions = []
+    all_references = []
 
     model.eval()
     running_loss = 0
     for batch_idx, batch in enumerate(dataloader):
         data, targets = batch.data, batch.target
-        task_types = batch.tasks
 
         target_mask = batch.get_masks("target")
         target_mask = ~target_mask.to(bool)
@@ -114,41 +144,95 @@ def test_step(model: torch.nn.Module, dataloader: DataLoader, loss_fn: Callable,
 
         running_loss += loss.item()
 
-    return StepStats(loss=running_loss)
+        if text_tokenizer:
+            batch_predictions = text_tokenizer.batch_decode(logits.argmax(dim=-1)[:5], skip_special_tokens=True)
+            batch_references = text_tokenizer.batch_decode(targets[:5], skip_special_tokens=True)
+            all_predictions.extend(batch_predictions)
+            all_references.extend(batch_references)
+
+        if end_early and end_early == batch_idx:
+            break
+
+    stats = StepStats(loss=running_loss)
+
+    if len(all_predictions) > 0:
+        stats.scores = eval_summary(predictions=all_predictions, references=all_references)
+
+    return stats
 
 
-def post_batch_callback(logits, targets, text_tokenizer, batch_idx, display, running_loss, loss):
-    test_decoded = text_tokenizer.batch_decode(logits.argmax(dim=-1))
-    test_actual = [t.data for t in targets]
+def get_tokenizers(cfg: DictConfig) -> Tokenizers:
+    image_tokenizer = image_tokenizers.ImageTokenizer(device=cfg.device)
+    text_tokenizer = text_tokenizers.TextTokenizerBert.from_pretrained(cfg.text_tokenizer.name)
 
-    batch_total = len(test_decoded)
+    tokenizers = Tokenizers(image=image_tokenizer, text=text_tokenizer, text_tokenizer_encode_kwargs=cfg.text_tokenizer.encode_kwargs)
 
-    running_correct += batch_correct
-    running_total += batch_total
+    return tokenizers
 
-    # breakpoint()
-    if batch_idx % 50 == 0:
-        batch_predictions = text_tokenizer.batch_decode(logits.argmax(dim=-1)[:5], skip_special_tokens=True)
-        batch_references = text_tokenizer.batch_decode(targets[:5], skip_special_tokens=True)
 
-        scores = eval_summary(predictions=batch_predictions, references=batch_references)
-        display.update(scores)
-        print(list(zip(batch_predictions, batch_references)))
+def _get_datasets_split(cfg: DictConfig, split_name, tokenizers):
+    datasets = []
+    datasets_info = cfg.datasets[split_name]
+    for dataset_name, dataset_info in datasets_info.items():
+        split = dataset_info.get("split", split_name)
 
-    acc = f"{(running_correct / running_total):0.3f}"
+        dataset_cls = DatasetRegistry[dataset_name]
+        dataset = dataset_cls.from_cfg(split=split, cfg=cfg, tokenizers=tokenizers)
+        datasets.append(dataset)
+    return datasets
 
-    display_vals = {
-        "acc": acc,
-        "batch_acc": batch_correct / batch_total,
-        "batch_idx": batch_idx,
-    }
 
-    display.update(
-        "batch_progress",
-        batch_loss=f"{loss.item():0.3f}",
-        running_loss=f"{running_loss:.3f}",
-        test=display_vals,
+def get_datasets_from_cfg(cfg: DictConfig, tokenizers: Tokenizers) -> Dict[str, DataLoader]:
+
+    train_datasets = _get_datasets_split(cfg=cfg, split_name="train", tokenizers=tokenizers)
+    test_dataset = _get_datasets_split(cfg=cfg, split_name="test", tokenizers=tokenizers)
+    return CombinedDataset(train_datasets), CombinedDataset(test_dataset)
+
+
+def get_datasets(cfg: DictConfig, tokenizers: Tokenizers):
+    device = cfg.device
+    batch_size = cfg.training.batch_size
+    coco_filepaths = CocoFilepaths(base_dir=cfg.coco_dir, split="train")
+    coco_filepaths_test = CocoFilepaths(base_dir=cfg.coco_dir, split="val")
+
+    coco_target_transform = CocoCaptionTargetTransform.get(
+        text_tokenizer=tokenizers.text, text_tokenizer_kwargs=tokenizers.text_tokenizer_encode_kwargs
     )
+
+    coco_caption = CocoCaption.from_base_dir(
+        base_dir=cfg.coco_dir,
+        split="train",
+        text_tokenizer=tokenizers.text,
+        text_tokenizer_kwargs=tokenizers.text_tokenizer_encode_kwargs,
+        transform=CocoImageTransforms.train,
+        target_transform=coco_target_transform.train,
+    )
+
+    summary_transforms = SummaryTransforms.make_transforms(
+        text_tokenizer=tokenizers.text, text_tokenizer_kwargs=tokenizers.text_tokenizer_encode_kwargs
+    )
+
+    summary_dataset = XSum(
+        split="train",
+        text_transform=summary_transforms.train,
+    )
+
+    chained_dataset = CombinedDataset([coco_caption, summary_dataset])
+
+    coco_caption_test = CocoCaption(
+        root=coco_filepaths_test.images_root,
+        annFile=coco_filepaths_test.captions_filepath,
+        transform=CocoImageTransforms.train,
+        target_transform=coco_target_transform.test,
+    )
+
+    summary_dataset_test = XSum(
+        text_transform=summary_transforms.test,
+        split="test",
+    )
+    chained_dataset_test = CombinedDataset([coco_caption_test, summary_dataset_test])
+
+    return chained_dataset, chained_dataset_test
 
 
 @hydra.main(config_path=f"../config", config_name=get_hostname(), version_base=None)
@@ -174,13 +258,18 @@ def train(cfg: DictConfig):
 
     model.to(device)
 
+    def count_parameters(model):
+        return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+    num_params = count_parameters(model)
+    # breakpoint()
+
     display.extra_setup(model=model)
 
     loss_fn = torch.nn.CrossEntropyLoss()
 
     optimizer = torch.optim.AdamW(
         [
-            # {"params": embedding_model.parameters()},
             {"params": model.embedding_model.parameters()},
             {"params": model.transformer_encoder.parameters()},
             {"params": model.transformer_decoder.parameters()},
@@ -191,52 +280,22 @@ def train(cfg: DictConfig):
 
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1.0, gamma=0.95)
 
-    tokenizers = [image_tokenizer, text_tokenizer]
-
     text_tokenizer_encode_kwargs = cfg.text_tokenizer.encode_kwargs
 
-    coco_filepaths = CocoFilepaths(base_dir=cfg.coco_dir, split="train")
-
-    coco_caption = CocoCaption(
-        root=coco_filepaths.images_root,
-        annFile=coco_filepaths.captions_filepath,
-        transform=CocoImageTransforms.train,
-        target_transform=CocoCaptionTargetTranform.get(
-            text_tokenizer=text_tokenizer, text_tokenizer_kwargs=text_tokenizer_encode_kwargs
-        ).train,
-    )
-    summary_transforms = SummaryTransforms.make_transforms(
-        text_tokenizer=text_tokenizer, text_tokenizer_kwargs=text_tokenizer_encode_kwargs
+    train_dataset, test_dataset = get_datasets(
+        cfg, image_tokenizer=image_tokenizer, text_tokenizer=text_tokenizer, text_tokenizer_encode_kwargs=text_tokenizer_encode_kwargs
     )
 
-    summary_dataset = XSum(
-        split="train",
-        text_transform=summary_transforms.train,
-    )
+    collate_fn = collate_func_helper(device=device, return_tensors="pt")
+    if cfg.training.batch_uniform_dataset_samples:
+        batch_sampler = BatchUniformDatasetSampler(datasets=train_dataset, batch_size=batch_size)
+        train_dataloader = DataLoader(dataset=train_dataset, batch_sampler=batch_sampler, collate_fn=collate_fn)
+    else:
+        train_dataloader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 
-    # summary_dataset_billsum = BillSum(
-    #     text_transform=SummaryTransforms.make_transforms(text_tokenizer=text_tokenizer, text_tokenizer_kwargs=text_tokenizer_kwargs).train,
-    # )
+    test_dataloader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 
-    dataset = coco_caption
-    chained_dataset = CombinedDataset([coco_caption, summary_dataset])
-
-    concat_datasets = torch.utils.data.ConcatDataset([coco_caption, summary_dataset])
-
-    coco_filepaths_test = CocoFilepaths(base_dir=cfg.coco_dir, split="val")
-    coco_target_tranfroms = CocoCaptionTargetTranform.get(text_tokenizer=text_tokenizer, text_tokenizer_kwargs=text_tokenizer_encode_kwargs)
-    coco_caption_test = CocoCaption(
-        root=coco_filepaths_test.images_root,
-        annFile=coco_filepaths_test.captions_filepath,
-        transform=CocoImageTransforms.train,
-        target_transform=coco_target_tranfroms.test,
-    )
-    summary_dataset_test = XSum(
-        text_transform=summary_transforms.test,
-        split="test",
-    )
-    chained_dataset_test = CombinedDataset([coco_caption_test, summary_dataset_test])
-
+    summary_dataset = train_dataset.datasets[1]
     sample = summary_dataset[0]
     sample.data = sample.data.to(device)
     sample.target = sample.target.to(device)
@@ -250,30 +309,29 @@ def train(cfg: DictConfig):
         initial_caption=cfg.predictions.initial_generation,
     )
 
-    collate_fn = collate_func_helper(device=device, return_tensors="pt")
-
-    if cfg.training.batch_uniform_dataset_samples:
-        sampler = BatchUniformDatasetSampler(datasets=chained_dataset, batch_size=batch_size)
-        train_dataloader = DataLoader(dataset=chained_dataset, batch_sampler=sampler, collate_fn=collate_fn)
-    else:
-        train_dataloader = DataLoader(chained_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
-
     display.setup_layout(debug=False)
 
     display.epoch_progress.task(n_epochs)
+
+    save_data = {
+        "train": [],
+        "test": [],
+    }
 
     for epoch in display.epoch_progress:
 
         display.batch_progress.task(train_dataloader)
 
-        train_step_stats = train_step(
-            model=model, dataloader=train_dataloader, optimizer=optimizer, loss_fn=loss_fn, text_tokenizer=text_tokenizer
-        )
-        test_step_stats = test_step(model=model, dataloader=chained_dataset_test, loss_fn=loss_fn)
+        train_step_stats = train_step(model=model, dataloader=train_dataloader, optimizer=optimizer, loss_fn=loss_fn, scheduler=scheduler)
+        test_step_stats = test_step(model=model, dataloader=test_dataloader, loss_fn=loss_fn, text_tokenizer=text_tokenizer)
 
         display.wandb.log({"train_loss": train_step_stats.loss})
 
-        display.update("epoch_done", epoch, train_loss=train_step_stats.loss, test_loss=test_step_stats.loss)
+        display.update(
+            "epoch_done", epoch, train_loss=train_step_stats.loss, test_loss=test_step_stats.loss, test_scores=test_step_stats.scores
+        )
+
+        save_data["train"].append(train_step_stats)
 
         # save_checkpoint(model_save_dir, model, embedding_model, optimizer, epoch)
         save_checkpoint(
@@ -290,6 +348,7 @@ def train(cfg: DictConfig):
             filename="latest.pt",
         )
 
+    torch.save(save_data, "experiments/batch_composition/save_data.pt")
     print("done with training")
 
 

@@ -6,7 +6,6 @@ import torch.nn as nn
 
 # commented until i fix circular import
 from generalist.data_types.input_types import InputType
-from generalist.generalist_datasets.utils.tasks_utils import TaskBaseClass, TaskInterface
 from generalist.generalist_tokenizers.general_tokenizer import GeneralTokenizer
 
 
@@ -103,7 +102,7 @@ class SampleBuilder:
 
         return sample
 
-    def with_task_type(self, task_type: TaskBaseClass):
+    def with_task_type(self, task_type: "TaskBaseClass"):
         self.task_type = task_type.task_type
 
     def use_preprocessing(self, func: Callable):

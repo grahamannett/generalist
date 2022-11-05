@@ -9,22 +9,13 @@ class TaskBaseClass:
 class TextSummaryMixin(TaskBaseClass):
     task_type: str = "summary"
     default = "summary: "
+    passage = "passage: "
 
-    # def __call__(self, text: str, summary: str, title: str = None) -> str:
-    #     base = f"{self.default}\n"
-    #     if title:
-    #         base += f"{title}\n"
-    #     base += f"{text}\n"
-    #     base += f"summary:\n{summary}"
-
-    #     return base
-
-    def __call__(self, summary: str):
-        return f"{self.default}{summary}"
-
-    # @property
-    # def default(self):
-    #     return self._default
+    def __call__(self, summary: str, document: str = None):
+        summary = f"{self.default}{summary}"
+        if document:
+            document = f"{self.passage}{document}"
+        return (summary, document) if document else summary
 
 
 class ImageCaptioningMixin(TaskBaseClass):

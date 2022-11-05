@@ -1,22 +1,28 @@
-defaults:
-  - override hydra/job_logging: colorlog
-  - override hydra/hydra_logging: colorlog
-
-
-debug: False
-
-device: cpu
-
-display:
-  display_flag: False # rich display
-
-
 wandb:
-  enabled: False
-  project: generalist_modality_experiment
+  project: genearlist_batch_composition
+  entity: graham
   tags: null
 
-context_length: 128
+stats_file: null
+
+datasets:
+  train:
+    xsum:
+      task: summary
+      split: train
+    cococaption:
+      name: cococaption
+      task: image caption
+      split: train
+  test:
+    xsum:
+      task: summary
+      split: test
+    cococaption:
+      name: cococaption
+      task: image caption
+      split: val
+
 
 model:
   combine_embeddings: False
@@ -34,7 +40,7 @@ training:
   learning_rate: 5e-5
   n_epochs: 10
   batch_uniform_dataset_samples: False
-
+  end_early: null
 
 
 predictions:

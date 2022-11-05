@@ -13,10 +13,13 @@ from generalist.predict import ImageCaptionPrediction
 
 def eval_summary(predictions: Sequence[str], references: Sequence[str]):
     # scores = rouge_score.compute(predictions=predictions, references=references)
-    rogue_scores = rouge_score(preds=predictions, target=references)
-    bleu_scores = bleu_score(preds=predictions, target=references, n_gram=1)
+    rogue_scores_values = rouge_score(preds=predictions, target=references)
+    bleu_score_values = bleu_score(preds=predictions, target=references, n_gram=1)
 
-    return {"rogue_scores": rogue_scores, "bleu_score": bleu_scores}
+    rogue_scores_values = {k: v.item() for k, v in rogue_scores_values.items()}
+    bleu_score_values = bleu_score_values.item()
+
+    return {"rogue_scores": rogue_scores_values, "bleu_score": bleu_score_values}
 
 
 class EvalMetrics:
